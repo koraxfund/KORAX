@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root{
+  --bg-solid: #15171a;
+  --text: rgba(255,255,255,.92);
+}
+
+html, body{
+  height: 100%;
+}
+
+body{
+  margin: 0;
+  color: var(--text);
+  background: var(--bg-solid);
+  overflow-x: hidden;
+}
+
+/* صورة الغراب */
+body::before{
+  content:"";
+  position: fixed;
+  inset: 0;
+  z-index: -3;
+  pointer-events: none;
+
+  background: url("/raven-bg.jpg") no-repeat;
+  background-size: cover;
+  background-position: 65% 20%;
+  opacity: 1;
+}
+
+/* تعتيم قوي */
+body::after{
+  content:"";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+
+  background: rgba(15, 17, 22, 0.92);
+}
+
+/* ⭐️ نجوم/لمعة */
+.raven-stars{
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+
+  background-image:
+    radial-gradient(2px 2px at 18% 28%, rgba(255,255,255,0.80), transparent 60%),
+    radial-gradient(1.5px 1.5px at 36% 62%, rgba(255,255,255,0.55), transparent 60%),
+    radial-gradient(1.8px 1.8px at 58% 36%, rgba(255,255,255,0.70), transparent 60%),
+    radial-gradient(2.2px 2.2px at 76% 54%, rgba(255,255,255,0.75), transparent 60%),
+    radial-gradient(1.2px 1.2px at 64% 18%, rgba(255,255,255,0.60), transparent 60%);
+
+  animation: starsFloat 14s linear infinite, starsTwinkle 2.2s ease-in-out infinite;
+  opacity: 0.18;              /* fallback خفيف */
+  mix-blend-mode: screen;
+}
+
+@supports (-webkit-mask-image: url("/raven-bg.jpg")) {
+  .raven-stars{
+    opacity: 0.40; /* أقوى لأن صارت على الغراب فقط */
+    -webkit-mask-image: url("/raven-bg.jpg");
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-size: cover;
+    -webkit-mask-position: 65% 20%;
+    -webkit-mask-mode: luminance;
+  }
+}
+
+@keyframes starsFloat{
+  0%   { transform: translate3d(0, 10px, 0); }
+  100% { transform: translate3d(0, -70px, 0); }
+}
+
+@keyframes starsTwinkle{
+  0%, 100% { opacity: 0.22; filter: blur(0px); }
+  50%      { opacity: 0.48; filter: blur(0.2px); }
+}
