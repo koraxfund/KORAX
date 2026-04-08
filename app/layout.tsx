@@ -4,6 +4,11 @@ import Topbar from "./ui/Topbar";
 export const metadata = {
   title: "KORAX — Your path to become a millionaire.",
   description: "KORAX Presale & Staking",
+  icons: {
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
+    apple: "/favicon.png",
+  },
 };
 
 export default function RootLayout({
