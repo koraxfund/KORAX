@@ -269,28 +269,26 @@ This is a prepared project configuration output for future contract generation f
     return (
       <div key={tier.name} className="cursor-default">
         <div
-          className={`w-[150px] h-[185px] sm:w-[220px] sm:h-[250px] md:w-64 md:h-72 flex flex-col justify-center items-center text-center p-3 sm:p-4 transition duration-300 hover:scale-105 ${
-            active
-              ? `${tier.activeBg} ${tier.accent.includes("text-white") ? "text-white" : "text-black"}`
-              : `${tier.inactiveBg} text-white`
+          className={`w-64 h-72 flex flex-col justify-center items-center text-center p-4 transition duration-300 hover:scale-105 ${
+            active ? `${tier.activeBg} ${tier.accent.includes("text-white") ? "text-white" : "text-black"}` : `${tier.inactiveBg} text-white`
           }`}
           style={{
             clipPath: "polygon(25% 6%,75% 6%,100% 50%,75% 94%,25% 94%,0% 50%)",
           }}
         >
-          <div className="text-sm sm:text-base md:text-lg font-bold">{tier.name}</div>
-          <div className="text-2xl sm:text-3xl md:text-3xl font-extrabold mt-2 sm:mt-3">
+          <div className="text-lg font-bold">{tier.name}</div>
+          <div className="text-3xl font-extrabold mt-3">
             {tier.min.toLocaleString("en-US")}
           </div>
-          <div className="text-xs sm:text-sm mt-2 opacity-80">KRX Required</div>
+          <div className="text-sm mt-2 opacity-80">KRX Required</div>
 
-          <div className="text-[9px] sm:text-[11px] mt-2 sm:mt-3 opacity-85 px-2 sm:px-5 space-y-1 leading-relaxed">
+          <div className="text-[11px] mt-3 opacity-85 px-5 space-y-1 leading-relaxed">
             {tier.features.map((feature) => (
               <div key={feature}>• {feature}</div>
             ))}
           </div>
 
-          <div className="mt-3 sm:mt-4 text-[10px] sm:text-xs font-semibold">
+          <div className="mt-4 text-xs font-semibold">
             {active ? "Active Tier" : "Locked Tier"}
           </div>
         </div>
@@ -300,7 +298,7 @@ This is a prepared project configuration output for future contract generation f
 
   return (
     <div className="space-y-8">
-      <section className="rounded-2xl border border-white/10 bg-black/30 p-4 sm:p-6 md:p-8 backdrop-blur-md">
+      <section className="rounded-2xl border border-white/10 bg-black/30 p-8 backdrop-blur-md">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h1 className="text-3xl font-extrabold text-white">Token Builder AI</h1>
@@ -310,7 +308,7 @@ This is a prepared project configuration output for future contract generation f
             </p>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-white/80 w-full lg:w-[360px]">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-white/80 lg:w-[360px]">
             <div className="text-sm text-white/50">Your Builder Tier</div>
             <div className="mt-2 text-2xl font-bold text-white">{currentTier.name}</div>
             <div className="mt-2 text-sm text-white/60">
@@ -345,7 +343,7 @@ This is a prepared project configuration output for future contract generation f
         </div>
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-black/20 p-4 sm:p-6 backdrop-blur-md">
+      <section className="rounded-2xl border border-white/10 bg-black/20 p-6 backdrop-blur-md">
         <div className="mb-6">
           <h2 className="text-xl font-bold text-white">Builder Tiers</h2>
           <p className="mt-2 text-sm text-white/60">
@@ -353,22 +351,22 @@ This is a prepared project configuration output for future contract generation f
           </p>
         </div>
 
-        <div className="space-y-6 sm:space-y-10">
-          <div className="flex justify-center gap-3 sm:gap-6 md:gap-10 flex-wrap">
+        <div className="space-y-10">
+          <div className="flex justify-center gap-10 flex-wrap">
             {TIERS.slice(0, 2).map(tierCard)}
           </div>
 
-          <div className="flex justify-center gap-3 sm:gap-6 md:gap-10 flex-wrap">
+          <div className="flex justify-center gap-10 flex-wrap">
             {TIERS.slice(2, 5).map(tierCard)}
           </div>
 
-          <div className="flex justify-center gap-3 sm:gap-6 md:gap-10 flex-wrap">
+          <div className="flex justify-center gap-10 flex-wrap">
             {TIERS.slice(5, 7).map(tierCard)}
           </div>
         </div>
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-black/20 p-4 sm:p-6 backdrop-blur-md">
+      <section className="rounded-2xl border border-white/10 bg-black/20 p-6 backdrop-blur-md">
         <div className="mb-6">
           <h2 className="text-xl font-bold text-white">Builder Input</h2>
           <p className="mt-2 text-sm text-white/60">

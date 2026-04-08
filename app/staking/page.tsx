@@ -339,18 +339,18 @@ export default function Page() {
     return (
       <div key={p.id} onClick={() => setPlan(p.id)} className="cursor-pointer">
         <div
-          className={`w-[150px] h-[185px] sm:w-[220px] sm:h-[250px] md:w-64 md:h-72 flex flex-col justify-center items-center text-center p-3 sm:p-4 transition duration-300 hover:scale-105 ${
+          className={`w-64 h-72 flex flex-col justify-center items-center text-center p-4 transition duration-300 hover:scale-105 ${
             selected ? "bg-green-500 text-black" : "bg-gray-800 text-white"
           }`}
           style={{
             clipPath: "polygon(25% 6%,75% 6%,100% 50%,75% 94%,25% 94%,0% 50%)",
           }}
         >
-          <div className="text-sm sm:text-base md:text-lg font-bold">{p.title}</div>
-          <div className="text-3xl sm:text-4xl md:text-4xl font-extrabold mt-2 sm:mt-3">{p.ret}</div>
-          <div className="text-xs sm:text-sm mt-2 opacity-80">{p.dur}</div>
-          <div className="text-[10px] sm:text-xs mt-2 sm:mt-3 opacity-80 px-2 sm:px-3">{p.desc}</div>
-          <div className="mt-3 sm:mt-4 text-[10px] sm:text-xs font-semibold">
+          <div className="text-lg font-bold">{p.title}</div>
+          <div className="text-4xl font-extrabold mt-3">{p.ret}</div>
+          <div className="text-sm mt-2 opacity-80">{p.dur}</div>
+          <div className="text-xs mt-3 opacity-80 px-3">{p.desc}</div>
+          <div className="mt-4 text-xs font-semibold">
             {selected ? "Selected" : "Select Plan"}
           </div>
         </div>
@@ -359,33 +359,33 @@ export default function Page() {
   }
 
   return (
-    <div className="p-4 sm:p-6 md:p-10 text-white space-y-8 sm:space-y-10">
+    <div className="p-10 text-white space-y-10">
       <h1 className="text-3xl font-bold text-center">Staking</h1>
 
-      <div className="text-center text-xs text-white/40 break-all">
+      <div className="text-center text-xs text-white/40">
         Token: {shortAddress(TOKEN_ADDRESS)} | Staking: {shortAddress(STAKING_ADDRESS)}
       </div>
 
-      <div className="text-center text-xs text-yellow-300 break-all">
+      <div className="text-center text-xs text-yellow-300">
         Wallet: {wallet ? shortAddress(wallet) : "Not connected"} | Raw balance: {balance.toString()}
       </div>
 
-      <div className="space-y-6 sm:space-y-10">
-        <div className="flex justify-center gap-3 sm:gap-6 md:gap-10 flex-wrap">
+      <div className="space-y-10">
+        <div className="flex justify-center gap-10 flex-wrap">
           {plans.slice(0, 2).map(card)}
         </div>
 
-        <div className="flex justify-center gap-3 sm:gap-6 md:gap-10 flex-wrap">
+        <div className="flex justify-center gap-10 flex-wrap">
           {plans.slice(2, 5).map(card)}
         </div>
 
-        <div className="flex justify-center gap-3 sm:gap-6 md:gap-10 flex-wrap">
+        <div className="flex justify-center gap-10 flex-wrap">
           {plans.slice(5, 7).map(card)}
         </div>
       </div>
 
       <div className="flex justify-center">
-        <div className="bg-gray-900/90 p-4 sm:p-6 rounded-xl w-full max-w-[420px] space-y-4 border border-white/10">
+        <div className="bg-gray-900/90 p-6 rounded-xl w-[420px] space-y-4 border border-white/10">
           <div className="text-center font-semibold">
             Balance: {format(balance)} {symbol}
           </div>
