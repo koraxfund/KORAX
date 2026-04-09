@@ -134,7 +134,7 @@ export default function Topbar() {
               href="https://x.com/koraxfund"
               target="_blank"
               rel="noreferrer"
-              className="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
               aria-label="X"
               title="X"
             >
@@ -145,17 +145,17 @@ export default function Topbar() {
               href="https://t.me/koraxfund"
               target="_blank"
               rel="noreferrer"
-              className="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
               aria-label="Telegram"
               title="Telegram"
             >
               <TelegramIcon />
             </a>
 
-            <div className="hidden sm:block">
+            <div className="block">
               <ConnectButton
                 showBalance={false}
-                chainStatus="icon"
+                chainStatus="none"
                 accountStatus={{
                   smallScreen: "avatar",
                   largeScreen: "full",
@@ -212,7 +212,7 @@ export default function Topbar() {
                 <div className="mb-3">
                   <ConnectButton
                     showBalance={false}
-                    chainStatus="icon"
+                    chainStatus="none"
                     accountStatus="full"
                   />
                 </div>
