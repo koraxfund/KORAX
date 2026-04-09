@@ -134,27 +134,27 @@ export default function Topbar() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <a
               href="https://x.com/koraxfund"
               target="_blank"
               rel="noreferrer"
-              className="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
+              className="inline-flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
               aria-label="X"
               title="X"
             >
-              <XIcon />
+              <XIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </a>
 
             <a
               href="https://t.me/koraxfund"
               target="_blank"
               rel="noreferrer"
-              className="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
+              className="inline-flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
               aria-label="Telegram"
               title="Telegram"
             >
-              <TelegramIcon />
+              <TelegramIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </a>
 
             <ConnectButton.Custom>
