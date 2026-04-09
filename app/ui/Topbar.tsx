@@ -48,6 +48,11 @@ type NavItem = {
   sublabel?: string;
 };
 
+function shortAddress(address?: string) {
+  if (!address) return "";
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
+
 export default function Topbar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -86,13 +91,13 @@ export default function Topbar() {
     <header className="fixed left-0 right-0 top-0 z-50">
       <div className="mx-auto w-full max-w-[1500px] px-4 pt-4">
         <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/35 px-3 py-3 backdrop-blur-md">
-          <Link href="/" className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2 min-w-0">
             <img
               src="/raven-logo.png"
               alt="KORAX"
-              className="h-7 w-7 rounded-full object-cover"
+              className="h-6 w-6 sm:h-7 sm:w-7 rounded-full object-cover shrink-0"
             />
-            <span className="text-sm font-semibold tracking-wide text-white">
+            <span className="text-[13px] sm:text-sm font-semibold tracking-wide text-white truncate">
               KORAX
             </span>
           </Link>
@@ -134,7 +139,7 @@ export default function Topbar() {
               href="https://x.com/koraxfund"
               target="_blank"
               rel="noreferrer"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
+              className="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
               aria-label="X"
               title="X"
             >
@@ -145,31 +150,73 @@ export default function Topbar() {
               href="https://t.me/koraxfund"
               target="_blank"
               rel="noreferrer"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
+              className="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
               aria-label="Telegram"
               title="Telegram"
             >
               <TelegramIcon />
             </a>
 
-            <div className="block">
-              <ConnectButton
-                showBalance={false}
-                chainStatus="none"
-                accountStatus={{
-                  smallScreen: "avatar",
-                  largeScreen: "full",
-                }}
-              />
-            </div>
+            <ConnectButton.Custom>
+              {({
+                account,
+                chain,
+                openAccountModal,
+                openChainModal,
+                openConnectModal,
+                mounted,
+              }) => {
+                const ready = mounted;
+                const connected = ready && account && chain;
+
+                return (
+                  <div
+                    aria-hidden={!ready}
+                    className={!ready ? "pointer-events-none opacity-0" : ""}
+                  >
+                    {!connected ? (
+                      <button
+                        onClick={openConnectModal}
+                        type="button"
+                        className="h-9 sm:h-10 px-3 sm:px-5 rounded-xl bg-[#7CFF6A] text-black text-sm sm:text-base font-semibold whitespace-nowrap shrink-0"
+                      >
+                        Connect Wallet
+                      </button>
+                    ) : chain.unsupported ? (
+                      <button
+                        onClick={openChainModal}
+                        type="button"
+                        className="h-9 sm:h-10 px-3 sm:px-5 rounded-xl bg-red-500 text-white text-sm sm:text-base font-semibold whitespace-nowrap shrink-0"
+                      >
+                        Wrong Network
+                      </button>
+                    ) : (
+                      <button
+                        onClick={openAccountModal}
+                        type="button"
+                        className="h-9 sm:h-10 px-3 sm:px-5 rounded-xl bg-[#7CFF6A] text-black text-sm sm:text-base font-semibold whitespace-nowrap shrink-0 max-w-[140px] sm:max-w-none overflow-hidden text-ellipsis"
+                        title={account.address}
+                      >
+                        <span className="sm:hidden">
+                          {shortAddress(account.address)}
+                        </span>
+                        <span className="hidden sm:inline">
+                          {account.displayName}
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                );
+              }}
+            </ConnectButton.Custom>
 
             <button
               type="button"
               onClick={() => setOpen(true)}
-              className="lg:hidden inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/90 hover:bg-white/10"
+              className="lg:hidden inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/90 hover:bg-white/10 shrink-0"
               aria-label="Open Menu"
             >
-              <MenuIcon />
+              <MenuIcon className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
           </div>
         </div>
@@ -210,11 +257,53 @@ export default function Topbar() {
 
               <div className="px-4 pb-4">
                 <div className="mb-3">
-                  <ConnectButton
-                    showBalance={false}
-                    chainStatus="none"
-                    accountStatus="full"
-                  />
+                  <ConnectButton.Custom>
+                    {({
+                      account,
+                      chain,
+                      openAccountModal,
+                      openChainModal,
+                      openConnectModal,
+                      mounted,
+                    }) => {
+                      const ready = mounted;
+                      const connected = ready && account && chain;
+
+                      return (
+                        <div
+                          aria-hidden={!ready}
+                          className={!ready ? "pointer-events-none opacity-0" : ""}
+                        >
+                          {!connected ? (
+                            <button
+                              onClick={openConnectModal}
+                              type="button"
+                              className="w-full h-11 rounded-xl bg-[#7CFF6A] text-black font-semibold whitespace-nowrap"
+                            >
+                              Connect Wallet
+                            </button>
+                          ) : chain.unsupported ? (
+                            <button
+                              onClick={openChainModal}
+                              type="button"
+                              className="w-full h-11 rounded-xl bg-red-500 text-white font-semibold whitespace-nowrap"
+                            >
+                              Wrong Network
+                            </button>
+                          ) : (
+                            <button
+                              onClick={openAccountModal}
+                              type="button"
+                              className="w-full h-11 rounded-xl bg-[#7CFF6A] text-black font-semibold whitespace-nowrap"
+                              title={account.address}
+                            >
+                              {account.displayName}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    }}
+                  </ConnectButton.Custom>
                 </div>
 
                 <div className="grid gap-2 rounded-2xl border border-white/10 bg-white/5 p-3">
