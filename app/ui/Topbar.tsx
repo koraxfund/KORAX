@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { ethers } from "ethers";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 
 const XIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
   <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
@@ -48,95 +48,9 @@ type NavItem = {
   sublabel?: string;
 };
 
-type EvmProvider = {
-  isMetaMask?: boolean;
-  isRabby?: boolean;
-  isTrust?: boolean;
-  isTrustWallet?: boolean;
-  isOKXWallet?: boolean;
-  isBinance?: boolean;
-  providers?: EvmProvider[];
-  request: (args: { method: string; params?: unknown[] | object }) => Promise<any>;
-  on?: (event: string, callback: (...args: any[]) => void) => void;
-  removeListener?: (event: string, callback: (...args: any[]) => void) => void;
-};
-
-const BSC_MAINNET = {
-  chainId: "0x38",
-  chainName: "BNB Smart Chain",
-  nativeCurrency: {
-    name: "BNB",
-    symbol: "BNB",
-    decimals: 18,
-  },
-  rpcUrls: ["https://bsc-dataseed.binance.org/"],
-  blockExplorerUrls: ["https://bscscan.com/"],
-};
-
-function shortenAddress(address: string) {
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
-}
-
-function detectWalletName(provider: EvmProvider | null) {
-  if (!provider) return "Wallet";
-  if (provider.isRabby) return "Rabby";
-  if (provider.isOKXWallet) return "OKX";
-  if (provider.isTrust || provider.isTrustWallet) return "Trust Wallet";
-  if (provider.isBinance) return "Binance Wallet";
-  if (provider.isMetaMask) return "MetaMask";
-  return "Wallet";
-}
-
-function getInjectedProvider(): EvmProvider | null {
-  if (typeof window === "undefined") return null;
-
-  const eth = (window as any).ethereum as EvmProvider | undefined;
-  if (!eth) return null;
-
-  if (Array.isArray(eth.providers) && eth.providers.length > 0) {
-    const preferred =
-      eth.providers.find((p) => p.isRabby) ||
-      eth.providers.find((p) => p.isMetaMask) ||
-      eth.providers.find((p) => p.isOKXWallet) ||
-      eth.providers.find((p) => p.isTrust || p.isTrustWallet) ||
-      eth.providers[0];
-
-    return preferred ?? eth;
-  }
-
-  return eth;
-}
-
-async function ensureBscNetwork(provider: EvmProvider) {
-  const currentChainId = await provider.request({ method: "eth_chainId" });
-
-  if (currentChainId === BSC_MAINNET.chainId) return;
-
-  try {
-    await provider.request({
-      method: "wallet_switchEthereumChain",
-      params: [{ chainId: BSC_MAINNET.chainId }],
-    });
-  } catch (switchError: any) {
-    if (switchError?.code === 4902) {
-      await provider.request({
-        method: "wallet_addEthereumChain",
-        params: [BSC_MAINNET],
-      });
-      return;
-    }
-
-    throw switchError;
-  }
-}
-
 export default function Topbar() {
   const pathname = usePathname();
-
   const [open, setOpen] = useState(false);
-  const [walletAddress, setWalletAddress] = useState<string>("");
-  const [walletName, setWalletName] = useState<string>("");
-  const [loading, setLoading] = useState(false);
 
   const nav = useMemo<NavItem[]>(
     () => [
@@ -165,114 +79,8 @@ export default function Topbar() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  useEffect(() => {
-    const provider = getInjectedProvider();
-    if (!provider?.on) return;
-
-    const handleAccountsChanged = (accounts: string[]) => {
-      if (!accounts || accounts.length === 0) {
-        setWalletAddress("");
-        setWalletName("");
-        return;
-      }
-
-      try {
-        setWalletAddress(ethers.getAddress(accounts[0]));
-      } catch {
-        setWalletAddress(accounts[0]);
-      }
-    };
-
-    const handleChainChanged = () => {
-      window.location.reload();
-    };
-
-    provider.on("accountsChanged", handleAccountsChanged);
-    provider.on("chainChanged", handleChainChanged);
-
-    return () => {
-      provider.removeListener?.("accountsChanged", handleAccountsChanged);
-      provider.removeListener?.("chainChanged", handleChainChanged);
-    };
-  }, []);
-
-  useEffect(() => {
-    async function restoreWallet() {
-      try {
-        const provider = getInjectedProvider();
-        if (!provider) return;
-
-        const accounts = await provider.request({ method: "eth_accounts" });
-        if (accounts && accounts.length > 0) {
-          setWalletAddress(ethers.getAddress(accounts[0]));
-          setWalletName(detectWalletName(provider));
-        }
-      } catch (error) {
-        console.error("Failed to restore wallet:", error);
-      }
-    }
-
-    restoreWallet();
-  }, []);
-
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname?.startsWith(href);
-
-  async function connectWallet() {
-    try {
-      const provider = getInjectedProvider();
-
-      if (!provider) {
-        alert(
-          "No EVM wallet found. Please install MetaMask, Rabby, Trust Wallet, OKX Wallet, or another compatible wallet."
-        );
-        return;
-      }
-
-      setLoading(true);
-
-      await ensureBscNetwork(provider);
-
-      const accounts = await provider.request({
-        method: "eth_requestAccounts",
-      });
-
-      if (!accounts || accounts.length === 0) {
-        throw new Error("No wallet account returned");
-      }
-
-      const address = ethers.getAddress(accounts[0]);
-      setWalletAddress(address);
-      setWalletName(detectWalletName(provider));
-    } catch (error: any) {
-      console.error("Wallet connection failed:", error);
-
-      if (error?.code === 4001) {
-        alert("Wallet connection request was rejected.");
-      } else {
-        alert("Failed to connect wallet.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function disconnectWallet() {
-    setWalletAddress("");
-    setWalletName("");
-  }
-
-  const desktopButtonLabel = loading
-    ? "Connecting..."
-    : walletAddress
-    ? shortenAddress(walletAddress)
-    : "Connect Wallet";
-
-  const mobileButtonLabel = loading
-    ? "Connecting..."
-    : walletAddress
-    ? `${walletName ? `${walletName} • ` : ""}${shortenAddress(walletAddress)}`
-    : "Connect Wallet";
 
   return (
     <header className="fixed left-0 right-0 top-0 z-50">
@@ -322,45 +130,38 @@ export default function Topbar() {
           </nav>
 
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => window.open("https://x.com/koraxfund", "_blank", "noopener,noreferrer")}
-              className="hidden sm:inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
+            <a
+              href="https://x.com/koraxfund"
+              target="_blank"
+              rel="noreferrer"
+              className="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
               aria-label="X"
               title="X"
             >
               <XIcon />
-            </button>
+            </a>
 
-            <button
-              type="button"
-              onClick={() => window.open("https://t.me/koraxfund", "_blank", "noopener,noreferrer")}
-              className="hidden sm:inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
+            <a
+              href="https://t.me/koraxfund"
+              target="_blank"
+              rel="noreferrer"
+              className="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
               aria-label="Telegram"
               title="Telegram"
             >
               <TelegramIcon />
-            </button>
+            </a>
 
-            {walletAddress ? (
-              <button
-                type="button"
-                onClick={disconnectWallet}
-                className="h-9 rounded-xl bg-[#7CFF6A] px-4 text-sm font-semibold text-black hover:opacity-90"
-                title={walletName ? `${walletName}: ${walletAddress}` : walletAddress}
-              >
-                {desktopButtonLabel}
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={connectWallet}
-                disabled={loading}
-                className="h-9 rounded-xl bg-[#7CFF6A] px-4 text-sm font-semibold text-black hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {desktopButtonLabel}
-              </button>
-            )}
+            <div className="hidden sm:block">
+              <ConnectButton
+                showBalance={false}
+                chainStatus="icon"
+                accountStatus={{
+                  smallScreen: "avatar",
+                  largeScreen: "full",
+                }}
+              />
+            </div>
 
             <button
               type="button"
@@ -408,25 +209,13 @@ export default function Topbar() {
               </div>
 
               <div className="px-4 pb-4">
-                {walletAddress ? (
-                  <button
-                    type="button"
-                    onClick={disconnectWallet}
-                    className="mb-3 h-11 w-full rounded-xl bg-[#7CFF6A] text-sm font-semibold text-black hover:opacity-90"
-                    title={walletName ? `${walletName}: ${walletAddress}` : walletAddress}
-                  >
-                    {mobileButtonLabel}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={connectWallet}
-                    disabled={loading}
-                    className="mb-3 h-11 w-full rounded-xl bg-[#7CFF6A] text-sm font-semibold text-black hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
-                  >
-                    {mobileButtonLabel}
-                  </button>
-                )}
+                <div className="mb-3">
+                  <ConnectButton
+                    showBalance={false}
+                    chainStatus="icon"
+                    accountStatus="full"
+                  />
+                </div>
 
                 <div className="grid gap-2 rounded-2xl border border-white/10 bg-white/5 p-3">
                   {nav.map((item) => (
@@ -459,25 +248,27 @@ export default function Topbar() {
                 </div>
 
                 <div className="mt-3 flex items-center justify-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => window.open("https://x.com/koraxfund", "_blank", "noopener,noreferrer")}
-                    className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
+                  <a
+                    href="https://x.com/koraxfund"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
                     aria-label="X"
                     title="X"
                   >
                     <XIcon className="h-5 w-5" />
-                  </button>
+                  </a>
 
-                  <button
-                    type="button"
-                    onClick={() => window.open("https://t.me/koraxfund", "_blank", "noopener,noreferrer")}
-                    className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
+                  <a
+                    href="https://t.me/koraxfund"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
                     aria-label="Telegram"
                     title="Telegram"
                   >
                     <TelegramIcon className="h-5 w-5" />
-                  </button>
+                  </a>
                 </div>
               </div>
             </div>

@@ -1,22 +1,65 @@
 "use client";
 
 import "@rainbow-me/rainbowkit/styles.css";
-import { ReactNode } from "react";
+import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { RainbowKitProvider, darkTheme, getDefaultConfig } from "@rainbow-me/rainbowkit";
-import { WagmiProvider } from "wagmi";
+import {
+  RainbowKitProvider,
+  darkTheme,
+  connectorsForWallets,
+} from "@rainbow-me/rainbowkit";
+import {
+  metaMaskWallet,
+  trustWallet,
+  okxWallet,
+  rabbyWallet,
+  walletConnectWallet,
+  injectedWallet,
+  binanceWallet,
+} from "@rainbow-me/rainbowkit/wallets";
+import { createConfig, http, WagmiProvider } from "wagmi";
 import { bsc } from "wagmi/chains";
 
-const config = getDefaultConfig({
-  appName: "KORAX",
-  projectId: "REPLACE_WITH_WALLETCONNECT_PROJECT_ID",
+const projectId =
+  process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "demo-project-id";
+
+const connectors = connectorsForWallets(
+  [
+    {
+      groupName: "Recommended",
+      wallets: [
+        metaMaskWallet,
+        trustWallet,
+        binanceWallet,
+        okxWallet,
+        rabbyWallet,
+        walletConnectWallet,
+        injectedWallet,
+      ],
+    },
+  ],
+  {
+    appName: "KORAX",
+    projectId,
+  }
+);
+
+const config = createConfig({
   chains: [bsc],
+  connectors,
+  transports: {
+    [bsc.id]: http("https://bsc-dataseed.binance.org/"),
+  },
   ssr: true,
 });
 
-const queryClient = new QueryClient();
+export default function Providers({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [queryClient] = useState(() => new QueryClient());
 
-export default function Providers({ children }: { children: ReactNode }) {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
@@ -25,8 +68,6 @@ export default function Providers({ children }: { children: ReactNode }) {
             accentColor: "#7CFF6A",
             accentColorForeground: "#000000",
             borderRadius: "large",
-            fontStack: "system",
-            overlayBlur: "small",
           })}
         >
           {children}
