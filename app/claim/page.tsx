@@ -1,20 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { ethers } from "ethers";
-
-type EvmProvider = {
-  isMetaMask?: boolean;
-  isRabby?: boolean;
-  isTrust?: boolean;
-  isTrustWallet?: boolean;
-  isOKXWallet?: boolean;
-  isBinance?: boolean;
-  providers?: EvmProvider[];
-  request: (args: { method: string; params?: unknown[] | object }) => Promise<any>;
-  on?: (event: string, callback: (...args: any[]) => void) => void;
-  removeListener?: (event: string, callback: (...args: any[]) => void) => void;
-};
+import { useAccount, useSwitchChain, useWalletClient } from "wagmi";
 
 const RPC_URL = "https://bsc-dataseed.binance.org/";
 
@@ -24,19 +12,8 @@ const PRESALE_BSCSCAN_URL =
   process.env.NEXT_PUBLIC_PRESALE_BSCSCAN_URL ||
   `https://bscscan.com/address/${PRESALE_ADDRESS}#code`;
 
-const BSC_MAINNET = {
-  chainId: "0x38",
-  chainName: "BNB Smart Chain",
-  nativeCurrency: {
-    name: "BNB",
-    symbol: "BNB",
-    decimals: 18,
-  },
-  rpcUrls: [RPC_URL],
-  blockExplorerUrls: ["https://bscscan.com/"],
-};
-
 const CLAIM_INTERVAL_SECONDS = 30 * 24 * 60 * 60;
+const BSC_CHAIN_ID = 56;
 
 const presaleAbi = [
   "function saleActive() view returns (bool)",
@@ -49,51 +26,7 @@ const presaleAbi = [
   "function claim()",
 ];
 
-const tokenAbi = [
-  "function symbol() view returns (string)",
-];
-
-function getInjectedProvider(): EvmProvider | null {
-  if (typeof window === "undefined") return null;
-
-  const eth = (window as any).ethereum as EvmProvider | undefined;
-  if (!eth) return null;
-
-  if (Array.isArray(eth.providers) && eth.providers.length > 0) {
-    return (
-      eth.providers.find((p) => p.isMetaMask) ||
-      eth.providers.find((p) => p.isRabby) ||
-      eth.providers.find((p) => p.isOKXWallet) ||
-      eth.providers.find((p) => p.isTrust || p.isTrustWallet) ||
-      eth.providers.find((p) => p.isBinance) ||
-      eth.providers[0]
-    );
-  }
-
-  return eth;
-}
-
-async function ensureBscNetwork(provider: EvmProvider) {
-  const currentChainId = await provider.request({ method: "eth_chainId" });
-
-  if (currentChainId === BSC_MAINNET.chainId) return;
-
-  try {
-    await provider.request({
-      method: "wallet_switchEthereumChain",
-      params: [{ chainId: BSC_MAINNET.chainId }],
-    });
-  } catch (switchError: any) {
-    if (switchError?.code === 4902) {
-      await provider.request({
-        method: "wallet_addEthereumChain",
-        params: [BSC_MAINNET],
-      });
-      return;
-    }
-    throw switchError;
-  }
-}
+const tokenAbi = ["function symbol() view returns (string)"];
 
 function formatTokenAmount(value: bigint, decimals = 18, maximumFractionDigits = 4) {
   const num = Number(ethers.formatUnits(value, decimals));
@@ -133,6 +66,23 @@ function getNextClaimTimestamp(claimStartUnix: number, vestedPercent: number) {
   return 0;
 }
 
+function makeEip1193Provider(walletClient: any) {
+  return {
+    request: async ({
+      method,
+      params,
+    }: {
+      method: string;
+      params?: unknown[] | object;
+    }) => {
+      return walletClient.request({
+        method,
+        params: (params as any) ?? [],
+      });
+    },
+  };
+}
+
 export default function ClaimPage() {
   const [mounted, setMounted] = useState(false);
 
@@ -153,7 +103,9 @@ export default function ClaimPage() {
   const [status, setStatus] = useState("");
   const [nowTs, setNowTs] = useState<number>(Math.floor(Date.now() / 1000));
 
-  const provider = useMemo(() => getInjectedProvider(), []);
+  const { address, isConnected, chainId } = useAccount();
+  const { data: walletClient } = useWalletClient();
+  const { switchChainAsync } = useSwitchChain();
 
   useEffect(() => {
     setMounted(true);
@@ -167,40 +119,36 @@ export default function ClaimPage() {
     return () => clearInterval(i);
   }, []);
 
-  async function refreshWallet() {
-    try {
-      const injected = getInjectedProvider();
-      if (!injected) return;
-
-      const accounts = await injected.request({ method: "eth_accounts" });
-      if (accounts && Array.isArray(accounts) && accounts.length > 0) {
-        setWalletAddress(ethers.getAddress(accounts[0] as string));
-      } else {
-        setWalletAddress("");
-      }
-    } catch {
+  useEffect(() => {
+    if (!address) {
       setWalletAddress("");
+      return;
     }
-  }
 
-  async function connectIfNeeded() {
-    const injected = getInjectedProvider();
-    if (!injected) {
-      alert("No wallet found.");
+    try {
+      setWalletAddress(ethers.getAddress(address));
+    } catch {
+      setWalletAddress(address);
+    }
+  }, [address]);
+
+  async function getConnectedBrowserProvider() {
+    if (!isConnected || !walletClient || !address) {
+      alert("Connect wallet first from the top bar.");
       return null;
     }
 
-    await ensureBscNetwork(injected);
-
-    const accounts = await injected.request({ method: "eth_requestAccounts" });
-    if (!accounts || !Array.isArray(accounts) || accounts.length === 0) {
-      throw new Error("No account returned");
+    if (chainId !== BSC_CHAIN_ID) {
+      try {
+        setStatus("Please switch to BNB Chain...");
+        await switchChainAsync({ chainId: BSC_CHAIN_ID });
+      } catch {
+        throw new Error("Please switch to BNB Chain and try again.");
+      }
     }
 
-    const address = ethers.getAddress(accounts[0] as string);
-    setWalletAddress(address);
-
-    return new ethers.BrowserProvider(injected as any);
+    const eip1193Provider = makeEip1193Provider(walletClient);
+    return new ethers.BrowserProvider(eip1193Provider as any);
   }
 
   async function loadClaimData(currentWallet?: string) {
@@ -254,44 +202,13 @@ export default function ClaimPage() {
 
   useEffect(() => {
     if (!mounted) return;
-    refreshWallet();
-  }, [mounted]);
-
-  useEffect(() => {
-    if (!mounted) return;
-
     loadClaimData();
-
     const interval = setInterval(() => {
       loadClaimData();
     }, 10000);
 
     return () => clearInterval(interval);
   }, [mounted, walletAddress]);
-
-  useEffect(() => {
-    if (!provider?.on || !mounted) return;
-
-    const handleAccountsChanged = (accounts: string[]) => {
-      if (!accounts || accounts.length === 0) {
-        setWalletAddress("");
-        return;
-      }
-      setWalletAddress(ethers.getAddress(accounts[0]));
-    };
-
-    const handleChainChanged = () => {
-      window.location.reload();
-    };
-
-    provider.on("accountsChanged", handleAccountsChanged);
-    provider.on("chainChanged", handleChainChanged);
-
-    return () => {
-      provider.removeListener?.("accountsChanged", handleAccountsChanged);
-      provider.removeListener?.("chainChanged", handleChainChanged);
-    };
-  }, [provider, mounted]);
 
   async function handleClaim() {
     try {
@@ -300,28 +217,13 @@ export default function ClaimPage() {
       setBusy(true);
       setStatus("");
 
-      let browserProvider: ethers.BrowserProvider | null = null;
-      let currentWallet = walletAddress;
-
-      if (!currentWallet) {
-        browserProvider = await connectIfNeeded();
-        if (!browserProvider) return;
-        const signer = await browserProvider.getSigner();
-        currentWallet = await signer.getAddress();
-      } else {
-        const injected = getInjectedProvider();
-        if (!injected) {
-          alert("No wallet found.");
-          return;
-        }
-        await ensureBscNetwork(injected);
-        browserProvider = new ethers.BrowserProvider(injected as any);
-      }
+      const browserProvider = await getConnectedBrowserProvider();
+      if (!browserProvider || !walletAddress) return;
 
       const signer = await browserProvider.getSigner();
       const presale = new ethers.Contract(PRESALE_ADDRESS, presaleAbi, signer);
 
-      const liveClaimable = await presale.claimableNow(currentWallet);
+      const liveClaimable = await presale.claimableNow(walletAddress);
       if (BigInt(liveClaimable.toString()) <= 0n) {
         throw new Error("Nothing claimable right now.");
       }
@@ -331,7 +233,7 @@ export default function ClaimPage() {
       await tx.wait();
 
       setStatus("Claim completed successfully.");
-      await loadClaimData(currentWallet);
+      await loadClaimData(walletAddress);
     } catch (error: any) {
       console.error("Claim failed:", error);
       const msg =
@@ -349,7 +251,11 @@ export default function ClaimPage() {
   const canClaim = claimEnabled && claimableNow > 0n;
   const nextClaimTs = getNextClaimTimestamp(claimStartUnix, vestedPercent);
   const nextClaimCountdown =
-    nextClaimTs > nowTs ? formatCountdown(nextClaimTs - nowTs) : vestedPercent >= 100 ? "Completed" : "Available now";
+    nextClaimTs > nowTs
+      ? formatCountdown(nextClaimTs - nowTs)
+      : vestedPercent >= 100
+      ? "Completed"
+      : "Available now";
 
   if (!mounted) return null;
 

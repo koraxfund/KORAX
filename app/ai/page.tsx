@@ -2,11 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ethers } from "ethers";
-
-type EvmProvider = {
-  providers?: EvmProvider[];
-  request: (args: { method: string; params?: unknown[] | object }) => Promise<any>;
-};
+import { useAccount } from "wagmi";
 
 const RPC_URL = "https://bsc-dataseed.binance.org/";
 const STAKING_ADDRESS = process.env.NEXT_PUBLIC_STAKING_ADDRESS!;
@@ -103,16 +99,6 @@ const TIERS = [
   },
 ];
 
-function getInjectedProvider(): EvmProvider | null {
-  if (typeof window === "undefined") return null;
-  const eth = (window as any).ethereum as EvmProvider | undefined;
-  if (!eth) return null;
-  if (Array.isArray(eth.providers) && eth.providers.length > 0) {
-    return eth.providers[0];
-  }
-  return eth;
-}
-
 function formatAmount(v: bigint) {
   return Number(ethers.formatUnits(v, 18)).toLocaleString("en-US", {
     maximumFractionDigits: 2,
@@ -155,6 +141,21 @@ export default function AIPage() {
     notes: "",
   });
 
+  const { address, isConnected } = useAccount();
+
+  useEffect(() => {
+    if (!address) {
+      setWallet("");
+      return;
+    }
+
+    try {
+      setWallet(ethers.getAddress(address));
+    } catch {
+      setWallet(address);
+    }
+  }, [address]);
+
   const stakedNumber = useMemo(
     () => Number(ethers.formatUnits(totalStaked, 18)),
     [totalStaked]
@@ -162,23 +163,6 @@ export default function AIPage() {
 
   const currentTier = useMemo(() => getTierFromAmount(stakedNumber), [stakedNumber]);
   const nextTier = useMemo(() => getNextTier(stakedNumber), [stakedNumber]);
-
-  async function connectWallet() {
-    try {
-      const injected = getInjectedProvider();
-      if (!injected) {
-        alert("No wallet found.");
-        return;
-      }
-
-      const accounts = await injected.request({ method: "eth_requestAccounts" });
-      if (accounts && Array.isArray(accounts) && accounts.length > 0) {
-        setWallet(ethers.getAddress(accounts[0] as string));
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  }
 
   async function loadStaking(user?: string) {
     try {
@@ -209,20 +193,6 @@ export default function AIPage() {
   }
 
   useEffect(() => {
-    const injected = getInjectedProvider();
-    if (!injected) return;
-
-    injected
-      .request({ method: "eth_accounts" })
-      .then((accounts) => {
-        if (accounts && Array.isArray(accounts) && accounts.length > 0) {
-          setWallet(ethers.getAddress(accounts[0] as string));
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
     loadStaking();
   }, [wallet]);
 
@@ -233,7 +203,7 @@ export default function AIPage() {
   function handleGenerate(e: React.FormEvent) {
     e.preventDefault();
 
-    if (!wallet) {
+    if (!isConnected || !wallet) {
       setStatus("Connect wallet first.");
       return;
     }
@@ -270,7 +240,11 @@ This is a prepared project configuration output for future contract generation f
       <div key={tier.name} className="cursor-default">
         <div
           className={`w-64 h-72 flex flex-col justify-center items-center text-center p-4 transition duration-300 hover:scale-105 ${
-            active ? `${tier.activeBg} ${tier.accent.includes("text-white") ? "text-white" : "text-black"}` : `${tier.inactiveBg} text-white`
+            active
+              ? `${tier.activeBg} ${
+                  tier.accent.includes("text-white") ? "text-white" : "text-black"
+                }`
+              : `${tier.inactiveBg} text-white`
           }`}
           style={{
             clipPath: "polygon(25% 6%,75% 6%,100% 50%,75% 94%,25% 94%,0% 50%)",
@@ -328,12 +302,9 @@ This is a prepared project configuration output for future contract generation f
             )}
 
             {!wallet ? (
-              <button
-                onClick={connectWallet}
-                className="mt-4 w-full rounded-xl bg-[#7CFF6A] px-4 py-3 font-semibold text-black"
-              >
-                Connect Wallet
-              </button>
+              <div className="mt-4 rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/70">
+                Connect wallet from the top bar
+              </div>
             ) : (
               <div className="mt-4 rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/70">
                 Wallet connected

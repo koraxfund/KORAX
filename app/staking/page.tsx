@@ -1,37 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { ethers } from "ethers";
-
-type EvmProvider = {
-  isMetaMask?: boolean;
-  isRabby?: boolean;
-  isTrust?: boolean;
-  isTrustWallet?: boolean;
-  isOKXWallet?: boolean;
-  isBinance?: boolean;
-  providers?: EvmProvider[];
-  request: (args: { method: string; params?: unknown[] | object }) => Promise<any>;
-  on?: (event: string, callback: (...args: any[]) => void) => void;
-  removeListener?: (event: string, callback: (...args: any[]) => void) => void;
-};
+import { useAccount, useSwitchChain, useWalletClient } from "wagmi";
 
 const RPC_URL = "https://bsc-dataseed.binance.org/";
 
 const STAKING_ADDRESS = process.env.NEXT_PUBLIC_STAKING_ADDRESS!;
 const TOKEN_ADDRESS = process.env.NEXT_PUBLIC_TOKEN_ADDRESS!;
-
-const BSC_MAINNET = {
-  chainId: "0x38",
-  chainName: "BNB Smart Chain",
-  nativeCurrency: {
-    name: "BNB",
-    symbol: "BNB",
-    decimals: 18,
-  },
-  rpcUrls: [RPC_URL],
-  blockExplorerUrls: ["https://bscscan.com/"],
-};
+const BSC_CHAIN_ID = 56;
 
 const stakingAbi = [
   "function positionsCount(address) view returns (uint256)",
@@ -58,48 +35,6 @@ const plans = [
   { id: 12, title: "12 Months", ret: "90%", dur: "365 Days", desc: "Max reward" },
 ];
 
-function getInjectedProvider(): EvmProvider | null {
-  if (typeof window === "undefined") return null;
-
-  const eth = (window as any).ethereum as EvmProvider | undefined;
-  if (!eth) return null;
-
-  if (Array.isArray(eth.providers) && eth.providers.length > 0) {
-    return (
-      eth.providers.find((p) => p.isMetaMask) ||
-      eth.providers.find((p) => p.isRabby) ||
-      eth.providers.find((p) => p.isOKXWallet) ||
-      eth.providers.find((p) => p.isTrust || p.isTrustWallet) ||
-      eth.providers.find((p) => p.isBinance) ||
-      eth.providers[0]
-    );
-  }
-
-  return eth;
-}
-
-async function ensureBscNetwork(provider: EvmProvider) {
-  const currentChainId = await provider.request({ method: "eth_chainId" });
-
-  if (currentChainId === BSC_MAINNET.chainId) return;
-
-  try {
-    await provider.request({
-      method: "wallet_switchEthereumChain",
-      params: [{ chainId: BSC_MAINNET.chainId }],
-    });
-  } catch (switchError: any) {
-    if (switchError?.code === 4902) {
-      await provider.request({
-        method: "wallet_addEthereumChain",
-        params: [BSC_MAINNET],
-      });
-      return;
-    }
-    throw switchError;
-  }
-}
-
 function format(v: bigint) {
   return Number(ethers.formatUnits(v, 18)).toLocaleString("en-US", {
     maximumFractionDigits: 4,
@@ -124,6 +59,23 @@ function shortAddress(address: string) {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
+function makeEip1193Provider(walletClient: any) {
+  return {
+    request: async ({
+      method,
+      params,
+    }: {
+      method: string;
+      params?: unknown[] | object;
+    }) => {
+      return walletClient.request({
+        method,
+        params: (params as any) ?? [],
+      });
+    },
+  };
+}
+
 export default function Page() {
   const [wallet, setWallet] = useState("");
   const [amount, setAmount] = useState("");
@@ -135,40 +87,40 @@ export default function Page() {
   const [status, setStatus] = useState("");
   const [, setNowTick] = useState(0);
 
-  const provider = useMemo(() => getInjectedProvider(), []);
+  const { address, isConnected, chainId } = useAccount();
+  const { data: walletClient } = useWalletClient();
+  const { switchChainAsync } = useSwitchChain();
 
-  async function refreshWallet() {
-    try {
-      const injected = getInjectedProvider();
-      if (!injected) {
-        setWallet("");
-        return;
-      }
-
-      const accounts = await injected.request({ method: "eth_accounts" });
-      if (accounts && Array.isArray(accounts) && accounts.length > 0) {
-        setWallet(ethers.getAddress(accounts[0] as string));
-      } else {
-        setWallet("");
-      }
-    } catch {
+  useEffect(() => {
+    if (!address) {
       setWallet("");
-    }
-  }
-
-  async function connect() {
-    const injected = getInjectedProvider();
-    if (!injected) {
-      alert("No wallet found.");
-      return "";
+      return;
     }
 
-    await ensureBscNetwork(injected);
+    try {
+      setWallet(ethers.getAddress(address));
+    } catch {
+      setWallet(address);
+    }
+  }, [address]);
 
-    const acc = await injected.request({ method: "eth_requestAccounts" });
-    const address = acc?.[0] ? ethers.getAddress(acc[0] as string) : "";
-    setWallet(address);
-    return address;
+  async function getConnectedBrowserProvider() {
+    if (!isConnected || !walletClient || !address) {
+      alert("Connect wallet first from the top bar.");
+      return null;
+    }
+
+    if (chainId !== BSC_CHAIN_ID) {
+      try {
+        setStatus("Please switch to BNB Chain...");
+        await switchChainAsync({ chainId: BSC_CHAIN_ID });
+      } catch {
+        throw new Error("Please switch to BNB Chain and try again.");
+      }
+    }
+
+    const eip1193Provider = makeEip1193Provider(walletClient);
+    return new ethers.BrowserProvider(eip1193Provider as any);
   }
 
   async function load(targetWallet?: string) {
@@ -224,10 +176,6 @@ export default function Page() {
   }
 
   useEffect(() => {
-    refreshWallet();
-  }, []);
-
-  useEffect(() => {
     load();
     const i = setInterval(() => load(), 8000);
     return () => clearInterval(i);
@@ -241,96 +189,81 @@ export default function Page() {
     return () => clearInterval(i);
   }, []);
 
-  useEffect(() => {
-    if (!provider?.on) return;
-
-    const handleAccountsChanged = (accounts: string[]) => {
-      if (!accounts || accounts.length === 0) {
-        setWallet("");
+  async function stake() {
+    try {
+      if (!amount || Number(amount) <= 0) {
+        alert("Enter a valid amount.");
         return;
       }
-      setWallet(ethers.getAddress(accounts[0]));
-    };
 
-    const handleChainChanged = () => {
-      window.location.reload();
-    };
+      const browserProvider = await getConnectedBrowserProvider();
+      if (!browserProvider) return;
 
-    provider.on("accountsChanged", handleAccountsChanged);
-    provider.on("chainChanged", handleChainChanged);
+      const signer = await browserProvider.getSigner();
 
-    return () => {
-      provider.removeListener?.("accountsChanged", handleAccountsChanged);
-      provider.removeListener?.("chainChanged", handleChainChanged);
-    };
-  }, [provider]);
+      const staking = new ethers.Contract(STAKING_ADDRESS, stakingAbi, signer);
+      const token = new ethers.Contract(TOKEN_ADDRESS, tokenAbi, signer);
 
-  async function stake() {
-    const injected = getInjectedProvider();
-    if (!injected) {
-      alert("No wallet found.");
-      return;
+      const value = ethers.parseUnits(amount, 18);
+      const owner = await signer.getAddress();
+
+      const tokenBalance = await token.balanceOf(owner);
+      if (BigInt(tokenBalance.toString()) < value) {
+        alert(`Insufficient ${symbol} balance.`);
+        return;
+      }
+
+      const allowance = await token.allowance(owner, STAKING_ADDRESS);
+
+      if (BigInt(allowance.toString()) < value) {
+        setStatus(`Approving ${symbol}...`);
+        const tx = await token.approve(STAKING_ADDRESS, value);
+        await tx.wait();
+      }
+
+      setStatus("Staking in progress...");
+      const tx2 = await staking.stake(value, plan);
+      await tx2.wait();
+
+      setAmount("");
+      setStatus("Stake completed successfully.");
+      await load(owner);
+    } catch (err: any) {
+      console.error(err);
+      const msg =
+        err?.shortMessage ||
+        err?.reason ||
+        err?.message ||
+        "Stake failed.";
+      setStatus(msg);
+      alert(msg);
     }
-
-    if (!amount || Number(amount) <= 0) {
-      alert("Enter a valid amount.");
-      return;
-    }
-
-    await ensureBscNetwork(injected);
-
-    const provider = new ethers.BrowserProvider(injected as any);
-    const signer = await provider.getSigner();
-
-    const staking = new ethers.Contract(STAKING_ADDRESS, stakingAbi, signer);
-    const token = new ethers.Contract(TOKEN_ADDRESS, tokenAbi, signer);
-
-    const value = ethers.parseUnits(amount, 18);
-    const owner = await signer.getAddress();
-
-    const tokenBalance = await token.balanceOf(owner);
-    if (BigInt(tokenBalance.toString()) < value) {
-      alert(`Insufficient ${symbol} balance.`);
-      return;
-    }
-
-    const allowance = await token.allowance(owner, STAKING_ADDRESS);
-
-    if (BigInt(allowance.toString()) < value) {
-      setStatus(`Approving ${symbol}...`);
-      const tx = await token.approve(STAKING_ADDRESS, value);
-      await tx.wait();
-    }
-
-    setStatus("Staking in progress...");
-    const tx2 = await staking.stake(value, plan);
-    await tx2.wait();
-
-    setAmount("");
-    setStatus("Stake completed successfully.");
-    await load(owner);
   }
 
   async function withdraw(i: number) {
-    const injected = getInjectedProvider();
-    if (!injected) {
-      alert("No wallet found.");
-      return;
+    try {
+      const browserProvider = await getConnectedBrowserProvider();
+      if (!browserProvider) return;
+
+      const signer = await browserProvider.getSigner();
+      const staking = new ethers.Contract(STAKING_ADDRESS, stakingAbi, signer);
+
+      setStatus(`Withdrawing position #${i}...`);
+      const tx = await staking.withdraw(i);
+      await tx.wait();
+
+      setStatus("Withdraw completed successfully.");
+      await load(await signer.getAddress());
+    } catch (err: any) {
+      console.error(err);
+      const msg =
+        err?.shortMessage ||
+        err?.reason ||
+        err?.message ||
+        "Withdraw failed.";
+      setStatus(msg);
+      alert(msg);
     }
-
-    await ensureBscNetwork(injected);
-
-    const provider = new ethers.BrowserProvider(injected as any);
-    const signer = await provider.getSigner();
-
-    const staking = new ethers.Contract(STAKING_ADDRESS, stakingAbi, signer);
-
-    setStatus(`Withdrawing position #${i}...`);
-    const tx = await staking.withdraw(i);
-    await tx.wait();
-
-    setStatus("Withdraw completed successfully.");
-    await load(await signer.getAddress());
   }
 
   function card(p: any) {
@@ -401,17 +334,7 @@ export default function Page() {
             onClick={async () => {
               try {
                 setLoading(true);
-                let currentWallet = wallet;
-
-                if (!currentWallet) {
-                  currentWallet = await connect();
-                  if (!currentWallet) return;
-                }
-
                 await stake();
-              } catch (err) {
-                console.error(err);
-                setStatus("Stake failed.");
               } finally {
                 setLoading(false);
               }

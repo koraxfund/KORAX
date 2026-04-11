@@ -1,20 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ethers } from "ethers";
-
-type EvmProvider = {
-  isMetaMask?: boolean;
-  isRabby?: boolean;
-  isTrust?: boolean;
-  isTrustWallet?: boolean;
-  isOKXWallet?: boolean;
-  isBinance?: boolean;
-  providers?: EvmProvider[];
-  request: (args: { method: string; params?: unknown[] | object }) => Promise<any>;
-  on?: (event: string, callback: (...args: any[]) => void) => void;
-  removeListener?: (event: string, callback: (...args: any[]) => void) => void;
-};
+import { useAccount, useSwitchChain, useWalletClient } from "wagmi";
 
 type PayMode = "bnb" | "usdt" | "usdc";
 
@@ -36,18 +24,6 @@ const PRESALE_BSCSCAN_URL =
   process.env.NEXT_PUBLIC_PRESALE_BSCSCAN_URL ||
   `https://bscscan.com/address/${PRESALE_ADDRESS}#code`;
 
-const BSC_MAINNET = {
-  chainId: "0x38",
-  chainName: "BNB Smart Chain",
-  nativeCurrency: {
-    name: "BNB",
-    symbol: "BNB",
-    decimals: 18,
-  },
-  rpcUrls: [RPC_URL],
-  blockExplorerUrls: ["https://bscscan.com/"],
-};
-
 const STAGE_CAPS = [
   10_000_000,
   10_000_000,
@@ -57,6 +33,8 @@ const STAGE_CAPS = [
 ];
 
 const STAGE_PRICES = [0.05, 0.07, 0.09, 0.11, 0.13];
+
+const BSC_CHAIN_ID = 56;
 
 const presaleAbi = [
   "function currentStage() view returns (uint256)",
@@ -85,48 +63,6 @@ const erc20Abi = [
   "function decimals() view returns (uint8)",
   "function symbol() view returns (string)",
 ];
-
-function getInjectedProvider(): EvmProvider | null {
-  if (typeof window === "undefined") return null;
-
-  const eth = (window as any).ethereum as EvmProvider | undefined;
-  if (!eth) return null;
-
-  if (Array.isArray(eth.providers) && eth.providers.length > 0) {
-    return (
-      eth.providers.find((p) => p.isMetaMask) ||
-      eth.providers.find((p) => p.isRabby) ||
-      eth.providers.find((p) => p.isOKXWallet) ||
-      eth.providers.find((p) => p.isTrust || p.isTrustWallet) ||
-      eth.providers.find((p) => p.isBinance) ||
-      eth.providers[0]
-    );
-  }
-
-  return eth;
-}
-
-async function ensureBscNetwork(provider: EvmProvider) {
-  const currentChainId = await provider.request({ method: "eth_chainId" });
-
-  if (currentChainId === BSC_MAINNET.chainId) return;
-
-  try {
-    await provider.request({
-      method: "wallet_switchEthereumChain",
-      params: [{ chainId: BSC_MAINNET.chainId }],
-    });
-  } catch (switchError: any) {
-    if (switchError?.code === 4902) {
-      await provider.request({
-        method: "wallet_addEthereumChain",
-        params: [BSC_MAINNET],
-      });
-      return;
-    }
-    throw switchError;
-  }
-}
 
 function shortenAddress(address: string) {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -158,6 +94,23 @@ async function validateContract(provider: ethers.Provider, address: string) {
   }
 }
 
+function makeEip1193Provider(walletClient: any) {
+  return {
+    request: async ({
+      method,
+      params,
+    }: {
+      method: string;
+      params?: unknown[] | object;
+    }) => {
+      return walletClient.request({
+        method,
+        params: (params as any) ?? [],
+      });
+    },
+  };
+}
+
 export default function PresalePage() {
   const [mounted, setMounted] = useState(false);
 
@@ -181,11 +134,27 @@ export default function PresalePage() {
   const [contractUsdcAddress, setContractUsdcAddress] = useState(USDC_ADDRESS);
 
   const previewDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const provider = useMemo(() => getInjectedProvider(), []);
+
+  const { address, isConnected, chainId } = useAccount();
+  const { data: walletClient } = useWalletClient();
+  const { switchChainAsync } = useSwitchChain();
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!address) {
+      setWalletAddress("");
+      return;
+    }
+
+    try {
+      setWalletAddress(ethers.getAddress(address));
+    } catch {
+      setWalletAddress(address);
+    }
+  }, [address]);
 
   async function getRpcProvider() {
     const rpcProvider = new ethers.JsonRpcProvider(RPC_URL);
@@ -193,38 +162,23 @@ export default function PresalePage() {
     return rpcProvider;
   }
 
-  async function refreshWallet() {
-    try {
-      const injected = getInjectedProvider();
-      if (!injected) return;
-
-      const accounts = await injected.request({ method: "eth_accounts" });
-      if (accounts && Array.isArray(accounts) && accounts.length > 0) {
-        setWalletAddress(ethers.getAddress(accounts[0] as string));
-      }
-    } catch {
-      //
-    }
-  }
-
-  async function connectIfNeeded() {
-    const injected = getInjectedProvider();
-    if (!injected) {
-      alert("No wallet found.");
+  async function getConnectedBrowserProvider() {
+    if (!isConnected || !walletClient || !address) {
+      alert("Connect wallet first from the top bar.");
       return null;
     }
 
-    await ensureBscNetwork(injected);
-
-    const accounts = await injected.request({ method: "eth_requestAccounts" });
-    if (!accounts || !Array.isArray(accounts) || accounts.length === 0) {
-      throw new Error("No account returned");
+    if (chainId !== BSC_CHAIN_ID) {
+      try {
+        setStatus("Please switch to BNB Chain...");
+        await switchChainAsync({ chainId: BSC_CHAIN_ID });
+      } catch (err) {
+        throw new Error("Please switch to BNB Chain and try again.");
+      }
     }
 
-    const address = ethers.getAddress(accounts[0] as string);
-    setWalletAddress(address);
-
-    return new ethers.BrowserProvider(injected as any);
+    const eip1193Provider = makeEip1193Provider(walletClient);
+    return new ethers.BrowserProvider(eip1193Provider as any);
   }
 
   async function getRpcPresale() {
@@ -332,7 +286,6 @@ export default function PresalePage() {
   useEffect(() => {
     if (!mounted) return;
 
-    refreshWallet();
     refreshPresaleData();
 
     const interval = setInterval(() => {
@@ -360,33 +313,6 @@ export default function PresalePage() {
     };
   }, [amount, previewMode, mounted, contractUsdtAddress, contractUsdcAddress]);
 
-  useEffect(() => {
-    if (!mounted) return;
-
-    const injected = getInjectedProvider();
-    if (!injected?.on) return;
-
-    const handleAccountsChanged = (accounts: string[]) => {
-      if (!accounts || accounts.length === 0) {
-        setWalletAddress("");
-        return;
-      }
-      setWalletAddress(ethers.getAddress(accounts[0]));
-    };
-
-    const handleChainChanged = () => {
-      window.location.reload();
-    };
-
-    injected.on("accountsChanged", handleAccountsChanged);
-    injected.on("chainChanged", handleChainChanged);
-
-    return () => {
-      injected.removeListener?.("accountsChanged", handleAccountsChanged);
-      injected.removeListener?.("chainChanged", handleChainChanged);
-    };
-  }, [mounted]);
-
   async function buyWithBNB() {
     try {
       if (busy) return;
@@ -400,7 +326,7 @@ export default function PresalePage() {
       setBusy("bnb");
       setStatus("Preparing BNB transaction...");
 
-      const browserProvider = await connectIfNeeded();
+      const browserProvider = await getConnectedBrowserProvider();
       if (!browserProvider) return;
 
       const signer = await browserProvider.getSigner();
@@ -454,7 +380,7 @@ export default function PresalePage() {
       setBusy(mode);
       setStatus(`Preparing ${mode.toUpperCase()} transaction...`);
 
-      const browserProvider = await connectIfNeeded();
+      const browserProvider = await getConnectedBrowserProvider();
       if (!browserProvider) return;
 
       const signer = await browserProvider.getSigner();
