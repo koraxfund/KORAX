@@ -72,7 +72,7 @@ const partners = [
   { name: "Ledger Live", logo: "/partners/ledger-live.png" },
   { name: "Crypto.com Wallet", logo: "/partners/crypto-com-wallet.png" },
   { name: "Bybit Wallet", logo: "/partners/bybit-wallet.png" },
-  { name: "Binance Wallet", logo: "/partners/Binance-wallet-v2.png" },
+  { name: "Binance Wallet", logo: "/partners/binance-wallet.png" },
   { name: "KuCoin Web3 Wallet", logo: "/partners/kucoin-web3-wallet.png" },
   { name: "Gate Wallet", logo: "/partners/gate-wallet.png" },
   { name: "Ronin Wallet", logo: "/partners/ronin-wallet.png" },
