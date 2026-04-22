@@ -53,6 +53,56 @@ function shortAddress(address?: string) {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
+function TelegramDropdown({
+  buttonClassName,
+  iconClassName = "h-4 w-4",
+  align = "right",
+}: {
+  buttonClassName: string;
+  iconClassName?: string;
+  align?: "left" | "right" | "center";
+}) {
+  const positionClass =
+    align === "left"
+      ? "left-0"
+      : align === "center"
+      ? "left-1/2 -translate-x-1/2"
+      : "right-0";
+
+  return (
+    <details className="group relative">
+      <summary
+        className={`${buttonClassName} list-none cursor-pointer`}
+        aria-label="Telegram"
+        title="Telegram"
+      >
+        <TelegramIcon className={iconClassName} />
+      </summary>
+
+      <div
+        className={`absolute top-12 z-50 min-w-[180px] rounded-2xl border border-white/10 bg-black/95 p-2 shadow-2xl ${positionClass}`}
+      >
+        <a
+          href="https://t.me/koraxfund"
+          target="_blank"
+          rel="noreferrer"
+          className="block rounded-xl px-3 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
+        >
+          Telegram Channel
+        </a>
+        <a
+          href="https://t.me/koraxgroub"
+          target="_blank"
+          rel="noreferrer"
+          className="mt-1 block rounded-xl px-3 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
+        >
+          Telegram Group
+        </a>
+      </div>
+    </details>
+  );
+}
+
 export default function Topbar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -91,18 +141,18 @@ export default function Topbar() {
     <header className="fixed left-0 right-0 top-0 z-50">
       <div className="mx-auto w-full max-w-[1500px] px-4 pt-4">
         <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/35 px-3 py-3 backdrop-blur-md">
-          <Link href="/" className="flex items-center gap-2 min-w-0">
+          <Link href="/" className="flex min-w-0 items-center gap-2">
             <img
               src="/raven-logo.png"
               alt="KORAX"
-              className="h-6 w-6 sm:h-7 sm:w-7 rounded-full object-cover shrink-0"
+              className="h-6 w-6 shrink-0 rounded-full object-cover sm:h-7 sm:w-7"
             />
-            <span className="text-[13px] sm:text-sm font-semibold tracking-wide text-white truncate">
+            <span className="truncate text-[13px] font-semibold tracking-wide text-white sm:text-sm">
               KORAX
             </span>
           </Link>
 
-          <nav className="hidden lg:flex items-center gap-2">
+          <nav className="hidden items-center gap-2 lg:flex">
             {nav.map((item) => (
               <Link
                 key={item.href}
@@ -139,23 +189,18 @@ export default function Topbar() {
               href="https://x.com/koraxfund"
               target="_blank"
               rel="noreferrer"
-              className="inline-flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10 sm:h-9 sm:w-9"
               aria-label="X"
               title="X"
             >
               <XIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </a>
 
-            <a
-              href="https://t.me/koraxfund"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
-              aria-label="Telegram"
-              title="Telegram"
-            >
-              <TelegramIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            </a>
+            <TelegramDropdown
+              buttonClassName="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10 sm:h-9 sm:w-9"
+              iconClassName="h-3.5 w-3.5 sm:h-4 sm:w-4"
+              align="right"
+            />
 
             <ConnectButton.Custom>
               {({
@@ -178,7 +223,7 @@ export default function Topbar() {
                       <button
                         onClick={openConnectModal}
                         type="button"
-                        className="h-9 sm:h-10 px-3 sm:px-5 rounded-xl bg-[#7CFF6A] text-black text-sm sm:text-base font-semibold whitespace-nowrap shrink-0"
+                        className="h-9 shrink-0 whitespace-nowrap rounded-xl bg-[#7CFF6A] px-3 text-sm font-semibold text-black sm:h-10 sm:px-5 sm:text-base"
                       >
                         Connect Wallet
                       </button>
@@ -186,7 +231,7 @@ export default function Topbar() {
                       <button
                         onClick={openChainModal}
                         type="button"
-                        className="h-9 sm:h-10 px-3 sm:px-5 rounded-xl bg-red-500 text-white text-sm sm:text-base font-semibold whitespace-nowrap shrink-0"
+                        className="h-9 shrink-0 whitespace-nowrap rounded-xl bg-red-500 px-3 text-sm font-semibold text-white sm:h-10 sm:px-5 sm:text-base"
                       >
                         Wrong Network
                       </button>
@@ -194,7 +239,7 @@ export default function Topbar() {
                       <button
                         onClick={openAccountModal}
                         type="button"
-                        className="h-9 sm:h-10 px-3 sm:px-5 rounded-xl bg-[#7CFF6A] text-black text-sm sm:text-base font-semibold whitespace-nowrap shrink-0 max-w-[140px] sm:max-w-none overflow-hidden text-ellipsis"
+                        className="h-9 max-w-[140px] shrink-0 overflow-hidden text-ellipsis whitespace-nowrap rounded-xl bg-[#7CFF6A] px-3 text-sm font-semibold text-black sm:h-10 sm:max-w-none sm:px-5 sm:text-base"
                         title={account.address}
                       >
                         <span className="sm:hidden">
@@ -213,7 +258,7 @@ export default function Topbar() {
             <button
               type="button"
               onClick={() => setOpen(true)}
-              className="lg:hidden inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/90 hover:bg-white/10 shrink-0"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/90 hover:bg-white/10 lg:hidden"
               aria-label="Open Menu"
             >
               <MenuIcon className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -278,7 +323,7 @@ export default function Topbar() {
                             <button
                               onClick={openConnectModal}
                               type="button"
-                              className="w-full h-11 rounded-xl bg-[#7CFF6A] text-black font-semibold whitespace-nowrap"
+                              className="h-11 w-full whitespace-nowrap rounded-xl bg-[#7CFF6A] font-semibold text-black"
                             >
                               Connect Wallet
                             </button>
@@ -286,7 +331,7 @@ export default function Topbar() {
                             <button
                               onClick={openChainModal}
                               type="button"
-                              className="w-full h-11 rounded-xl bg-red-500 text-white font-semibold whitespace-nowrap"
+                              className="h-11 w-full whitespace-nowrap rounded-xl bg-red-500 font-semibold text-white"
                             >
                               Wrong Network
                             </button>
@@ -294,7 +339,7 @@ export default function Topbar() {
                             <button
                               onClick={openAccountModal}
                               type="button"
-                              className="w-full h-11 rounded-xl bg-[#7CFF6A] text-black font-semibold whitespace-nowrap"
+                              className="h-11 w-full whitespace-nowrap rounded-xl bg-[#7CFF6A] font-semibold text-black"
                               title={account.address}
                             >
                               {account.displayName}
@@ -348,16 +393,11 @@ export default function Topbar() {
                     <XIcon className="h-5 w-5" />
                   </a>
 
-                  <a
-                    href="https://t.me/koraxfund"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
-                    aria-label="Telegram"
-                    title="Telegram"
-                  >
-                    <TelegramIcon className="h-5 w-5" />
-                  </a>
+                  <TelegramDropdown
+                    buttonClassName="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
+                    iconClassName="h-5 w-5"
+                    align="center"
+                  />
                 </div>
               </div>
             </div>
