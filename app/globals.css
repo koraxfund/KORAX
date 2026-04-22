@@ -82,3 +82,45 @@ body::after{
   0%, 100% { opacity: 0.22; filter: blur(0px); }
   50%      { opacity: 0.48; filter: blur(0.2px); }
 }
+.partners-marquee {
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  padding: 18px 0;
+}
+
+.partners-track {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 18px;
+  width: max-content;
+  white-space: nowrap;
+  animation: partners-scroll 38s linear infinite;
+  will-change: transform;
+}
+
+.partners-item {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-width: max-content;
+  padding: 14px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 18px;
+}
+
+.partners-marquee:hover .partners-track {
+  animation-play-state: paused;
+}
+
+@keyframes partners-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
