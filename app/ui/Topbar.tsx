@@ -90,6 +90,7 @@ function TelegramDropdown({
         >
           Telegram Channel
         </a>
+
         <a
           href="https://t.me/koraxgroub"
           target="_blank"
@@ -115,8 +116,9 @@ export default function Topbar() {
       { label: "Staking", href: "/staking", sublabel: "Available After Claim" },
       { label: "Roadmap", href: "/roadmap" },
       { label: "Docs", href: "/docs" },
-      { label: "Launch Your Project", href: "/launch", soon: true },
-      { label: "Token Builder AI", href: "/ai", soon: true },
+      { label: "Launch Your Project", href: "/launch" },
+      { label: "Token Builder AI", href: "/ai" },
+      { label: "Website Builder AI", href: "/website-builder-ai", soon: true },
     ],
     []
   );
@@ -169,7 +171,7 @@ export default function Topbar() {
                     {item.label}
                     {item.soon ? (
                       <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] text-white/70">
-                        Coming Soon
+                        Under Development
                       </span>
                     ) : null}
                   </span>
@@ -374,7 +376,7 @@ export default function Topbar() {
 
                       {item.soon ? (
                         <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] text-white/70">
-                          Coming Soon
+                          Under Development
                         </span>
                       ) : null}
                     </Link>

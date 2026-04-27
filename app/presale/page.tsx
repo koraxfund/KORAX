@@ -225,11 +225,16 @@ export default function PresalePage() {
 
       const progressValue =
         totalForSaleBig > 0n
-          ? Math.min(100, Number((totalSoldBig * 10000n) / totalForSaleBig) / 100)
+          ? Math.min(
+              100,
+              Number((totalSoldBig * 10000n) / totalForSaleBig) / 100
+            )
           : 0;
 
       setStage(uiStage);
-      setStagePrice(STAGE_PRICES[Math.min(currentStageNum, 4)] ?? STAGE_PRICES[4]);
+      setStagePrice(
+        STAGE_PRICES[Math.min(currentStageNum, 4)] ?? STAGE_PRICES[4]
+      );
       setStageRemaining(
         formatTokenAmount(BigInt(currentRemainingRaw.toString()), 18, 2)
       );
@@ -255,7 +260,11 @@ export default function PresalePage() {
       }
 
       const rpcProvider = await getRpcProvider();
-      const presale = new ethers.Contract(PRESALE_ADDRESS, presaleAbi, rpcProvider);
+      const presale = new ethers.Contract(
+        PRESALE_ADDRESS,
+        presaleAbi,
+        rpcProvider
+      );
 
       let out: bigint = 0n;
 
@@ -264,13 +273,21 @@ export default function PresalePage() {
         out = await presale.previewTokensForBNB(wei);
       } else if (mode === "usdt") {
         await validateContract(rpcProvider, contractUsdtAddress);
-        const token = new ethers.Contract(contractUsdtAddress, erc20Abi, rpcProvider);
+        const token = new ethers.Contract(
+          contractUsdtAddress,
+          erc20Abi,
+          rpcProvider
+        );
         const decimals = Number(await token.decimals());
         const amountRaw = ethers.parseUnits(inputAmount, decimals);
         out = await presale.previewTokensForUSDT(amountRaw);
       } else {
         await validateContract(rpcProvider, contractUsdcAddress);
-        const token = new ethers.Contract(contractUsdcAddress, erc20Abi, rpcProvider);
+        const token = new ethers.Contract(
+          contractUsdcAddress,
+          erc20Abi,
+          rpcProvider
+        );
         const decimals = Number(await token.decimals());
         const amountRaw = ethers.parseUnits(inputAmount, decimals);
         out = await presale.previewTokensForUSDC(amountRaw);
@@ -390,7 +407,8 @@ export default function PresalePage() {
       const active = await presale.saleActive();
       if (!active) throw new Error("Presale is not active");
 
-      const tokenAddress = mode === "usdt" ? contractUsdtAddress : contractUsdcAddress;
+      const tokenAddress =
+        mode === "usdt" ? contractUsdtAddress : contractUsdcAddress;
       const token = new ethers.Contract(tokenAddress, erc20Abi, signer);
 
       const decimals = Number(await token.decimals());
@@ -440,33 +458,81 @@ export default function PresalePage() {
 
   return (
     <div className="space-y-8">
-      <section className="rounded-2xl border border-white/10 bg-black/30 p-8 backdrop-blur-md">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+      <section className="relative overflow-hidden rounded-[30px] border border-white/10 bg-black/30 p-8 shadow-[0_24px_90px_rgba(0,0,0,0.45)] backdrop-blur-md">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(124,255,106,0.14),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.07),transparent_30%)]" />
+
+        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h1 className="text-3xl font-extrabold text-white">Presale</h1>
-            <p className="mt-2 text-white/70">
-              5-stage live presale connected to the verified on-chain contract.
+            <p className="text-xs uppercase tracking-[0.28em] text-white/45">
+              KORAX Presale
             </p>
+
+            <h1 className="mt-2 text-3xl font-extrabold text-white sm:text-4xl">
+              Join the KORAX 5-stage presale
+            </h1>
+
+            <p className="mt-4 max-w-3xl leading-relaxed text-white/70">
+              Participate through the verified on-chain presale contract on BNB
+              Smart Chain. The sale follows a transparent five-stage structure
+              with progressive pricing and live contract-based progress data.
+            </p>
+
+            <div className="mt-5 flex flex-wrap gap-3 text-xs">
+              <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-white/60">
+                Sale:{" "}
+                <span
+                  className={
+                    saleActive
+                      ? "font-semibold text-[#c4ffbc]"
+                      : "font-semibold text-white"
+                  }
+                >
+                  {saleActive ? "Active" : "Closed"}
+                </span>
+              </div>
+
+              <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-white/60">
+                Stage:{" "}
+                <span className="font-semibold text-white">{stage} / 5</span>
+              </div>
+
+              <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-white/60">
+                Network:{" "}
+                <span className="font-semibold text-white">BNB Chain</span>
+              </div>
+
+              <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-white/60">
+                Wallet:{" "}
+                <span className="font-semibold text-white">
+                  {walletAddress ? shortenAddress(walletAddress) : "Not connected"}
+                </span>
+              </div>
+            </div>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/75 lg:max-w-xl">
-            <div className="text-white/50">Verified Presale Contract</div>
-            <div className="mt-2 break-all font-mono text-xs text-white">
+          <div className="rounded-2xl border border-white/10 bg-black/35 p-5 text-sm text-white/75 lg:w-[430px]">
+            <div className="text-xs uppercase tracking-[0.22em] text-white/40">
+              Verified Presale Contract
+            </div>
+
+            <div className="mt-3 break-all rounded-xl border border-white/10 bg-black/30 p-3 font-mono text-xs text-white">
               {PRESALE_ADDRESS}
             </div>
-            <div className="mt-3 flex flex-wrap gap-3">
+
+            <div className="mt-4 flex flex-wrap gap-3">
               <a
                 href={PRESALE_BSCSCAN_URL}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-white hover:bg-white/10"
+                className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-white transition hover:bg-white/10"
               >
                 Open on BscScan
               </a>
+
               <button
                 type="button"
                 onClick={() => navigator.clipboard.writeText(PRESALE_ADDRESS)}
-                className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-white hover:bg-white/10"
+                className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-white transition hover:bg-white/10"
               >
                 Copy Address
               </button>
@@ -475,49 +541,69 @@ export default function PresalePage() {
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-4">
-        <div className="rounded-2xl border border-white/10 bg-black/25 p-6 backdrop-blur-md">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 p-6 shadow-[0_18px_55px_rgba(0,0,0,0.28)] backdrop-blur-md">
           <div className="text-sm text-white/60">Current Stage</div>
-          <div className="mt-2 text-2xl font-semibold text-white">{stage} / 5</div>
+          <div className="mt-2 text-3xl font-extrabold text-[#c4ffbc]">
+            {stage} / 5
+          </div>
+          <p className="mt-3 text-sm leading-relaxed text-white/70">
+            Active presale stage based on the live contract state.
+          </p>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-black/25 p-6 backdrop-blur-md">
-          <div className="text-sm text-white/60">Stage Price</div>
-          <div className="mt-2 text-2xl font-semibold text-white">
+        <div className="rounded-2xl border border-white/10 bg-black/25 p-6 shadow-[0_18px_55px_rgba(0,0,0,0.28)] backdrop-blur-md">
+          <div className="text-sm text-white/50">Stage Price</div>
+          <div className="mt-2 text-3xl font-extrabold text-white">
             ${stagePrice.toFixed(2)}
           </div>
+          <p className="mt-3 text-sm leading-relaxed text-white/65">
+            Current token price for this stage.
+          </p>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-black/25 p-6 backdrop-blur-md">
-          <div className="text-sm text-white/60">Total Sold</div>
-          <div className="mt-2 text-2xl font-semibold text-white">{totalSold} KORAX</div>
+        <div className="rounded-2xl border border-white/10 bg-black/25 p-6 shadow-[0_18px_55px_rgba(0,0,0,0.28)] backdrop-blur-md">
+          <div className="text-sm text-white/50">Total Sold</div>
+          <div className="mt-2 text-2xl font-extrabold text-white">
+            {totalSold} KORAX
+          </div>
+          <p className="mt-3 text-sm leading-relaxed text-white/65">
+            Total KORAX sold across all presale stages.
+          </p>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-black/25 p-6 backdrop-blur-md">
-          <div className="text-sm text-white/60">Stage Remaining</div>
-          <div className="mt-2 text-2xl font-semibold text-white">
+        <div className="rounded-2xl border border-white/10 bg-black/25 p-6 shadow-[0_18px_55px_rgba(0,0,0,0.28)] backdrop-blur-md">
+          <div className="text-sm text-white/50">Stage Remaining</div>
+          <div className="mt-2 text-2xl font-extrabold text-white">
             {stageRemaining} KORAX
           </div>
+          <p className="mt-3 text-sm leading-relaxed text-white/65">
+            Remaining allocation in the current stage.
+          </p>
         </div>
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-black/25 p-6 backdrop-blur-md">
-        <div className="mb-2 flex items-center justify-between text-sm text-white/60">
-          <span>Progress</span>
-          <span>{progress.toFixed(2)}%</span>
+      <section className="rounded-2xl border border-white/10 bg-black/25 p-6 shadow-[0_20px_70px_rgba(0,0,0,0.32)] backdrop-blur-md">
+        <div className="mb-3 flex items-center justify-between text-sm text-white/60">
+          <span>Presale Progress</span>
+          <span className="font-semibold text-white">{progress.toFixed(2)}%</span>
         </div>
 
-        <div className="h-3 w-full overflow-hidden rounded-full bg-white/10">
+        <div className="h-4 w-full overflow-hidden rounded-full border border-white/10 bg-black/40">
           <div
-            className="h-full bg-[#7CFF6A] transition-all duration-500"
+            className="h-full rounded-full bg-[#7CFF6A] shadow-[0_0_28px_rgba(124,255,106,0.35)] transition-all duration-500"
             style={{ width: `${progress}%` }}
           />
         </div>
 
-        <div className="mt-4 grid gap-4 md:grid-cols-4">
+        <div className="mt-5 grid gap-4 md:grid-cols-4">
           <div className="rounded-xl border border-white/10 bg-white/5 p-4">
             <div className="text-sm text-white/50">Sale Status</div>
-            <div className="mt-2 font-semibold text-white">
+            <div
+              className={`mt-2 font-semibold ${
+                saleActive ? "text-[#c4ffbc]" : "text-white"
+              }`}
+            >
               {saleActive ? "Active" : "Closed"}
             </div>
           </div>
@@ -531,119 +617,215 @@ export default function PresalePage() {
 
           <div className="rounded-xl border border-white/10 bg-white/5 p-4">
             <div className="text-sm text-white/50">Claim Start</div>
-            <div className="mt-2 font-semibold text-white">{claimStart}</div>
+            <div className="mt-2 text-sm font-semibold text-white">
+              {claimStart}
+            </div>
           </div>
 
           <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <div className="text-sm text-white/50">Anti-Bot</div>
+            <div className="text-sm text-white/50">Anti-Bot Protection</div>
             <div className="mt-2 font-semibold text-white">
-              {antiBotEnabled ? `On (${buyCooldown}s)` : "Off"}
+              {antiBotEnabled ? `Enabled (${buyCooldown}s)` : "Off"}
             </div>
           </div>
         </div>
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-black/25 p-6 backdrop-blur-md">
-        <div className="mb-5 grid gap-4 lg:grid-cols-[1fr_auto]">
-          <input
-            type="number"
-            step="0.000001"
-            min="0"
-            placeholder="Enter amount"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none placeholder:text-white/35"
-          />
+      <section className="grid gap-6 xl:grid-cols-[1fr_420px]">
+        <div className="rounded-2xl border border-white/10 bg-black/25 p-6 shadow-[0_20px_70px_rgba(0,0,0,0.32)] backdrop-blur-md">
+          <div className="mb-5">
+            <p className="text-xs uppercase tracking-[0.24em] text-white/40">
+              Purchase Panel
+            </p>
 
-          <select
-            value={previewMode}
-            onChange={(e) => setPreviewMode(e.target.value as PayMode)}
-            className="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none"
-          >
-            <option value="usdt">Preview with USDT</option>
-            <option value="usdc">Preview with USDC</option>
-            <option value="bnb">Preview with BNB</option>
-          </select>
-        </div>
+            <h2 className="mt-2 text-2xl font-bold text-white">
+              Buy KORAX during the presale
+            </h2>
 
-        <div className="mb-5 rounded-xl border border-white/10 bg-white/5 p-4">
-          <div className="text-sm text-white/50">Estimated Tokens</div>
-          <div className="mt-2 text-xl font-semibold text-white">{preview}</div>
-        </div>
-
-        <div className="grid gap-3 md:grid-cols-3">
-          <button
-            onClick={buyWithBNB}
-            disabled={!saleActive || busy !== ""}
-            className="rounded-xl bg-[#F0C94B] px-4 py-3 font-semibold text-black disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {busy === "bnb" ? "Processing..." : "Buy with BNB"}
-          </button>
-
-          <button
-            onClick={() => approveAndBuyStable("usdt")}
-            disabled={!saleActive || busy !== ""}
-            className="rounded-xl bg-[#5EC46B] px-4 py-3 font-semibold text-black disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {busy === "usdt" ? "Processing..." : "Buy with USDT"}
-          </button>
-
-          <button
-            onClick={() => approveAndBuyStable("usdc")}
-            disabled={!saleActive || busy !== ""}
-            className="rounded-xl bg-[#5A84E8] px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {busy === "usdc" ? "Processing..." : "Buy with USDC"}
-          </button>
-        </div>
-
-        <div className="mt-4 text-sm text-white/70">
-          {saleActive ? "Presale is active." : "Presale is closed."}
-        </div>
-
-        {walletAddress ? (
-          <div className="mt-2 text-sm text-white/45">
-            Connected: {shortenAddress(walletAddress)}
+            <p className="mt-2 text-sm leading-relaxed text-white/60">
+              Enter the amount you want to spend, preview the estimated KORAX
+              amount, then complete the purchase with BNB, USDT, or USDC.
+            </p>
           </div>
-        ) : (
-          <div className="mt-2 text-sm text-yellow-300/80">
-            Connect wallet first from the top bar.
-          </div>
-        )}
 
-        {status ? (
-          <div className="mt-4 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80">
-            {status}
-          </div>
-        ) : null}
-      </section>
+          <div className="mb-5 grid gap-4 lg:grid-cols-[1fr_auto]">
+            <input
+              type="number"
+              step="0.000001"
+              min="0"
+              placeholder="Enter amount"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none transition placeholder:text-white/35 focus:border-[#7CFF6A]/40"
+            />
 
-      <section className="rounded-2xl border border-white/10 bg-black/25 p-6 backdrop-blur-md">
-        <h2 className="text-xl font-bold text-white">Presale Stages</h2>
-
-        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          {STAGE_PRICES.map((price, index) => (
-            <div
-              key={index}
-              className={`rounded-2xl border p-5 backdrop-blur-md ${
-                stage === index + 1
-                  ? "border-[#7CFF6A]/40 bg-[#7CFF6A]/10"
-                  : "border-white/10 bg-black/20"
-              }`}
+            <select
+              value={previewMode}
+              onChange={(e) => setPreviewMode(e.target.value as PayMode)}
+              className="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none transition focus:border-[#7CFF6A]/40"
             >
-              <div className="text-sm text-white/50">Stage {index + 1}</div>
-              <div className="mt-2 text-lg font-semibold text-white">
-                ${price.toFixed(2)}
-              </div>
-              <div className="mt-1 text-sm text-white/60">
-                {STAGE_CAPS[index].toLocaleString("en-US")} KORAX
-              </div>
+              <option value="usdt">Preview with USDT</option>
+              <option value="usdc">Preview with USDC</option>
+              <option value="bnb">Preview with BNB</option>
+            </select>
+          </div>
+
+          <div className="mb-5 rounded-2xl border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 p-5">
+            <div className="text-sm text-white/60">Estimated Tokens</div>
+            <div className="mt-2 text-2xl font-extrabold text-[#c4ffbc]">
+              {preview}
             </div>
-          ))}
+            <p className="mt-2 text-xs leading-relaxed text-white/60">
+              Preview is calculated from the presale contract and may change
+              depending on stage availability and live contract state.
+            </p>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-3">
+            <button
+              onClick={buyWithBNB}
+              disabled={!saleActive || busy !== ""}
+              className="rounded-xl bg-[#F0C94B] px-4 py-3 font-semibold text-black transition hover:scale-[1.01] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {busy === "bnb" ? "Processing..." : "Buy with BNB"}
+            </button>
+
+            <button
+              onClick={() => approveAndBuyStable("usdt")}
+              disabled={!saleActive || busy !== ""}
+              className="rounded-xl bg-[#5EC46B] px-4 py-3 font-semibold text-black transition hover:scale-[1.01] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {busy === "usdt" ? "Processing..." : "Buy with USDT"}
+            </button>
+
+            <button
+              onClick={() => approveAndBuyStable("usdc")}
+              disabled={!saleActive || busy !== ""}
+              className="rounded-xl bg-[#5A84E8] px-4 py-3 font-semibold text-white transition hover:scale-[1.01] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {busy === "usdc" ? "Processing..." : "Buy with USDC"}
+            </button>
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-3 text-sm">
+            <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-white/60">
+              Presale:{" "}
+              <span className="font-semibold text-white">
+                {saleActive ? "Active" : "Closed"}
+              </span>
+            </div>
+
+            {walletAddress ? (
+              <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-white/60">
+                Connected:{" "}
+                <span className="font-semibold text-white">
+                  {shortenAddress(walletAddress)}
+                </span>
+              </div>
+            ) : (
+              <div className="rounded-full border border-yellow-400/20 bg-yellow-400/10 px-4 py-2 text-yellow-200">
+                Connect wallet first from the top bar.
+              </div>
+            )}
+          </div>
+
+          {status ? (
+            <div className="mt-5 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80">
+              {status}
+            </div>
+          ) : null}
         </div>
 
-        <div className="mt-4 text-sm text-white/55">
-          Planned listing price: <span className="font-semibold text-white">$0.15</span>
+        <div className="rounded-2xl border border-white/10 bg-black/25 p-6 shadow-[0_20px_70px_rgba(0,0,0,0.32)] backdrop-blur-md">
+          <p className="text-xs uppercase tracking-[0.24em] text-white/40">
+            Presale Details
+          </p>
+
+          <h3 className="mt-2 text-xl font-bold text-white">
+            Transparent stage-based pricing
+          </h3>
+
+          <div className="mt-5 space-y-3">
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <div className="text-sm text-white/50">Current Price</div>
+              <div className="mt-1 text-lg font-semibold text-white">
+                ${stagePrice.toFixed(2)}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <div className="text-sm text-white/50">Planned Listing Price</div>
+              <div className="mt-1 text-lg font-semibold text-white">$0.15</div>
+            </div>
+
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <div className="text-sm text-white/50">Accepted Payments</div>
+              <div className="mt-1 text-lg font-semibold text-white">
+                BNB / USDT / USDC
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <div className="text-sm text-white/50">Claim</div>
+              <div className="mt-1 text-sm font-semibold text-white">
+                Available after presale completion and claim activation.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-white/10 bg-black/25 p-6 shadow-[0_20px_70px_rgba(0,0,0,0.3)] backdrop-blur-md">
+        <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.24em] text-white/40">
+              KORAX Presale Stages
+            </p>
+
+            <h2 className="mt-2 text-xl font-bold text-white">
+              Five-stage token allocation
+            </h2>
+          </div>
+
+          <div className="text-sm text-white/55">
+            Planned listing price:{" "}
+            <span className="font-semibold text-white">$0.15</span>
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          {STAGE_PRICES.map((price, index) => {
+            const active = stage === index + 1;
+
+            return (
+              <div
+                key={index}
+                className={`rounded-2xl border p-5 backdrop-blur-md transition ${
+                  active
+                    ? "border-[#7CFF6A]/40 bg-[#7CFF6A]/10 shadow-[0_0_38px_rgba(124,255,106,0.12)]"
+                    : "border-white/10 bg-black/20"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm text-white/50">Stage {index + 1}</div>
+
+                  {active ? (
+                    <span className="rounded-full border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 px-2 py-1 text-[11px] font-semibold text-[#c4ffbc]">
+                      Current
+                    </span>
+                  ) : null}
+                </div>
+
+                <div className="mt-3 text-2xl font-extrabold text-white">
+                  ${price.toFixed(2)}
+                </div>
+
+                <div className="mt-2 text-sm text-white/60">
+                  {STAGE_CAPS[index].toLocaleString("en-US")} KORAX
+                </div>
+              </div>
+            );
+          })}
         </div>
       </section>
     </div>
