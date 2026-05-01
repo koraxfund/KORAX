@@ -72,6 +72,11 @@ type VisualResult = {
   model?: string;
 };
 
+type StakingPlanForm = {
+  durationDays: string;
+  rewardBps: string;
+};
+
 const projectFields = [
   ["goal", "Main Goal of the Project"],
   ["problemSolved", "What problem does this project solve?"],
@@ -161,11 +166,21 @@ export default function AIPage() {
   });
 
   const [deployForm, setDeployForm] = useState({
-    totalSupply: "100000000",
+    initialSupply: "100000000",
+    maxSupply: "100000000",
+    mintable: false,
+    burnable: true,
     stakingEnabled: true,
     stakingRewardsAllocation: "20000000",
     metadataURI: "",
   });
+
+  const [stakingPlans, setStakingPlans] = useState<StakingPlanForm[]>([
+    { durationDays: "30", rewardBps: "750" },
+    { durationDays: "90", rewardBps: "2250" },
+    { durationDays: "180", rewardBps: "4500" },
+    { durationDays: "365", rewardBps: "9000" },
+  ]);
 
   const [visualForm, setVisualForm] = useState({
     imageType: "Project Poster",
@@ -401,6 +416,27 @@ export default function AIPage() {
     }
   }
 
+  function addStakingPlan() {
+    setStakingPlans((prev) => {
+      if (prev.length >= 10) return prev;
+      return [...prev, { durationDays: "30", rewardBps: "500" }];
+    });
+  }
+
+  function removeStakingPlan(index: number) {
+    setStakingPlans((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function updateStakingPlan(
+    index: number,
+    key: keyof StakingPlanForm,
+    value: string
+  ) {
+    setStakingPlans((prev) =>
+      prev.map((plan, i) => (i === index ? { ...plan, [key]: value } : plan))
+    );
+  }
+
   async function deployAIProject() {
     setDeployingProject(true);
     setDeployError("");
@@ -431,22 +467,66 @@ export default function AIPage() {
         throw new Error("No available KORAX project slots.");
       }
 
-      const totalSupply = ethers.parseUnits(deployForm.totalSupply || "0", 18);
+      const initialSupply = ethers.parseUnits(
+        deployForm.initialSupply || "0",
+        18
+      );
+
+      const maxSupply = ethers.parseUnits(deployForm.maxSupply || "0", 18);
 
       const stakingRewardsAllocation = deployForm.stakingEnabled
         ? ethers.parseUnits(deployForm.stakingRewardsAllocation || "0", 18)
         : 0n;
 
-      if (totalSupply <= 0n) {
-        throw new Error("Total supply must be greater than 0.");
+      if (initialSupply <= 0n) {
+        throw new Error("Initial supply must be greater than 0.");
+      }
+
+      if (maxSupply < initialSupply) {
+        throw new Error("Max supply cannot be lower than initial supply.");
+      }
+
+      if (!deployForm.mintable && maxSupply !== initialSupply) {
+        throw new Error("Fixed-supply tokens must have max supply equal to initial supply.");
       }
 
       if (deployForm.stakingEnabled && stakingRewardsAllocation <= 0n) {
         throw new Error("Staking rewards allocation must be greater than 0.");
       }
 
-      if (stakingRewardsAllocation > totalSupply) {
-        throw new Error("Staking rewards allocation cannot exceed total supply.");
+      if (stakingRewardsAllocation > initialSupply) {
+        throw new Error("Staking rewards allocation cannot exceed initial supply.");
+      }
+
+      const cleanPlans = deployForm.stakingEnabled
+        ? stakingPlans.map((plan) => ({
+            durationDays: BigInt(plan.durationDays || "0"),
+            rewardBps: BigInt(plan.rewardBps || "0"),
+          }))
+        : [];
+
+      if (deployForm.stakingEnabled) {
+        if (cleanPlans.length === 0) {
+          throw new Error("At least one staking plan is required.");
+        }
+
+        if (cleanPlans.length > 10) {
+          throw new Error("Maximum 10 staking plans allowed.");
+        }
+
+        for (const plan of cleanPlans) {
+          if (plan.durationDays <= 0n) {
+            throw new Error("Each staking plan must have duration greater than 0.");
+          }
+
+          if (plan.rewardBps <= 0n) {
+            throw new Error("Each staking plan must have reward BPS greater than 0.");
+          }
+
+          if (plan.rewardBps > 10000n) {
+            throw new Error("Reward BPS cannot exceed 10000.");
+          }
+        }
       }
 
       const browserProvider = new ethers.BrowserProvider(
@@ -466,12 +546,18 @@ export default function AIPage() {
         `korax-ai:${form.projectName.trim()}:${Date.now()}`;
 
       const cfg = {
-        name: form.projectName.trim(),
-        symbol: form.symbol.trim().toUpperCase(),
-        totalSupply,
+        token: {
+          name: form.projectName.trim(),
+          symbol: form.symbol.trim().toUpperCase(),
+          initialSupply,
+          maxSupply,
+          mintable: deployForm.mintable,
+          burnable: deployForm.burnable,
+        },
         stakingEnabled: deployForm.stakingEnabled,
         stakingRewardsAllocation,
         metadataURI,
+        stakingPlans: cleanPlans,
       };
 
       const tx = await contract.deployAIProject(cfg);
@@ -550,9 +636,7 @@ export default function AIPage() {
 
           <h1 className="mt-5 text-4xl font-black leading-tight text-white sm:text-5xl">
             Turn an idea into a serious
-            <span className="block text-[#7CFF6A]">
-              Web3 project blueprint.
-            </span>
+            <span className="block text-[#7CFF6A]">Web3 project blueprint.</span>
           </h1>
 
           <p className="mt-5 max-w-3xl text-base leading-relaxed text-white/68">
@@ -1048,16 +1132,21 @@ export default function AIPage() {
                 </SectionCard>
               </div>
 
-              <SectionCard title="On-chain Deployment Settings">
+              <SectionCard title="Flexible Token Settings">
                 <div className="mt-4 grid gap-4 md:grid-cols-2">
                   <div>
-                    <label className="text-xs text-white/45">Total Supply</label>
+                    <label className="text-xs text-white/45">
+                      Initial Supply
+                    </label>
                     <input
-                      value={deployForm.totalSupply}
+                      value={deployForm.initialSupply}
                       onChange={(e) =>
                         setDeployForm((prev) => ({
                           ...prev,
-                          totalSupply: e.target.value,
+                          initialSupply: e.target.value,
+                          maxSupply: prev.mintable
+                            ? prev.maxSupply
+                            : e.target.value,
                         }))
                       }
                       placeholder="100000000"
@@ -1067,23 +1156,64 @@ export default function AIPage() {
 
                   <div>
                     <label className="text-xs text-white/45">
-                      Staking Rewards Allocation
+                      Max Supply
                     </label>
                     <input
-                      value={deployForm.stakingRewardsAllocation}
+                      value={deployForm.maxSupply}
                       onChange={(e) =>
                         setDeployForm((prev) => ({
                           ...prev,
-                          stakingRewardsAllocation: e.target.value,
+                          maxSupply: e.target.value,
                         }))
                       }
-                      placeholder="20000000"
-                      disabled={!deployForm.stakingEnabled}
+                      placeholder="100000000"
+                      disabled={!deployForm.mintable}
                       className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none disabled:opacity-50"
                     />
                   </div>
                 </div>
 
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white/80">
+                    <input
+                      type="checkbox"
+                      checked={deployForm.mintable}
+                      onChange={(e) =>
+                        setDeployForm((prev) => ({
+                          ...prev,
+                          mintable: e.target.checked,
+                          maxSupply: e.target.checked
+                            ? prev.maxSupply
+                            : prev.initialSupply,
+                        }))
+                      }
+                    />
+                    Mintable token
+                  </label>
+
+                  <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white/80">
+                    <input
+                      type="checkbox"
+                      checked={deployForm.burnable}
+                      onChange={(e) =>
+                        setDeployForm((prev) => ({
+                          ...prev,
+                          burnable: e.target.checked,
+                        }))
+                      }
+                    />
+                    Burnable token
+                  </label>
+                </div>
+
+                <p className="mt-4 text-sm leading-relaxed text-white/55">
+                  If minting is disabled, max supply must equal initial supply.
+                  If minting is enabled, the project owner can mint later up to
+                  the max supply limit.
+                </p>
+              </SectionCard>
+
+              <SectionCard title="Flexible Staking Settings">
                 <label className="mt-4 flex items-center gap-2 rounded-xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white/80">
                   <input
                     type="checkbox"
@@ -1103,25 +1233,103 @@ export default function AIPage() {
 
                 <div className="mt-4">
                   <label className="text-xs text-white/45">
-                    Metadata URI / Project Reference
+                    Staking Rewards Allocation
                   </label>
                   <input
-                    value={deployForm.metadataURI}
+                    value={deployForm.stakingRewardsAllocation}
                     onChange={(e) =>
                       setDeployForm((prev) => ({
                         ...prev,
-                        metadataURI: e.target.value,
+                        stakingRewardsAllocation: e.target.value,
                       }))
                     }
-                    placeholder="Optional: IPFS / website / project reference"
-                    className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none"
+                    placeholder="20000000"
+                    disabled={!deployForm.stakingEnabled}
+                    className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none disabled:opacity-50"
                   />
                 </div>
 
+                {deployForm.stakingEnabled ? (
+                  <div className="mt-5 space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="font-semibold text-white">
+                          Staking Plans
+                        </div>
+                        <p className="mt-1 text-xs text-white/50">
+                          Add from 1 to 10 custom staking plans. Reward BPS:
+                          10000 = 100%.
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={addStakingPlan}
+                        disabled={stakingPlans.length >= 10}
+                        className="rounded-xl border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 px-4 py-2 text-sm font-semibold text-[#c4ffbc] disabled:opacity-50"
+                      >
+                        Add Plan
+                      </button>
+                    </div>
+
+                    {stakingPlans.map((plan, index) => (
+                      <div
+                        key={index}
+                        className="grid gap-3 rounded-2xl border border-white/10 bg-black/25 p-4 md:grid-cols-[1fr_1fr_auto]"
+                      >
+                        <input
+                          value={plan.durationDays}
+                          onChange={(e) =>
+                            updateStakingPlan(
+                              index,
+                              "durationDays",
+                              e.target.value
+                            )
+                          }
+                          placeholder="Duration days"
+                          className="rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none"
+                        />
+
+                        <input
+                          value={plan.rewardBps}
+                          onChange={(e) =>
+                            updateStakingPlan(index, "rewardBps", e.target.value)
+                          }
+                          placeholder="Reward BPS"
+                          className="rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() => removeStakingPlan(index)}
+                          disabled={stakingPlans.length <= 1}
+                          className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-100 disabled:opacity-50"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </SectionCard>
+
+              <SectionCard title="Metadata URI / Project Reference">
+                <input
+                  value={deployForm.metadataURI}
+                  onChange={(e) =>
+                    setDeployForm((prev) => ({
+                      ...prev,
+                      metadataURI: e.target.value,
+                    }))
+                  }
+                  placeholder="Optional: IPFS / website / project reference"
+                  className="mt-4 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none"
+                />
+
                 <p className="mt-4 text-sm leading-relaxed text-white/55">
                   The staking rewards allocation will be sent automatically to
-                  the project vault. The remaining supply will be sent to your
-                  wallet.
+                  the project vault. The remaining initial supply will be sent
+                  to your wallet.
                 </p>
               </SectionCard>
 

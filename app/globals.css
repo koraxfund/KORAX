@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root{
-  --bg-solid: #15171a;
+  --bg-solid: #02050d;
   --text: rgba(255,255,255,.92);
 }
 
@@ -14,11 +14,12 @@ html, body{
 body{
   margin: 0;
   color: var(--text);
-  background: var(--bg-solid);
+  background:
+    linear-gradient(180deg, #02050d 0%, #030814 55%, #02040a 100%);
   overflow-x: hidden;
 }
 
-/* صورة الغراب */
+/* صورة الخلفية الجديدة */
 body::before{
   content:"";
   position: fixed;
@@ -26,13 +27,14 @@ body::before{
   z-index: -3;
   pointer-events: none;
 
-  background: url("/raven-bg.jpg") no-repeat;
+  background: url("/korax-raven-bg.png") no-repeat center center;
   background-size: cover;
-  background-position: 65% 20%;
+  background-position: center center;
   opacity: 1;
+  filter: brightness(0.82) contrast(1.08) saturate(1.05);
 }
 
-/* تعتيم قوي */
+/* طبقة تعتيم/لون أزرق داكن */
 body::after{
   content:"";
   position: fixed;
@@ -40,10 +42,18 @@ body::after{
   z-index: -1;
   pointer-events: none;
 
-  background: rgba(15, 17, 22, 0.92);
+  background:
+    radial-gradient(circle at 50% 28%, rgba(20, 90, 255, 0.12), transparent 30%),
+    radial-gradient(circle at 20% 80%, rgba(0, 60, 180, 0.10), transparent 35%),
+    linear-gradient(
+      180deg,
+      rgba(2, 6, 18, 0.78) 0%,
+      rgba(2, 8, 24, 0.88) 45%,
+      rgba(1, 4, 14, 0.94) 100%
+    );
 }
 
-/* ⭐️ نجوم/لمعة */
+/* نجوم / لمعات */
 .raven-stars{
   position: fixed;
   inset: 0;
@@ -58,17 +68,18 @@ body::after{
     radial-gradient(1.2px 1.2px at 64% 18%, rgba(255,255,255,0.60), transparent 60%);
 
   animation: starsFloat 14s linear infinite, starsTwinkle 2.2s ease-in-out infinite;
-  opacity: 0.18;              /* fallback خفيف */
+  opacity: 0.16;
   mix-blend-mode: screen;
 }
 
-@supports (-webkit-mask-image: url("/raven-bg.jpg")) {
+/* إذا المتصفح يدعم mask خلي النجوم تظهر على شكل الغراب */
+@supports (-webkit-mask-image: url("/korax-raven-bg.png")) {
   .raven-stars{
-    opacity: 0.40; /* أقوى لأن صارت على الغراب فقط */
-    -webkit-mask-image: url("/raven-bg.jpg");
+    opacity: 0.28;
+    -webkit-mask-image: url("/korax-raven-bg.png");
     -webkit-mask-repeat: no-repeat;
     -webkit-mask-size: cover;
-    -webkit-mask-position: 65% 20%;
+    -webkit-mask-position: center center;
     -webkit-mask-mode: luminance;
   }
 }
@@ -79,9 +90,10 @@ body::after{
 }
 
 @keyframes starsTwinkle{
-  0%, 100% { opacity: 0.22; filter: blur(0px); }
-  50%      { opacity: 0.48; filter: blur(0.2px); }
+  0%, 100% { opacity: 0.20; filter: blur(0px); }
+  50%      { opacity: 0.42; filter: blur(0.2px); }
 }
+
 .partners-marquee {
   width: 100%;
   overflow: hidden;
