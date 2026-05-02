@@ -63,10 +63,35 @@ export const metadata: Metadata = {
   },
 };
 
+function EmailIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden="true"
+    >
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M4 7l8 6 8-6" />
+    </svg>
+  );
+}
+
 function SocialIcons() {
   return (
     <div className="mx-auto flex w-full max-w-[1500px] justify-center px-6 pb-10 pt-2">
       <div className="flex items-center gap-4">
+        <a
+          href="mailto:contact@korax.fund"
+          aria-label="Email KORAX"
+          title="contact@korax.fund"
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white/75 backdrop-blur-md transition hover:border-[#7CFF6A]/40 hover:bg-[#7CFF6A]/10 hover:text-[#c4ffbc]"
+        >
+          <EmailIcon />
+        </a>
+
         <a
           href="https://x.com/koraxfund"
           target="_blank"
@@ -165,6 +190,13 @@ export default function RootLayout({
       "https://t.me/koraxgroub",
       "https://www.facebook.com/share/186CHPa3cN/",
       "https://www.instagram.com/koraxfund/",
+    ],
+    contactPoint: [
+      {
+        "@type": "ContactPoint",
+        email: "contact@korax.fund",
+        contactType: "customer support",
+      },
     ],
   };
 
