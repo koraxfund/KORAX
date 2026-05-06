@@ -128,7 +128,12 @@ Production quality requirements:
 - No tiny one-page demo.
 - No incomplete component imports.
 - No malformed JSON.
-- No markdown fences inside file contents.
+- File paths must be exact.
+- Do not use spaces in file names.
+- Use components/Navbar.tsx, not components/Nav bar.tsx.
+- Use LaunchSection.tsx, not Launch.tsx.
+- Use FAQ.tsx, not FAQs.tsx.
+- Use lib/site-data.ts exactly.
 
 If contract addresses are not provided:
 - Still include a Contracts section explaining that addresses will be added after deployment.
@@ -390,6 +395,8 @@ Review goals:
 - Ensure no presale-specific setup language; use KORAX Launchpad language instead.
 - Ensure the website does not look like a small demo.
 - Ensure the website looks like a real production Web3 project.
+- Ensure file paths are exact and contain no spaces.
+- Rename any incorrect path like components/Nav bar.tsx to components/Navbar.tsx.
 - Keep JSON structure exactly the same.
 - Output JSON only.
 `.trim();
@@ -412,6 +419,8 @@ Reject weak output internally and improve it before final JSON:
 - If sections are shallow, add stronger real project content.
 - If social links are incomplete, handle them safely without inventing fake URLs.
 - If contract addresses are missing, do not invent fake addresses.
+- If file names contain spaces, fix them.
+- If Navbar is named incorrectly, rename it to components/Navbar.tsx.
 
 Preserve the same JSON structure.
 
