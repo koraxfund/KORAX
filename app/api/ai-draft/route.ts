@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import {
-  buildGeneratorSystemPrompt,
-  buildGeneratorUserPrompt,
-  buildReviewerSystemPrompt,
-  buildReviewerUserPrompt,
-} from "@/lib/ai/prompts";
+  buildWebsiteSystemPrompt as buildGeneratorSystemPrompt,
+  buildWebsiteUserPrompt as buildGeneratorUserPrompt,
+  buildWebsiteReviewerSystemPrompt as buildReviewerSystemPrompt,
+  buildWebsiteReviewerUserPrompt as buildReviewerUserPrompt,
+} from "@/lib/ai/website-prompts";
 import { normalizeDraftResult } from "@/lib/ai/normalize";
 
 const MODEL = "gpt-4.1";
@@ -34,11 +34,16 @@ async function createJsonCompletion(apiKey: string, system: string, user: string
   }
 
   const content = data?.choices?.[0]?.message?.content;
+
   if (!content) {
     throw new Error("No content returned from OpenAI.");
   }
 
-  return JSON.parse(content);
+  try {
+    return JSON.parse(content);
+  } catch {
+    throw new Error("OpenAI returned invalid JSON.");
+  }
 }
 
 export async function POST(req: Request) {
@@ -75,9 +80,10 @@ export async function POST(req: Request) {
     }
 
     const apiKey = process.env.OPENAI_API_KEY;
+
     if (!apiKey) {
       return NextResponse.json(
-        { error: "OPENAI_API_KEY is missing in env.local" },
+        { error: "OPENAI_API_KEY is missing in environment variables." },
         { status: 500 }
       );
     }
