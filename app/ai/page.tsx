@@ -119,7 +119,9 @@ function InfoCard({
   return (
     <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
       <div className="text-xs text-white/45">{label}</div>
-      <div className="mt-1 text-lg font-bold text-white">{value}</div>
+      <div className="mt-1 break-words text-lg font-bold text-white">
+        {value}
+      </div>
     </div>
   );
 }
@@ -132,7 +134,7 @@ function SectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-[26px] border border-white/10 bg-black/25 p-6 shadow-[0_18px_60px_rgba(0,0,0,0.28)] backdrop-blur-md">
+    <div className="rounded-[24px] border border-white/10 bg-black/25 p-5 shadow-[0_14px_40px_rgba(0,0,0,0.24)] md:rounded-[26px] md:p-6 md:shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
       <h3 className="text-lg font-bold text-white">{title}</h3>
       {children}
     </div>
@@ -140,226 +142,20 @@ function SectionCard({
 }
 
 function AIEngineVisual() {
-  const topSources = Array.from({ length: 14 }, (_, i) => ({
-    side: "top" as const,
-    x: 3 + i * 7.25,
-    y: 3,
-    delay: `${i * 0.075}s`,
-  }));
-
-  const bottomSources = Array.from({ length: 14 }, (_, i) => ({
-    side: "bottom" as const,
-    x: 3 + i * 7.25,
-    y: 97,
-    delay: `${1.05 + i * 0.075}s`,
-  }));
-
-  const leftSources = Array.from({ length: 14 }, (_, i) => ({
-    side: "left" as const,
-    x: 3,
-    y: 5 + i * 6.9,
-    delay: `${2.1 + i * 0.075}s`,
-  }));
-
-  const rightSources = Array.from({ length: 14 }, (_, i) => ({
-    side: "right" as const,
-    x: 97,
-    y: 5 + i * 6.9,
-    delay: `${3.15 + i * 0.075}s`,
-  }));
-
-  const sources = [
-    ...topSources,
-    ...bottomSources,
-    ...leftSources,
-    ...rightSources,
-  ];
-
-  function buildCurvePath(
-    x: number,
-    y: number,
-    side: "top" | "bottom" | "left" | "right"
-  ) {
-    const cx = 50;
-    const cy = 50;
-
-    if (side === "top") {
-      const c1x = x;
-      const c1y = 16 + Math.abs(x - 50) * 0.03;
-      const c2x = 50 + (x - 50) * 0.38;
-      const c2y = 31 + Math.abs(x - 50) * 0.025;
-      return `M ${x} ${y} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${cx} ${cy}`;
-    }
-
-    if (side === "bottom") {
-      const c1x = x;
-      const c1y = 84 - Math.abs(x - 50) * 0.03;
-      const c2x = 50 + (x - 50) * 0.38;
-      const c2y = 69 - Math.abs(x - 50) * 0.025;
-      return `M ${x} ${y} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${cx} ${cy}`;
-    }
-
-    if (side === "left") {
-      const c1x = 16 + Math.abs(y - 50) * 0.03;
-      const c1y = y;
-      const c2x = 31 + Math.abs(y - 50) * 0.025;
-      const c2y = 50 + (y - 50) * 0.38;
-      return `M ${x} ${y} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${cx} ${cy}`;
-    }
-
-    const c1x = 84 - Math.abs(y - 50) * 0.03;
-    const c1y = y;
-    const c2x = 69 - Math.abs(y - 50) * 0.025;
-    const c2y = 50 + (y - 50) * 0.38;
-    return `M ${x} ${y} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${cx} ${cy}`;
-  }
-
-  const mainPaths = sources.map((source, i) => ({
-    ...source,
-    d: buildCurvePath(source.x, source.y, source.side),
-    delay: `${i * 0.075}s`,
-  }));
-
-  const relayPaths = [
-    "M 13 17 C 20 18, 28 22, 36 30",
-    "M 87 17 C 80 18, 72 22, 64 30",
-    "M 13 83 C 20 82, 28 78, 36 70",
-    "M 87 83 C 80 82, 72 78, 64 70",
-
-    "M 16 30 C 24 34, 32 39, 40 46",
-    "M 16 70 C 24 66, 32 61, 40 54",
-    "M 84 30 C 76 34, 68 39, 60 46",
-    "M 84 70 C 76 66, 68 61, 60 54",
-
-    "M 25 18 C 32 24, 39 30, 45 39",
-    "M 75 18 C 68 24, 61 30, 55 39",
-    "M 25 82 C 32 76, 39 70, 45 61",
-    "M 75 82 C 68 76, 61 70, 55 61",
-
-    "M 23 50 C 31 47, 38 46, 45 48",
-    "M 77 50 C 69 47, 62 46, 55 48",
-
-    "M 36 14 C 41 23, 45 31, 47 40",
-    "M 64 14 C 59 23, 55 31, 53 40",
-    "M 36 86 C 41 77, 45 69, 47 60",
-    "M 64 86 C 59 77, 55 69, 53 60",
-
-    "M 10 42 C 22 43, 32 46, 43 49",
-    "M 90 42 C 78 43, 68 46, 57 49",
-    "M 10 58 C 22 57, 32 54, 43 51",
-    "M 90 58 C 78 57, 68 54, 57 51",
-
-    "M 44 8 C 46 20, 48 33, 50 50",
-    "M 56 8 C 54 20, 52 33, 50 50",
-    "M 44 92 C 46 80, 48 67, 50 50",
-    "M 56 92 C 54 80, 52 67, 50 50",
-  ].map((d, i) => ({
-    d,
-    delay: `${(i % 12) * 0.12}s`,
-  }));
-
-  const microBranches = [
-    "M 20 18 L 20 12 L 15 12",
-    "M 30 22 L 30 14 L 25 14",
-    "M 40 28 L 40 18 L 35 18",
-    "M 60 28 L 60 18 L 65 18",
-    "M 70 22 L 70 14 L 75 14",
-    "M 80 18 L 80 12 L 85 12",
-
-    "M 20 82 L 20 88 L 15 88",
-    "M 30 78 L 30 86 L 25 86",
-    "M 40 72 L 40 82 L 35 82",
-    "M 60 72 L 60 82 L 65 82",
-    "M 70 78 L 70 86 L 75 86",
-    "M 80 82 L 80 88 L 85 88",
-
-    "M 18 32 L 12 32 L 12 27",
-    "M 22 44 L 14 44 L 14 39",
-    "M 22 56 L 14 56 L 14 61",
-    "M 18 68 L 12 68 L 12 73",
-
-    "M 82 32 L 88 32 L 88 27",
-    "M 78 44 L 86 44 L 86 39",
-    "M 78 56 L 86 56 L 86 61",
-    "M 82 68 L 88 68 L 88 73",
-  ];
-
-  const nodes = [
-    ...sources.map((s) => ({ x: s.x, y: s.y, size: 6.5 })),
-    { x: 13, y: 17, size: 4 },
-    { x: 25, y: 18, size: 4 },
-    { x: 36, y: 14, size: 4 },
-    { x: 44, y: 8, size: 4 },
-    { x: 56, y: 8, size: 4 },
-    { x: 64, y: 14, size: 4 },
-    { x: 75, y: 18, size: 4 },
-    { x: 87, y: 17, size: 4 },
-    { x: 16, y: 30, size: 4 },
-    { x: 23, y: 50, size: 4 },
-    { x: 16, y: 70, size: 4 },
-    { x: 84, y: 30, size: 4 },
-    { x: 77, y: 50, size: 4 },
-    { x: 84, y: 70, size: 4 },
-    { x: 13, y: 83, size: 4 },
-    { x: 25, y: 82, size: 4 },
-    { x: 36, y: 86, size: 4 },
-    { x: 44, y: 92, size: 4 },
-    { x: 56, y: 92, size: 4 },
-    { x: 64, y: 86, size: 4 },
-    { x: 75, y: 82, size: 4 },
-    { x: 87, y: 83, size: 4 },
-    { x: 36, y: 30, size: 3.5 },
-    { x: 64, y: 30, size: 3.5 },
-    { x: 40, y: 46, size: 3.5 },
-    { x: 60, y: 46, size: 3.5 },
-    { x: 40, y: 54, size: 3.5 },
-    { x: 60, y: 54, size: 3.5 },
-    { x: 36, y: 70, size: 3.5 },
-    { x: 64, y: 70, size: 3.5 },
-  ];
-
-  const rings = Array.from({ length: 14 }, (_, i) => ({
-    inset: i * 8,
-    opacity: Math.max(0.028, 0.15 - i * 0.008),
-    duration: `${24 - i * 1.1}s`,
-    reverse: i % 2 !== 0,
-  }));
-
-  const tinySparks = Array.from({ length: 38 }, (_, i) => ({
-    left: `${5 + ((i * 19) % 90)}%`,
-    top: `${8 + ((i * 23) % 84)}%`,
-    delay: `${(i % 16) * 0.16}s`,
-  }));
-
   return (
-    <div className="relative min-h-[430px] overflow-hidden rounded-[34px] border border-white/10 bg-[#020816] shadow-[0_30px_140px_rgba(0,0,0,0.75)]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.06),transparent_16%),radial-gradient(circle_at_center,rgba(110,170,255,0.13),transparent_32%),radial-gradient(circle_at_12%_16%,rgba(110,170,255,0.05),transparent_18%),radial-gradient(circle_at_88%_84%,rgba(110,170,255,0.05),transparent_18%)]" />
+    <div className="relative min-h-[260px] overflow-hidden rounded-[28px] border border-white/10 bg-[#020816] shadow-[0_20px_70px_rgba(0,0,0,0.55)] md:min-h-[430px] md:rounded-[34px]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(124,255,106,0.10),transparent_34%),radial-gradient(circle_at_top_right,rgba(30,90,180,0.20),transparent_38%)]" />
 
-      <div className="pointer-events-none absolute inset-0 opacity-[0.08] [background-image:linear-gradient(rgba(255,255,255,0.07)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.07)_1px,transparent_1px)] [background-size:22px_22px]" />
-
-      {tinySparks.map((spark, i) => (
-        <span
-          key={`spark-${i}`}
-          className="absolute h-[2px] w-[2px] rounded-full bg-white"
-          style={{
-            left: spark.left,
-            top: spark.top,
-            boxShadow:
-              "0 0 8px rgba(255,255,255,0.7), 0 0 16px rgba(110,170,255,0.35)",
-            animation: "sparkle 2.4s ease-in-out infinite",
-            animationDelay: spark.delay,
-          }}
-        />
-      ))}
+      <div className="pointer-events-none absolute inset-0 hidden opacity-[0.07] md:block [background-image:linear-gradient(rgba(255,255,255,0.07)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.07)_1px,transparent_1px)] [background-size:24px_24px]" />
 
       <svg
-        className="absolute inset-0 h-full w-full"
+        className="absolute inset-0 h-full w-full opacity-80"
         viewBox="0 0 100 100"
         preserveAspectRatio="none"
       >
         <defs>
-          <filter id="pathGlowUltraToken">
-            <feGaussianBlur stdDeviation="0.72" result="blur" />
+          <filter id="tokenLightPathGlow">
+            <feGaussianBlur stdDeviation="0.35" result="blur" />
             <feMerge>
               <feMergeNode in="blur" />
               <feMergeNode in="SourceGraphic" />
@@ -367,311 +163,86 @@ function AIEngineVisual() {
           </filter>
         </defs>
 
-        {microBranches.map((d, i) => (
+        {[
+          "M 5 15 C 25 20, 34 36, 50 50",
+          "M 95 15 C 75 20, 66 36, 50 50",
+          "M 5 85 C 25 80, 34 64, 50 50",
+          "M 95 85 C 75 80, 66 64, 50 50",
+          "M 50 5 C 49 25, 49 38, 50 50",
+          "M 50 95 C 51 75, 51 62, 50 50",
+        ].map((d, i) => (
           <path
-            key={`branch-${i}`}
+            key={i}
             d={d}
             fill="none"
-            stroke="rgba(150,190,255,0.12)"
-            strokeWidth="0.26"
+            stroke="rgba(180,220,255,0.26)"
+            strokeWidth="0.7"
             strokeLinecap="round"
-            strokeLinejoin="round"
+            filter="url(#tokenLightPathGlow)"
           />
         ))}
 
-        {mainPaths.map((path, i) => (
-          <g key={`main-${i}`}>
-            <path
-              d={path.d}
-              fill="none"
-              stroke="rgba(120,160,255,0.11)"
-              strokeWidth="0.38"
-              strokeLinecap="round"
-            />
-            <path
-              d={path.d}
-              fill="none"
-              stroke="rgba(255,255,255,0.9)"
-              strokeWidth="0.78"
-              strokeLinecap="round"
-              strokeDasharray="12 145"
-              filter="url(#pathGlowUltraToken)"
-              style={{
-                animation: "pulseToCoreUltra 2.9s linear infinite",
-                animationDelay: path.delay,
-              }}
-            />
-            <path
-              d={path.d}
-              fill="none"
-              stroke="rgba(130,180,255,0.28)"
-              strokeWidth="0.54"
-              strokeLinecap="round"
-              strokeDasharray="20 145"
-              filter="url(#pathGlowUltraToken)"
-              style={{
-                animation: "trailToCoreUltra 2.9s linear infinite",
-                animationDelay: path.delay,
-              }}
-            />
-          </g>
-        ))}
-
-        {relayPaths.map((path, i) => (
-          <g key={`relay-${i}`}>
-            <path
-              d={path.d}
-              fill="none"
-              stroke="rgba(110,160,255,0.09)"
-              strokeWidth="0.32"
-              strokeLinecap="round"
-            />
-            <path
-              d={path.d}
-              fill="none"
-              stroke="rgba(255,255,255,0.45)"
-              strokeWidth="0.42"
-              strokeLinecap="round"
-              strokeDasharray="8 70"
-              filter="url(#pathGlowUltraToken)"
-              style={{
-                animation: "relayPulseUltra 2.35s linear infinite",
-                animationDelay: path.delay,
-              }}
-            />
-          </g>
+        {[
+          { x: 5, y: 15 },
+          { x: 95, y: 15 },
+          { x: 5, y: 85 },
+          { x: 95, y: 85 },
+          { x: 50, y: 5 },
+          { x: 50, y: 95 },
+          { x: 50, y: 50 },
+        ].map((node, i) => (
+          <circle
+            key={i}
+            cx={node.x}
+            cy={node.y}
+            r={i === 6 ? 2.2 : 1.4}
+            fill="rgba(255,255,255,0.85)"
+          />
         ))}
       </svg>
 
-      {nodes.map((node, i) => (
-        <span
-          key={`node-${i}`}
-          className="absolute rounded-full"
-          style={{
-            left: `${node.x}%`,
-            top: `${node.y}%`,
-            width: `${node.size}px`,
-            height: `${node.size}px`,
-            transform: "translate(-50%, -50%)",
-            background: "rgba(255,255,255,0.95)",
-            boxShadow:
-              "0 0 10px rgba(255,255,255,0.70), 0 0 20px rgba(120,170,255,0.25)",
-            animation: "nodeBlinkUltra 2.5s ease-in-out infinite",
-            animationDelay: `${(i % 12) * 0.11}s`,
-          }}
-        />
-      ))}
+      <div className="absolute left-1/2 top-1/2 z-10 flex h-[150px] w-[150px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-[32px] border border-white/15 bg-[linear-gradient(180deg,rgba(15,24,46,0.98),rgba(4,8,18,0.99))] shadow-[0_0_45px_rgba(120,180,255,0.14)] md:h-[178px] md:w-[178px] md:rounded-[38px]">
+        <div className="absolute inset-[10px] rounded-[24px] border border-[#9fc6ff]/15 shadow-[inset_0_0_26px_rgba(130,180,255,0.10)] md:rounded-[28px]" />
 
-      <div className="absolute left-1/2 top-1/2 z-10 h-[330px] w-[330px] -translate-x-1/2 -translate-y-1/2">
-        {rings.map((ring, i) => (
-          <span
-            key={`ring-${i}`}
-            className="absolute rounded-full border border-white/20"
+        <div className="relative text-center">
+          <div
+            className="text-[54px] font-black tracking-[0.12em] text-white md:text-[68px]"
             style={{
-              inset: `${ring.inset}px`,
-              opacity: ring.opacity,
-              boxShadow: "0 0 14px rgba(130,180,255,0.10)",
-              animation: `${ring.reverse ? "ringReverseUltra" : "ringForwardUltra"} ${ring.duration} linear infinite`,
+              textShadow:
+                "0 0 12px rgba(255,255,255,0.72), 0 0 28px rgba(130,180,255,0.24)",
             }}
-          />
-        ))}
+          >
+            AI
+          </div>
 
-        <div className="absolute left-1/2 top-1/2 h-[178px] w-[178px] -translate-x-1/2 -translate-y-1/2">
-          <span className="absolute inset-[-58px] rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.13),transparent_66%)] animate-[coreAuraUltra_2.9s_ease-in-out_infinite]" />
-          <span className="absolute inset-[-38px] rounded-full bg-[radial-gradient(circle,rgba(125,180,255,0.17),transparent_66%)] animate-[coreAuraUltra_2.9s_ease-in-out_infinite_0.35s]" />
-          <span className="absolute inset-[-20px] rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.08),transparent_62%)] animate-[coreAuraUltra_2.9s_ease-in-out_infinite_0.7s]" />
-
-          <div className="relative flex h-full w-full items-center justify-center rounded-[38px] border border-white/15 bg-[linear-gradient(180deg,rgba(15,24,46,0.98),rgba(4,8,18,0.99))] shadow-[0_0_70px_rgba(120,180,255,0.12)] animate-[coreChargeUltra_2.9s_ease-in-out_infinite]">
-            <div className="absolute inset-[10px] rounded-[28px] border border-[#9fc6ff]/18 shadow-[inset_0_0_34px_rgba(130,180,255,0.14)]" />
-            <div className="absolute inset-[24px] rounded-[22px] border border-white/8" />
-
-            <div className="relative text-center">
-              <div
-                className="text-[68px] font-black tracking-[0.14em] text-white"
-                style={{
-                  textShadow:
-                    "0 0 14px rgba(255,255,255,0.92), 0 0 34px rgba(130,180,255,0.38), 0 0 58px rgba(110,170,255,0.20)",
-                }}
-              >
-                AI
-              </div>
-              <div className="mt-1 text-[11px] font-semibold uppercase tracking-[0.34em] text-white/72">
-                CORE ENGINE
-              </div>
-            </div>
-
-            <span className="absolute inset-0 rounded-[38px] border border-white/8 animate-[chipBorderPulseUltra_2.9s_ease-in-out_infinite]" />
+          <div className="mt-1 text-[9px] font-semibold uppercase tracking-[0.28em] text-white/65 md:text-[11px]">
+            CORE ENGINE
           </div>
         </div>
       </div>
 
-      <div className="absolute bottom-5 left-1/2 z-10 w-[84%] -translate-x-1/2 rounded-[24px] border border-white/10 bg-black/35 p-4 shadow-[0_18px_40px_rgba(0,0,0,0.35)]">
-        <div className="grid grid-cols-3 gap-3">
-          {["Input", "Reasoning", "Generation"].map((label, i) => (
+      <div className="absolute bottom-4 left-1/2 z-10 w-[88%] -translate-x-1/2 rounded-[20px] border border-white/10 bg-black/35 p-3 shadow-[0_14px_30px_rgba(0,0,0,0.30)] md:bottom-5 md:w-[84%] md:rounded-[24px] md:p-4">
+        <div className="grid grid-cols-3 gap-2 md:gap-3">
+          {["Input", "Reasoning", "Generation"].map((label) => (
             <div
               key={label}
-              className="rounded-2xl border border-white/10 bg-white/[0.03] p-3"
+              className="rounded-2xl border border-white/10 bg-white/[0.03] p-2 md:p-3"
             >
-              <div className="text-xs font-semibold text-white/75">{label}</div>
+              <div className="text-[10px] font-semibold text-white/75 md:text-xs">
+                {label}
+              </div>
+
               <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
-                <span
-                  className="block h-full w-2/3 rounded-full bg-white"
-                  style={{
-                    boxShadow: "0 0 12px rgba(255,255,255,0.65)",
-                    animation: "statusBarUltra 2.4s ease-in-out infinite",
-                    animationDelay: `${i * 0.18}s`,
-                  }}
-                />
+                <span className="block h-full w-2/3 rounded-full bg-white/70" />
               </div>
             </div>
           ))}
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes pulseToCoreUltra {
-          0% {
-            stroke-dashoffset: 154;
-            opacity: 0;
-          }
-          12% {
-            opacity: 1;
-          }
-          78% {
-            opacity: 1;
-          }
-          100% {
-            stroke-dashoffset: 0;
-            opacity: 0;
-          }
-        }
-
-        @keyframes trailToCoreUltra {
-          0% {
-            stroke-dashoffset: 172;
-            opacity: 0;
-          }
-          24% {
-            opacity: 0.72;
-          }
-          100% {
-            stroke-dashoffset: 0;
-            opacity: 0;
-          }
-        }
-
-        @keyframes relayPulseUltra {
-          0% {
-            stroke-dashoffset: 75;
-            opacity: 0;
-          }
-          18% {
-            opacity: 0.9;
-          }
-          100% {
-            stroke-dashoffset: 0;
-            opacity: 0;
-          }
-        }
-
-        @keyframes sparkle {
-          0%,
-          100% {
-            opacity: 0.15;
-            transform: scale(1);
-          }
-          50% {
-            opacity: 0.9;
-            transform: scale(1.7);
-          }
-        }
-
-        @keyframes nodeBlinkUltra {
-          0%,
-          100% {
-            opacity: 0.34;
-            transform: translate(-50%, -50%) scale(1);
-          }
-          50% {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1.6);
-          }
-        }
-
-        @keyframes coreChargeUltra {
-          0%,
-          100% {
-            transform: scale(1);
-            filter: brightness(0.95);
-            box-shadow: 0 0 36px rgba(220, 240, 255, 0.08);
-          }
-          45% {
-            transform: scale(1.05);
-            filter: brightness(1.34);
-            box-shadow: 0 0 92px rgba(235, 245, 255, 0.26),
-              0 0 154px rgba(120, 180, 255, 0.23);
-          }
-        }
-
-        @keyframes coreAuraUltra {
-          0%,
-          100% {
-            transform: scale(0.88);
-            opacity: 0.14;
-          }
-          50% {
-            transform: scale(1.18);
-            opacity: 0.74;
-          }
-        }
-
-        @keyframes chipBorderPulseUltra {
-          0%,
-          100% {
-            opacity: 0.08;
-            transform: scale(1);
-          }
-          50% {
-            opacity: 0.34;
-            transform: scale(1.04);
-          }
-        }
-
-        @keyframes ringForwardUltra {
-          from {
-            transform: rotate(0deg);
-          }
-          to {
-            transform: rotate(360deg);
-          }
-        }
-
-        @keyframes ringReverseUltra {
-          from {
-            transform: rotate(360deg);
-          }
-          to {
-            transform: rotate(0deg);
-          }
-        }
-
-        @keyframes statusBarUltra {
-          0% {
-            transform: translateX(-90%);
-            opacity: 0.2;
-          }
-          50% {
-            opacity: 1;
-          }
-          100% {
-            transform: translateX(160%);
-            opacity: 0.2;
-          }
-        }
-      `}</style>
     </div>
   );
 }
+
 export default function AIPage() {
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
@@ -863,6 +434,8 @@ export default function AIPage() {
   }, [address, isConnected]);
 
   async function generateDraft() {
+    if (loading) return;
+
     setLoading(true);
     setError("");
     setResult(null);
@@ -894,6 +467,8 @@ export default function AIPage() {
   }
 
   async function generateVisual() {
+    if (visualLoading) return;
+
     setVisualLoading(true);
     setVisualError("");
     setVisualResult(null);
@@ -971,6 +546,8 @@ export default function AIPage() {
   }
 
   async function deployAIProject() {
+    if (deployingProject) return;
+
     setDeployingProject(true);
     setDeployError("");
     setDeployResult(null);
@@ -1167,16 +744,16 @@ export default function AIPage() {
 
   return (
     <div className="space-y-8">
-      <section className="relative overflow-hidden rounded-[34px] border border-white/10 bg-black/30 p-6 shadow-[0_30px_110px_rgba(0,0,0,0.55)] backdrop-blur-md sm:p-8">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(124,255,106,0.16),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.08),transparent_30%)]" />
+      <section className="relative overflow-hidden rounded-[28px] border border-white/10 bg-black/30 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.40)] md:rounded-[34px] md:p-8 md:shadow-[0_30px_110px_rgba(0,0,0,0.55)]">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(124,255,106,0.12),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.06),transparent_30%)]" />
 
         <div className="relative grid gap-8 xl:grid-cols-[1fr_430px] xl:items-center">
           <div className="max-w-4xl">
-            <div className="inline-flex rounded-full border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-[#c4ffbc]">
+            <div className="inline-flex rounded-full border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#c4ffbc] md:tracking-[0.22em]">
               KORAX Token Builder AI
             </div>
 
-            <h1 className="mt-5 text-4xl font-black leading-tight text-white sm:text-5xl">
+            <h1 className="mt-5 text-3xl font-black leading-tight text-white sm:text-5xl">
               Turn an idea into a serious
               <span className="block text-[#7CFF6A]">
                 Web3 project blueprint.
@@ -1184,10 +761,9 @@ export default function AIPage() {
             </h1>
 
             <p className="mt-5 max-w-3xl text-base leading-relaxed text-white/68">
-              KORAX AI helps builders shape project strategy, tokenomics,
-              launch logic, staking direction, visuals, risk analysis, and
-              on-chain project preparation through a connected AI-powered
-              workflow.
+              KORAX AI helps builders shape project strategy, tokenomics, launch
+              logic, staking direction, visuals, risk analysis, and on-chain
+              project preparation through a connected AI-powered workflow.
             </p>
 
             <div className="mt-6 grid gap-3 sm:grid-cols-3">
@@ -1213,8 +789,9 @@ export default function AIPage() {
           </div>
         </div>
       </section>
+
       <section className="grid gap-6 xl:grid-cols-[1fr_380px]">
-        <div className="rounded-[30px] border border-white/10 bg-black/20 p-6 shadow-[0_22px_80px_rgba(0,0,0,0.35)] backdrop-blur-md">
+        <div className="rounded-[26px] border border-white/10 bg-black/20 p-5 shadow-[0_16px_45px_rgba(0,0,0,0.28)] md:rounded-[30px] md:p-6 md:shadow-[0_22px_80px_rgba(0,0,0,0.35)]">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.24em] text-white/40">
@@ -1356,9 +933,9 @@ export default function AIPage() {
             <button
               onClick={generateDraft}
               disabled={loading}
-              className="rounded-xl bg-[#7CFF6A] px-5 py-3 font-bold text-black shadow-[0_0_35px_rgba(124,255,106,0.18)] transition hover:scale-[1.01] hover:opacity-90 disabled:opacity-60"
+              className="rounded-xl bg-[#7CFF6A] px-5 py-3 font-bold text-black shadow-[0_0_25px_rgba(124,255,106,0.14)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 md:hover:scale-[1.01]"
             >
-              {loading ? "Generating AI Draft..." : "Generate AI Draft"}
+              {loading ? "Generating AI Draft... please wait" : "Generate AI Draft"}
             </button>
 
             {error ? (
@@ -1515,10 +1092,10 @@ export default function AIPage() {
                 type="button"
                 onClick={generateVisual}
                 disabled={visualLoading}
-                className="rounded-xl bg-[#7CFF6A] px-5 py-3 font-bold text-black transition hover:opacity-90 disabled:opacity-60"
+                className="rounded-xl bg-[#7CFF6A] px-5 py-3 font-bold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {visualLoading
-                  ? "Generating Visual..."
+                  ? "Generating Visual... please wait"
                   : "Generate Project Visual"}
               </button>
 
@@ -1550,7 +1127,9 @@ export default function AIPage() {
                       disabled={visualLoading}
                       className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10 disabled:opacity-60"
                     >
-                      {visualLoading ? "Generating..." : "Generate Another Visual"}
+                      {visualLoading
+                        ? "Generating..."
+                        : "Generate Another Visual"}
                     </button>
 
                     <button
@@ -1592,7 +1171,7 @@ export default function AIPage() {
 
       {result ? (
         <section className="space-y-6">
-          <section className="rounded-[30px] border border-white/10 bg-black/25 p-6 shadow-[0_22px_80px_rgba(0,0,0,0.35)] backdrop-blur-md">
+          <section className="rounded-[26px] border border-white/10 bg-black/25 p-5 shadow-[0_16px_45px_rgba(0,0,0,0.28)] md:rounded-[30px] md:p-6 md:shadow-[0_22px_80px_rgba(0,0,0,0.35)]">
             <p className="text-xs uppercase tracking-[0.28em] text-white/45">
               AI Draft Result
             </p>
@@ -1605,7 +1184,7 @@ export default function AIPage() {
             </p>
           </section>
 
-          <section className="rounded-2xl border border-white/10 bg-black/20 p-6 backdrop-blur-md">
+          <section className="rounded-2xl border border-white/10 bg-black/20 p-5 md:p-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h3 className="text-xl font-bold text-white">Next Step</h3>
@@ -1643,7 +1222,7 @@ export default function AIPage() {
           </section>
 
           {showCreationStep && finalProjectPreview ? (
-            <section className="space-y-6 rounded-[30px] border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 p-6 shadow-[0_22px_80px_rgba(0,0,0,0.35)] backdrop-blur-md">
+            <section className="space-y-6 rounded-[26px] border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 p-5 shadow-[0_16px_45px_rgba(0,0,0,0.28)] md:rounded-[30px] md:p-6 md:shadow-[0_22px_80px_rgba(0,0,0,0.35)]">
               <div>
                 <p className="text-xs uppercase tracking-[0.28em] text-[#c4ffbc]">
                   Project Creation Preview
@@ -1709,9 +1288,7 @@ export default function AIPage() {
                   </div>
 
                   <div>
-                    <label className="text-xs text-white/45">
-                      Max Supply
-                    </label>
+                    <label className="text-xs text-white/45">Max Supply</label>
                     <input
                       value={deployForm.maxSupply}
                       onChange={(e) =>
@@ -1805,7 +1382,7 @@ export default function AIPage() {
 
                 {deployForm.stakingEnabled ? (
                   <div className="mt-5 space-y-3">
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <div className="font-semibold text-white">
                           Staking Plans
@@ -1882,8 +1459,8 @@ export default function AIPage() {
 
                 <p className="mt-4 text-sm leading-relaxed text-white/55">
                   The staking rewards allocation will be sent automatically to
-                  the project vault. The remaining initial supply will be sent
-                  to your wallet.
+                  the project vault. The remaining initial supply will be sent to
+                  your wallet.
                 </p>
               </SectionCard>
 
@@ -1909,7 +1486,7 @@ export default function AIPage() {
                     className="rounded-xl bg-[#7CFF6A] px-5 py-3 font-bold text-black transition hover:opacity-90 disabled:opacity-50"
                   >
                     {deployingProject
-                      ? "Deploying Project..."
+                      ? "Deploying Project... please wait"
                       : "Deploy AI Project On-chain"}
                   </button>
 
@@ -2069,11 +1646,15 @@ export default function AIPage() {
                   {result.launchPlan.suggestedStageCount}
                 </div>
                 <div>
-                  <span className="font-semibold text-white">Funding Logic:</span>{" "}
+                  <span className="font-semibold text-white">
+                    Funding Logic:
+                  </span>{" "}
                   {result.launchPlan.fundingLogic}
                 </div>
                 <div>
-                  <span className="font-semibold text-white">Launch Notes:</span>{" "}
+                  <span className="font-semibold text-white">
+                    Launch Notes:
+                  </span>{" "}
                   {result.launchPlan.launchNotes}
                 </div>
               </div>
