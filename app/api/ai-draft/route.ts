@@ -88,6 +88,12 @@ export async function POST(req: Request) {
       );
     }
 
+    const projectFeatures = [
+      presale ? "Presale enabled" : "No presale",
+      staking ? "Staking enabled" : "No staking",
+      vesting ? "Vesting enabled" : "No vesting",
+    ].join(", ");
+
     const firstPass = await createJsonCompletion(
       apiKey,
       buildGeneratorSystemPrompt(),
@@ -95,12 +101,9 @@ export async function POST(req: Request) {
         projectName,
         symbol,
         category,
-        shortDescription,
+        shortDescription: `${shortDescription}\n\nProject features: ${projectFeatures}`,
         targetAudience: targetAudience || "General crypto users",
         network,
-        presale: Boolean(presale),
-        staking: Boolean(staking),
-        vesting: Boolean(vesting),
         style: style || "Professional",
         goal: goal || "Build a strong project concept",
         problemSolved: problemSolved || "",
@@ -111,7 +114,7 @@ export async function POST(req: Request) {
         growthLogic: growthLogic || "",
         revenueLogic: revenueLogic || "",
         failureRisk: failureRisk || "",
-      })
+      } as any)
     );
 
     const secondPass = await createJsonCompletion(
