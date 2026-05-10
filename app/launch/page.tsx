@@ -75,6 +75,26 @@ type LoadedSale = {
   stages: LoadedStage[];
 };
 
+type LoadedBuilderProject = {
+  projectName?: string;
+  symbol?: string;
+  category?: string;
+  shortDescription?: string;
+  targetAudience?: string;
+  network?: string;
+
+  tokenAddress?: string;
+  vaultAddress?: string;
+  stakingAddress?: string;
+  launchpadAddress?: string;
+
+  websiteName?: string;
+  websiteSummary?: string;
+  websiteGenerated?: boolean;
+
+  txHash?: string;
+};
+
 function shortAddress(address?: string) {
   if (!address) return "";
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -104,9 +124,31 @@ function parseLines(value: string) {
     .filter(Boolean);
 }
 
+function readLastBuilderProject(): LoadedBuilderProject | null {
+  if (typeof window === "undefined") return null;
+
+  const raw = window.localStorage.getItem("korax_last_project");
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw);
+
+    if (parsed && typeof parsed === "object") {
+      return parsed as LoadedBuilderProject;
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export default function LaunchPage() {
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
+
+  const [loadedBuilderProject, setLoadedBuilderProject] =
+    useState<LoadedBuilderProject | null>(null);
 
   const [isLaunchpadOwner, setIsLaunchpadOwner] = useState(false);
   const [isApprovedCreator, setIsApprovedCreator] = useState(false);
@@ -140,6 +182,19 @@ export default function LaunchPage() {
     stagePricesUsd: "0.01\n0.015\n0.02",
     requireKoraxAccess: true,
   });
+
+  useEffect(() => {
+    const project = readLastBuilderProject();
+
+    if (!project) return;
+
+    setLoadedBuilderProject(project);
+
+    setCreatorForm((prev) => ({
+      ...prev,
+      saleToken: project.tokenAddress || prev.saleToken,
+    }));
+  }, []);
 
   const [adminForm, setAdminForm] = useState({
     saleId: "0",
@@ -791,6 +846,73 @@ export default function LaunchPage() {
         </div>
       </section>
 
+      {loadedBuilderProject ? (
+        <section className="rounded-[30px] border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 p-6 backdrop-blur-md">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.28em] text-[#c4ffbc]">
+                Project Loaded from KORAX Builder
+              </p>
+
+              <h2 className="mt-2 text-2xl font-black text-white">
+                {loadedBuilderProject.projectName || "Loaded Project"}
+                {loadedBuilderProject.symbol ? (
+                  <span className="text-[#c4ffbc]">
+                    {" "}
+                    ({loadedBuilderProject.symbol})
+                  </span>
+                ) : null}
+              </h2>
+
+              <p className="mt-3 max-w-3xl text-sm leading-relaxed text-white/70">
+                {loadedBuilderProject.shortDescription ||
+                  loadedBuilderProject.websiteSummary ||
+                  "This project was loaded from the KORAX builder flow and is ready for launch setup."}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm font-semibold text-white/75">
+              Website:{" "}
+              <span className="text-[#c4ffbc]">
+                {loadedBuilderProject.websiteGenerated
+                  ? "Generated"
+                  : "Not generated"}
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
+              <div className="text-xs text-white/45">Token Contract</div>
+              <div className="mt-2 break-all text-sm font-semibold text-white">
+                {loadedBuilderProject.tokenAddress || "Not available"}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
+              <div className="text-xs text-white/45">Vault Contract</div>
+              <div className="mt-2 break-all text-sm font-semibold text-white">
+                {loadedBuilderProject.vaultAddress || "Not available"}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
+              <div className="text-xs text-white/45">Staking Contract</div>
+              <div className="mt-2 break-all text-sm font-semibold text-white">
+                {loadedBuilderProject.stakingAddress ||
+                  "Not deployed / disabled"}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-2xl border border-white/10 bg-black/25 p-4 text-sm leading-relaxed text-white/70">
+            Next step: configure the launch sale stages, prices, fund receiver,
+            and KORAX access requirement. The sale token field has been filled
+            automatically from the deployed project token.
+          </div>
+        </section>
+      ) : null}
+
       <section className="rounded-[30px] border border-white/10 bg-black/20 p-6 backdrop-blur-md">
         <h2 className="text-xl font-bold text-white">Launch Access Levels</h2>
 
@@ -1138,7 +1260,9 @@ export default function LaunchPage() {
 
       {isLaunchpadOwner ? (
         <section className="rounded-[30px] border border-white/10 bg-black/20 p-6 backdrop-blur-md">
-          <h2 className="text-xl font-bold text-white">Admin / Launch Manager</h2>
+          <h2 className="text-xl font-bold text-white">
+            Admin / Launch Manager
+          </h2>
 
           <p className="mt-2 text-sm leading-relaxed text-white/60">
             Visible only for Launchpad owner.

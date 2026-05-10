@@ -4,6 +4,7 @@ import {
   buildWebsiteUserPrompt,
   buildWebsiteReviewerSystemPrompt,
   buildWebsiteReviewerUserPrompt,
+  REQUIRED_WEBSITE_FILES,
 } from "@/lib/ai/website-prompts";
 
 const MODEL = "gpt-4.1";
@@ -66,8 +67,7 @@ async function createJsonCompletion(
 }
 
 function normalizeFilePath(path: string) {
-  let cleaned = path.trim().replace(/^\/+/, "");
-
+  const cleaned = path.trim().replace(/^\/+/, "");
   const lower = cleaned.toLowerCase();
 
   const aliases: Record<string, string> = {
@@ -101,6 +101,22 @@ function normalizeFilePath(path: string) {
     "components/contracts section.tsx": "components/Contracts.tsx",
     "components/contracts.tsx": "components/Contracts.tsx",
 
+    "components/security section.tsx": "components/Security.tsx",
+    "components/security.tsx": "components/Security.tsx",
+
+    "components/how to buy.tsx": "components/HowToBuy.tsx",
+    "components/howtobuy.tsx": "components/HowToBuy.tsx",
+    "components/how-to-buy.tsx": "components/HowToBuy.tsx",
+
+    "components/community section.tsx": "components/Community.tsx",
+    "components/community.tsx": "components/Community.tsx",
+
+    "components/partners section.tsx": "components/Partners.tsx",
+    "components/partners.tsx": "components/Partners.tsx",
+
+    "components/disclaimer section.tsx": "components/Disclaimer.tsx",
+    "components/disclaimer.tsx": "components/Disclaimer.tsx",
+
     "components/faqs.tsx": "components/FAQ.tsx",
     "components/faq.tsx": "components/FAQ.tsx",
 
@@ -110,6 +126,14 @@ function normalizeFilePath(path: string) {
     "lib/sitedata.ts": "lib/site-data.ts",
     "lib/siteData.ts": "lib/site-data.ts",
     "lib/site-data.ts": "lib/site-data.ts",
+
+    "lib/utils.ts": "lib/format.ts",
+    "lib/helpers.ts": "lib/format.ts",
+    "lib/format.ts": "lib/format.ts",
+
+    "docs/page.tsx": "app/docs/page.tsx",
+    "terms/page.tsx": "app/terms/page.tsx",
+    "privacy/page.tsx": "app/privacy/page.tsx",
 
     "public/logo.svg": "public/logo.svg",
     "public/hero-bg.svg": "public/hero-bg.svg",
@@ -224,31 +248,7 @@ export async function POST(req: Request) {
 
     secondPass.files = normalizeFiles(secondPass.files);
 
-    const requiredFiles = [
-      "package.json",
-      "app/layout.tsx",
-      "app/providers.tsx",
-      "app/page.tsx",
-      "app/globals.css",
-      "components/Navbar.tsx",
-      "components/Hero.tsx",
-      "components/Stats.tsx",
-      "components/About.tsx",
-      "components/Tokenomics.tsx",
-      "components/Staking.tsx",
-      "components/LaunchSection.tsx",
-      "components/Roadmap.tsx",
-      "components/Contracts.tsx",
-      "components/FAQ.tsx",
-      "components/Footer.tsx",
-      "lib/site-data.ts",
-      "public/logo.svg",
-      "public/hero-bg.svg",
-      "README.md",
-      ".env.example",
-      "vercel.json",
-    ];
-
+    const requiredFiles = REQUIRED_WEBSITE_FILES;
     const existingPaths = secondPass.files.map((file: any) => file.path);
 
     const missing = requiredFiles.filter(

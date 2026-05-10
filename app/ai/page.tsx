@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ethers } from "ethers";
 import { useAccount, useWalletClient } from "wagmi";
 import {
@@ -76,6 +77,8 @@ type StakingPlanForm = {
   durationDays: string;
   rewardBps: string;
 };
+
+const WEBSITE_BUILDER_ROUTE = "/website-builder-ai";
 
 const projectFields = [
   ["goal", "Main Goal of the Project"],
@@ -244,6 +247,8 @@ function AIEngineVisual() {
 }
 
 export default function AIPage() {
+  const router = useRouter();
+
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
 
@@ -311,7 +316,7 @@ export default function AIPage() {
     connected: false,
     wallet: "",
     eligibleAmount: "0",
-    tokensPerProject: "500",
+    tokensPerProject: "1,500",
     requiredRewardBps: 9000,
     totalSlots: 0,
     usedSlots: 0,
@@ -321,6 +326,63 @@ export default function AIPage() {
     error: "",
   });
 
+  function saveProjectForWebsiteBuilder(deployed: DeployResult) {
+    const deployedProjectData = {
+      projectId: deployed.projectId,
+
+      projectName: form.projectName.trim(),
+      symbol: form.symbol.trim().toUpperCase(),
+      category: form.category || "Web3",
+      shortDescription: form.shortDescription,
+      targetAudience: form.targetAudience,
+      network: form.network || "BNB Chain",
+
+      tokenAddress: deployed.token,
+      vaultAddress: deployed.vault,
+      stakingAddress: deployed.staking,
+
+      tokenomics: result ? JSON.stringify(result.tokenomicsPreview) : "",
+      presaleStages: result ? JSON.stringify(result.launchPlan) : "",
+      stakingPlans: JSON.stringify(stakingPlans),
+      roadmap: result ? JSON.stringify(result.roadmap) : "",
+
+      goal: form.goal,
+      problemSolved: form.problemSolved,
+      userCareReason: form.userCareReason,
+      competitiveEdge: form.competitiveEdge,
+      tokenUtilityReason: form.tokenUtilityReason,
+      holdReason: form.holdReason,
+      growthLogic: form.growthLogic,
+      revenueLogic: form.revenueLogic,
+      failureRisk: form.failureRisk,
+
+      projectSummary: result?.projectSummary || "",
+      projectVerdict: result?.projectVerdict || "",
+      brandAngle: result?.brandAngle || "",
+      pitch: result?.pitch || "",
+
+      txHash: deployed.txHash,
+
+      websiteStyle: "Premium Dark Web3",
+      primaryColor: "#0B5FFF",
+      secondaryColor: "#7CFF6A",
+      backgroundStyle: "Dark blue-black futuristic gradient",
+    };
+
+    window.localStorage.setItem(
+      "korax_last_project",
+      JSON.stringify(deployedProjectData)
+    );
+  }
+
+  function continueToWebsiteBuilder() {
+    if (deployResult) {
+      saveProjectForWebsiteBuilder(deployResult);
+    }
+
+    router.push(WEBSITE_BUILDER_ROUTE);
+  }
+
   async function loadAccessData(user?: string) {
     if (!user) {
       setAccess({
@@ -328,7 +390,7 @@ export default function AIPage() {
         connected: false,
         wallet: "",
         eligibleAmount: "0",
-        tokensPerProject: "500",
+        tokensPerProject: "1,500",
         requiredRewardBps: 9000,
         totalSlots: 0,
         usedSlots: 0,
@@ -419,6 +481,7 @@ export default function AIPage() {
         loading: false,
         connected: true,
         wallet: user,
+        tokensPerProject: prev.tokensPerProject || "1,500",
         error: err?.shortMessage || err?.message || "Failed to load access data",
       }));
     }
@@ -687,6 +750,7 @@ export default function AIPage() {
       for (const log of receipt.logs) {
         try {
           const parsed = iface.parseLog(log);
+
           if (parsed?.name === "AIProjectDeployed") {
             parsedEvent = parsed;
             break;
@@ -700,13 +764,16 @@ export default function AIPage() {
         throw new Error("Project deployed, but event was not found.");
       }
 
-      setDeployResult({
+      const deployed: DeployResult = {
         projectId: parsedEvent.args.projectId.toString(),
         token: parsedEvent.args.token,
         vault: parsedEvent.args.vault,
         staking: parsedEvent.args.staking,
         txHash: receipt.hash,
-      });
+      };
+
+      saveProjectForWebsiteBuilder(deployed);
+      setDeployResult(deployed);
 
       await loadAccessData(address);
     } catch (err: any) {
@@ -935,7 +1002,9 @@ export default function AIPage() {
               disabled={loading}
               className="rounded-xl bg-[#7CFF6A] px-5 py-3 font-bold text-black shadow-[0_0_25px_rgba(124,255,106,0.14)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 md:hover:scale-[1.01]"
             >
-              {loading ? "Generating AI Draft... please wait" : "Generate AI Draft"}
+              {loading
+                ? "Generating AI Draft... please wait"
+                : "Generate AI Draft"}
             </button>
 
             {error ? (
@@ -949,17 +1018,16 @@ export default function AIPage() {
         <div className="space-y-6">
           <SectionCard title="KORAX Access">
             <div className="mt-4 rounded-2xl border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 p-4 text-sm leading-relaxed text-white/75">
-              To create and deploy a project through KORAX AI, users need to
-              stake{" "}
+              To unlock the KORAX Builder Package, users need to stake{" "}
               <span className="font-semibold text-white">
                 {access.tokensPerProject} KRX
               </span>{" "}
               on the{" "}
               <span className="font-semibold text-white">
                 12-month staking plan
-              </span>{" "}
-              to unlock{" "}
-              <span className="font-semibold text-white">1 project slot</span>.
+              </span>
+              . This package unlocks Token Builder AI, Website Builder AI, and
+              launch creation tools for one project.
             </div>
 
             {!access.connected ? (
@@ -1027,7 +1095,7 @@ export default function AIPage() {
             <p className="mt-2 text-sm leading-relaxed text-white/60">
               Generate a matching project visual for social media, hero
               sections, posters, and early branding.
-            </p>
+              </p>
 
             <div className="mt-5 grid gap-4">
               <select
@@ -1207,7 +1275,7 @@ export default function AIPage() {
                 </button>
               ) : needsUnlock ? (
                 <div className="rounded-xl border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 px-4 py-3 text-sm text-white/75">
-                  Unlock with{" "}
+                  Unlock the Builder Package with{" "}
                   <span className="font-semibold text-white">
                     {access.tokensPerProject} KRX
                   </span>{" "}
@@ -1215,7 +1283,8 @@ export default function AIPage() {
                   <span className="font-semibold text-white">
                     12-month staking plan
                   </span>{" "}
-                  to activate your first project slot.
+                  to access Token Builder AI, Website Builder AI, and launch
+                  creation tools.
                 </div>
               ) : null}
             </div>
@@ -1548,6 +1617,27 @@ export default function AIPage() {
                           {deployResult.txHash}
                         </span>
                       </div>
+                    </div>
+
+                    <div className="mt-5 flex flex-wrap gap-3">
+                      <button
+                        type="button"
+                        onClick={continueToWebsiteBuilder}
+                        className="rounded-xl bg-[#7CFF6A] px-5 py-3 font-bold text-black transition hover:opacity-90"
+                      >
+                        Continue to Website Builder AI
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          saveProjectForWebsiteBuilder(deployResult);
+                          router.push(WEBSITE_BUILDER_ROUTE);
+                        }}
+                        className="rounded-xl border border-[#7CFF6A]/30 bg-[#7CFF6A]/10 px-5 py-3 font-bold text-[#c4ffbc] transition hover:bg-[#7CFF6A]/20"
+                      >
+                        Reload Data & Continue
+                      </button>
                     </div>
                   </div>
                 ) : null}

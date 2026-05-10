@@ -111,14 +111,14 @@ export default function Topbar() {
   const nav = useMemo<NavItem[]>(
     () => [
       { label: "Home", href: "/" },
+      { label: "Roadmap", href: "/roadmap" },
+      { label: "Docs", href: "/docs" },
       { label: "Presale", href: "/presale" },
       { label: "Claim", href: "/claim", sublabel: "After Presale Ends" },
       { label: "Staking", href: "/staking", sublabel: "Available After Claim" },
-      { label: "Roadmap", href: "/roadmap" },
-      { label: "Docs", href: "/docs" },
-      { label: "Launch Your Project", href: "/launch" },
       { label: "Token Builder AI", href: "/ai" },
       { label: "Website Builder AI", href: "/website-builder-ai", soon: true },
+      { label: "Launch", href: "/launch" },
     ],
     []
   );
@@ -319,7 +319,9 @@ export default function Topbar() {
                       return (
                         <div
                           aria-hidden={!ready}
-                          className={!ready ? "pointer-events-none opacity-0" : ""}
+                          className={
+                            !ready ? "pointer-events-none opacity-0" : ""
+                          }
                         >
                           {!connected ? (
                             <button

@@ -1,7 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import JSZip from "jszip";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ethers } from "ethers";
+import { useAccount } from "wagmi";
+import {
+  ACCESS_MANAGER_ADDRESS,
+  RPC_URL,
+  accessManagerAbi,
+} from "@/lib/korax/contracts";
 
 type WebsiteFile = {
   path: string;
@@ -37,6 +44,61 @@ type WebsiteResult = {
   koraxPublishingNote: string;
 };
 
+type SavedBuilderProject = {
+  projectId?: string;
+  projectName?: string;
+  name?: string;
+  symbol?: string;
+  category?: string;
+  shortDescription?: string;
+  description?: string;
+  targetAudience?: string;
+  network?: string;
+
+  tokenAddress?: string;
+  token?: string;
+
+  vaultAddress?: string;
+  vault?: string;
+
+  stakingAddress?: string;
+  staking?: string;
+
+  launchpadAddress?: string;
+  launchpad?: string;
+
+  websiteStyle?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  backgroundStyle?: string;
+
+  xLink?: string;
+  telegramLink?: string;
+  youtubeLink?: string;
+  tiktokLink?: string;
+  instagramLink?: string;
+  facebookLink?: string;
+  discordLink?: string;
+
+  tokenomics?: string;
+  roadmap?: string;
+  stakingPlans?: string;
+  presaleStages?: string;
+  txHash?: string;
+};
+
+type BuilderAccessState = {
+  loading: boolean;
+  connected: boolean;
+  wallet: string;
+  eligibleAmount: string;
+  tokensPerProject: string;
+  requiredRewardBps: number;
+  totalSlots: number;
+  hasAccess: boolean;
+  error: string;
+};
+
 const WEBSITE_STYLE_OPTIONS = [
   "Premium Dark Web3",
   "Luxury Crypto",
@@ -66,38 +128,91 @@ function copyToClipboard(text: string) {
   navigator.clipboard.writeText(text);
 }
 
-async function downloadWebsiteZip(files: WebsiteFile[], websiteName: string) {
-  const zip = new JSZip();
+function cleanDownloadName(value: string) {
+  return (
+    value
+      ?.toLowerCase()
+      .replace(/[^a-z0-9-_]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 60) || "korax-generated-website"
+  );
+}
 
-  for (const file of files) {
-    const cleanPath = file.path.replace(/^\/+/, "");
-    zip.file(cleanPath, file.content);
+function formatTokenAmount(raw: bigint) {
+  return Number(ethers.formatUnits(raw, 18)).toLocaleString("en-US", {
+    maximumFractionDigits: 4,
+  });
+}
+
+function readSavedBuilderProject(): SavedBuilderProject | null {
+  if (typeof window === "undefined") return null;
+
+  const storageKeys = [
+    "korax_last_project",
+    "korax_last_deployed_project",
+    "korax_builder_project",
+    "korax_generated_project",
+  ];
+
+  for (const key of storageKeys) {
+    const raw = window.localStorage.getItem(key);
+
+    if (!raw) continue;
+
+    try {
+      const parsed = JSON.parse(raw);
+
+      if (parsed && typeof parsed === "object") {
+        return parsed as SavedBuilderProject;
+      }
+    } catch {
+      continue;
+    }
   }
 
-  const cleanName =
-    websiteName
-      ?.toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "") || "korax-website";
+  return null;
+}
 
-  const blob = await zip.generateAsync({ type: "blob" });
-  const url = URL.createObjectURL(blob);
+async function downloadWebsiteZip(files: WebsiteFile[], websiteName: string) {
+  if (!files?.length) {
+    throw new Error("No website files available for download.");
+  }
+
+  const response = await fetch("/api/website-builder/download", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      projectName: websiteName || "korax-generated-website",
+      files,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.error || "Failed to generate ZIP file.");
+  }
+
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+
   const link = document.createElement("a");
-
   link.href = url;
-  link.download = `${cleanName}.zip`;
+  link.download = `${cleanDownloadName(websiteName)}-website.zip`;
+
   document.body.appendChild(link);
   link.click();
   link.remove();
 
-  URL.revokeObjectURL(url);
+  window.URL.revokeObjectURL(url);
 }
 
 function SmallCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
       <div className="text-xs text-white/45">{label}</div>
-      <div className="mt-1 text-sm font-semibold leading-relaxed text-white">
+      <div className="mt-1 break-words text-sm font-semibold leading-relaxed text-white">
         {value || "Not provided"}
       </div>
     </div>
@@ -119,11 +234,6 @@ function SectionBox({
   );
 }
 
-/**
- * Lightweight AI visual.
- * The old version had many SVG paths, rings, nodes, sparks, and infinite animations.
- * That caused heavy mobile lag. This version keeps the look but removes expensive animations.
- */
 function AIEngineVisual() {
   return (
     <div className="relative min-h-[260px] overflow-hidden rounded-[28px] border border-white/10 bg-[#020816] shadow-[0_20px_70px_rgba(0,0,0,0.55)] md:min-h-[430px] md:rounded-[34px]">
@@ -137,7 +247,7 @@ function AIEngineVisual() {
         preserveAspectRatio="none"
       >
         <defs>
-          <filter id="lightPathGlow">
+          <filter id="websiteLightPathGlow">
             <feGaussianBlur stdDeviation="0.35" result="blur" />
             <feMerge>
               <feMergeNode in="blur" />
@@ -161,7 +271,7 @@ function AIEngineVisual() {
             stroke="rgba(180,220,255,0.26)"
             strokeWidth="0.7"
             strokeLinecap="round"
-            filter="url(#lightPathGlow)"
+            filter="url(#websiteLightPathGlow)"
           />
         ))}
 
@@ -199,14 +309,14 @@ function AIEngineVisual() {
           </div>
 
           <div className="mt-1 text-[9px] font-semibold uppercase tracking-[0.28em] text-white/65 md:text-[11px]">
-            CORE ENGINE
+            WEBSITE ENGINE
           </div>
         </div>
       </div>
 
       <div className="absolute bottom-4 left-1/2 z-10 w-[88%] -translate-x-1/2 rounded-[20px] border border-white/10 bg-black/35 p-3 shadow-[0_14px_30px_rgba(0,0,0,0.30)] md:bottom-5 md:w-[84%] md:rounded-[24px] md:p-4">
         <div className="grid grid-cols-3 gap-2 md:gap-3">
-          {["Input", "Reasoning", "Generation"].map((label) => (
+          {["Project", "Contracts", "Website"].map((label) => (
             <div
               key={label}
               className="rounded-2xl border border-white/10 bg-white/[0.03] p-2 md:p-3"
@@ -227,6 +337,9 @@ function AIEngineVisual() {
 }
 
 export default function WebsiteBuilderAIPage() {
+  const router = useRouter();
+  const { address, isConnected } = useAccount();
+
   const [form, setForm] = useState({
     projectName: "",
     symbol: "",
@@ -258,10 +371,29 @@ export default function WebsiteBuilderAIPage() {
       "Make it look like a premium Web3 project website with strong trust, serious builder energy, dark design, and clean launch-ready sections.",
   });
 
+  const [builderAccess, setBuilderAccess] = useState<BuilderAccessState>({
+    loading: false,
+    connected: false,
+    wallet: "",
+    eligibleAmount: "0",
+    tokensPerProject: "1,500",
+    requiredRewardBps: 9000,
+    totalSlots: 0,
+    hasAccess: false,
+    error: "",
+  });
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
   const [result, setResult] = useState<WebsiteResult | null>(null);
   const [selectedFile, setSelectedFile] = useState("");
+
+  const [loadedProjectFromBuilder, setLoadedProjectFromBuilder] =
+    useState(false);
+
+  const [downloadingZip, setDownloadingZip] = useState(false);
+  const [downloadError, setDownloadError] = useState("");
 
   const [editing, setEditing] = useState(false);
   const [editError, setEditError] = useState("");
@@ -281,8 +413,206 @@ export default function WebsiteBuilderAIPage() {
     );
   }, [result, selectedFile]);
 
+  useEffect(() => {
+    const savedProject = readSavedBuilderProject();
+
+    if (!savedProject) return;
+
+    setForm((prev) => {
+      const projectName =
+        savedProject.projectName || savedProject.name || prev.projectName;
+
+      const symbol = savedProject.symbol || prev.symbol;
+
+      const shortDescription =
+        savedProject.shortDescription ||
+        savedProject.description ||
+        prev.shortDescription;
+
+      const tokenAddress =
+        savedProject.tokenAddress || savedProject.token || prev.tokenAddress;
+
+      const vaultAddress =
+        savedProject.vaultAddress || savedProject.vault || prev.vaultAddress;
+
+      const stakingAddress =
+        savedProject.stakingAddress ||
+        savedProject.staking ||
+        prev.stakingAddress;
+
+      const launchpadAddress =
+        savedProject.launchpadAddress ||
+        savedProject.launchpad ||
+        prev.launchpadAddress;
+
+      const generatedInstructions = [
+        "Build this website based on the project that was already created through KORAX Token Builder AI.",
+        prev.specialInstructions,
+        savedProject.projectId ? `Project ID: ${savedProject.projectId}` : "",
+        savedProject.txHash ? `Deployment transaction: ${savedProject.txHash}` : "",
+        savedProject.tokenomics
+          ? `Tokenomics: ${savedProject.tokenomics}`
+          : "",
+        savedProject.presaleStages
+          ? `Presale stages: ${savedProject.presaleStages}`
+          : "",
+        savedProject.stakingPlans
+          ? `Staking plans: ${savedProject.stakingPlans}`
+          : "",
+        savedProject.roadmap ? `Roadmap: ${savedProject.roadmap}` : "",
+        tokenAddress
+          ? `Use token contract address in the Contracts section: ${tokenAddress}`
+          : "",
+        vaultAddress
+          ? `Use vault contract address in the Contracts section: ${vaultAddress}`
+          : "",
+        stakingAddress
+          ? `Use staking contract address in the Contracts section: ${stakingAddress}`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+
+      return {
+        ...prev,
+        projectName,
+        symbol,
+        category: savedProject.category || prev.category,
+        shortDescription,
+        targetAudience: savedProject.targetAudience || prev.targetAudience,
+        network: savedProject.network || prev.network,
+
+        tokenAddress,
+        vaultAddress,
+        stakingAddress:
+          stakingAddress &&
+          stakingAddress !== "0x0000000000000000000000000000000000000000"
+            ? stakingAddress
+            : "",
+        launchpadAddress,
+
+        websiteStyle: savedProject.websiteStyle || prev.websiteStyle,
+        primaryColor: savedProject.primaryColor || prev.primaryColor,
+        secondaryColor: savedProject.secondaryColor || prev.secondaryColor,
+        backgroundStyle: savedProject.backgroundStyle || prev.backgroundStyle,
+
+        xLink: savedProject.xLink || prev.xLink,
+        telegramLink: savedProject.telegramLink || prev.telegramLink,
+        youtubeLink: savedProject.youtubeLink || prev.youtubeLink,
+        tiktokLink: savedProject.tiktokLink || prev.tiktokLink,
+        instagramLink: savedProject.instagramLink || prev.instagramLink,
+        facebookLink: savedProject.facebookLink || prev.facebookLink,
+        discordLink: savedProject.discordLink || prev.discordLink,
+
+        websiteSections:
+          prev.websiteSections ||
+          "Hero, About, Tokenomics, Roadmap, Staking, Launch on KORAX, Contracts, FAQ, Footer",
+
+        specialInstructions: generatedInstructions,
+      };
+    });
+
+    setLoadedProjectFromBuilder(true);
+  }, []);
+
+  useEffect(() => {
+    if (!address || !isConnected) {
+      loadBuilderAccess(undefined);
+      return;
+    }
+
+    loadBuilderAccess(address);
+  }, [address, isConnected]);
+
   function update(key: string, value: string) {
     setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function loadBuilderAccess(user?: string) {
+    if (!user) {
+      setBuilderAccess({
+        loading: false,
+        connected: false,
+        wallet: "",
+        eligibleAmount: "0",
+        tokensPerProject: "1,500",
+        requiredRewardBps: 9000,
+        totalSlots: 0,
+        hasAccess: false,
+        error: "",
+      });
+      return;
+    }
+
+    try {
+      setBuilderAccess((prev) => ({
+        ...prev,
+        loading: true,
+        connected: true,
+        wallet: user,
+        error: "",
+      }));
+
+      if (!ACCESS_MANAGER_ADDRESS) {
+        throw new Error("Access manager address is missing.");
+      }
+
+      const provider = new ethers.JsonRpcProvider(RPC_URL);
+
+      const accessManager = new ethers.Contract(
+        ACCESS_MANAGER_ADDRESS,
+        accessManagerAbi,
+        provider
+      );
+
+      const [
+        eligibleAmountRaw,
+        totalSlotsRaw,
+        hasAccessRaw,
+        accessData,
+      ] = await Promise.all([
+        accessManager.getEligibleStakedAmount(user),
+        accessManager.getProjectSlots(user),
+        accessManager.hasKoraxAccess(user),
+        accessManager.getAccessData(user),
+      ]);
+
+      const tokensPerProjectRaw =
+        accessData.currentTokensPerProject ??
+        accessData.tokensPerProject ??
+        accessData[2];
+
+      const requiredRewardBpsRaw =
+        accessData.currentRequiredRewardBps ??
+        accessData.requiredRewardBps ??
+        accessData[3];
+
+      setBuilderAccess({
+        loading: false,
+        connected: true,
+        wallet: user,
+        eligibleAmount: formatTokenAmount(BigInt(eligibleAmountRaw.toString())),
+        tokensPerProject: formatTokenAmount(
+          BigInt(tokensPerProjectRaw.toString())
+        ),
+        requiredRewardBps: Number(requiredRewardBpsRaw),
+        totalSlots: Number(totalSlotsRaw),
+        hasAccess: Boolean(hasAccessRaw),
+        error: "",
+      });
+    } catch (err: any) {
+      setBuilderAccess((prev) => ({
+        ...prev,
+        loading: false,
+        connected: Boolean(user),
+        wallet: user || "",
+        tokensPerProject: prev.tokensPerProject || "1,500",
+        error:
+          err?.shortMessage ||
+          err?.message ||
+          "Failed to load builder access.",
+      }));
+    }
   }
 
   function applyColorPreset(preset: string) {
@@ -351,6 +681,13 @@ export default function WebsiteBuilderAIPage() {
   async function generateWebsite() {
     if (loading) return;
 
+    if (!builderAccess.hasAccess) {
+      setError(
+        `Website Builder AI requires the Builder Package: stake ${builderAccess.tokensPerProject} KRX on the 12-month staking plan.`
+      );
+      return;
+    }
+
     setLoading(true);
     setError("");
     setResult(null);
@@ -359,6 +696,7 @@ export default function WebsiteBuilderAIPage() {
     setEditInstruction("");
     setGithubStatus("");
     setGithubRepoUrl("");
+    setDownloadError("");
 
     try {
       const res = await fetch("/api/website-builder", {
@@ -382,6 +720,61 @@ export default function WebsiteBuilderAIPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleDownloadWebsiteZip() {
+    if (downloadingZip) return;
+
+    setDownloadingZip(true);
+    setDownloadError("");
+
+    try {
+      if (!result?.files?.length) {
+        throw new Error("Generate a website first.");
+      }
+
+      await downloadWebsiteZip(
+        result.files,
+        result.websiteName || form.projectName
+      );
+    } catch (err: any) {
+      setDownloadError(err?.message || "ZIP download failed.");
+    } finally {
+      setDownloadingZip(false);
+    }
+  }
+
+  function continueToLaunching() {
+    const latestProject = {
+      projectName: form.projectName,
+      symbol: form.symbol,
+      category: form.category,
+      shortDescription: form.shortDescription,
+      targetAudience: form.targetAudience,
+      network: form.network,
+
+      tokenAddress: form.tokenAddress,
+      vaultAddress: form.vaultAddress,
+      stakingAddress: form.stakingAddress,
+      launchpadAddress: form.launchpadAddress,
+
+      websiteName: result?.websiteName || form.projectName,
+      websiteSummary: result?.summary || "",
+      websiteGenerated:
+      Boolean(result?.files?.length),
+
+      websiteStyle: form.websiteStyle,
+      primaryColor: form.primaryColor,
+      secondaryColor: form.secondaryColor,
+      backgroundStyle: form.backgroundStyle,
+    };
+
+    window.localStorage.setItem(
+      "korax_last_project",
+      JSON.stringify(latestProject)
+    );
+
+    router.push("/launch");
   }
 
   async function editWebsite() {
@@ -491,39 +884,17 @@ export default function WebsiteBuilderAIPage() {
             </div>
 
             <h1 className="mt-5 text-3xl font-black leading-tight text-white sm:text-5xl">
-              Generate a complete
+              Generate a website from your
               <span className="block text-[#7CFF6A]">
-                Web3 project website.
+                deployed Web3 project.
               </span>
             </h1>
 
             <p className="mt-5 max-w-3xl text-base leading-relaxed text-white/68 sm:text-lg">
-              Build premium Web3 websites from project descriptions, token data,
-              staking structure, launch direction, brand style, and social
-              links. The output is a complete website package with code, copy,
-              sections, and deployment notes.
+              Website Builder AI can use the project data created by KORAX Token
+              Builder AI, including token, vault, staking contracts, network,
+              project description, and launch direction.
             </p>
-
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                <div className="text-xs text-white/45">Output</div>
-                <div className="mt-1 font-bold text-white">Website Files</div>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                <div className="text-xs text-white/45">Code</div>
-                <div className="mt-1 font-bold text-white">
-                  Next.js + Tailwind
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                <div className="text-xs text-white/45">Wallet</div>
-                <div className="mt-1 font-bold text-white">
-                  RainbowKit Ready
-                </div>
-              </div>
-            </div>
           </div>
 
           <div className="relative">
@@ -540,8 +911,16 @@ export default function WebsiteBuilderAIPage() {
                 Website Inputs
               </p>
               <h2 className="mt-2 text-2xl font-extrabold text-white">
-                Describe the website you want
+                Project website setup
               </h2>
+
+              {loadedProjectFromBuilder ? (
+                <div className="mt-4 rounded-2xl border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 px-4 py-3 text-sm text-[#c4ffbc]">
+                  Project data loaded automatically from KORAX Builder. Contract
+                  addresses and project details were added to the Website
+                  Builder AI form.
+                </div>
+              ) : null}
             </div>
 
             <div className="rounded-full border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 px-4 py-2 text-xs font-semibold text-[#c4ffbc]">
@@ -640,29 +1019,19 @@ export default function WebsiteBuilderAIPage() {
             </select>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className="mb-2 block text-xs text-white/50">
-                  Primary Color
-                </label>
-                <input
-                  value={form.primaryColor}
-                  onChange={(e) => update("primaryColor", e.target.value)}
-                  placeholder="#0B5FFF"
-                  className="w-full rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
-                />
-              </div>
+              <input
+                value={form.primaryColor}
+                onChange={(e) => update("primaryColor", e.target.value)}
+                placeholder="Primary Color"
+                className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
+              />
 
-              <div>
-                <label className="mb-2 block text-xs text-white/50">
-                  Secondary Color
-                </label>
-                <input
-                  value={form.secondaryColor}
-                  onChange={(e) => update("secondaryColor", e.target.value)}
-                  placeholder="#7CFF6A"
-                  className="w-full rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
-                />
-              </div>
+              <input
+                value={form.secondaryColor}
+                onChange={(e) => update("secondaryColor", e.target.value)}
+                placeholder="Secondary Color"
+                className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
+              />
             </div>
 
             <input
@@ -681,42 +1050,51 @@ export default function WebsiteBuilderAIPage() {
               <option>Solana — Planned for Future</option>
             </select>
 
-            <input
-              value={form.tokenAddress}
-              onChange={(e) => update("tokenAddress", e.target.value)}
-              placeholder="Token Address"
-              className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
-            />
+            <div className="rounded-2xl border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 p-4">
+              <div className="text-sm font-bold text-[#c4ffbc]">
+                Contract Addresses
+              </div>
 
-            <input
-              value={form.stakingAddress}
-              onChange={(e) => update("stakingAddress", e.target.value)}
-              placeholder="Staking Address"
-              className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
-            />
+              <p className="mt-1 text-xs leading-relaxed text-white/60">
+                These can be loaded automatically from KORAX Token Builder AI
+                after deployment.
+              </p>
 
-            <input
-              value={form.vaultAddress}
-              onChange={(e) => update("vaultAddress", e.target.value)}
-              placeholder="Vault Address"
-              className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
-            />
+              <div className="mt-4 grid gap-4">
+                <input
+                  value={form.tokenAddress}
+                  onChange={(e) => update("tokenAddress", e.target.value)}
+                  placeholder="Token Address"
+                  className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
+                />
 
-            <input
-              value={form.launchpadAddress}
-              onChange={(e) => update("launchpadAddress", e.target.value)}
-              placeholder="Launchpad Address / Sale Reference"
-              className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
-            />
+                <input
+                  value={form.vaultAddress}
+                  onChange={(e) => update("vaultAddress", e.target.value)}
+                  placeholder="Vault Address"
+                  className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
+                />
+
+                <input
+                  value={form.stakingAddress}
+                  onChange={(e) => update("stakingAddress", e.target.value)}
+                  placeholder="Staking Address"
+                  className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
+                />
+
+                <input
+                  value={form.launchpadAddress}
+                  onChange={(e) => update("launchpadAddress", e.target.value)}
+                  placeholder="Launchpad Address / Sale Reference"
+                  className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
+                />
+              </div>
+            </div>
 
             <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
               <div className="text-sm font-semibold text-white">
                 Social Links
               </div>
-              <p className="mt-1 text-xs leading-relaxed text-white/45">
-                Add all official project channels for footer and community
-                sections.
-              </p>
 
               <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <input
@@ -782,16 +1160,62 @@ export default function WebsiteBuilderAIPage() {
               value={form.specialInstructions}
               onChange={(e) => update("specialInstructions", e.target.value)}
               placeholder="Special Instructions"
-              rows={4}
+              rows={7}
               className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
             />
 
+            <div
+              className={[
+                "rounded-2xl border p-4 text-sm leading-relaxed",
+                builderAccess.hasAccess
+                  ? "border-[#7CFF6A]/20 bg-[#7CFF6A]/10 text-[#c4ffbc]"
+                  : "border-white/10 bg-black/25 text-white/65",
+              ].join(" ")}
+            >
+              {builderAccess.loading ? (
+                "Checking Builder Package access..."
+              ) : !builderAccess.connected ? (
+                <>
+                  Connect your wallet to use Website Builder AI. Required
+                  Builder Package:{" "}
+                  <span className="font-semibold text-white">
+                    {builderAccess.tokensPerProject} KRX
+                  </span>{" "}
+                  staked on the 12-month plan.
+                </>
+              ) : builderAccess.hasAccess ? (
+                <>
+                  Builder Package unlocked. You can use Website Builder AI for
+                  this project.
+                </>
+              ) : (
+                <>
+                  Website Builder AI is locked. Stake{" "}
+                  <span className="font-semibold text-white">
+                    {builderAccess.tokensPerProject} KRX
+                  </span>{" "}
+                  on the 12-month staking plan to unlock Token Builder AI,
+                  Website Builder AI, and launch creation tools.
+                </>
+              )}
+
+              {builderAccess.error ? (
+                <div className="mt-2 text-red-200">{builderAccess.error}</div>
+              ) : null}
+            </div>
+
             <button
               onClick={generateWebsite}
-              disabled={loading}
+              disabled={loading || builderAccess.loading || !builderAccess.hasAccess}
               className="rounded-xl bg-[#7CFF6A] px-5 py-3 font-bold text-black shadow-[0_0_25px_rgba(124,255,106,0.14)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 md:hover:scale-[1.01]"
             >
-              {loading ? "Generating Website... please wait" : "Generate Website"}
+              {loading
+                ? "Generating Website... please wait"
+                : builderAccess.loading
+                ? "Checking Builder Access..."
+                : builderAccess.hasAccess
+                ? "Generate Website"
+                : "Builder Package Required"}
             </button>
 
             {error ? (
@@ -803,10 +1227,39 @@ export default function WebsiteBuilderAIPage() {
         </div>
 
         <div className="space-y-6">
+          <SectionBox title="Auto-Loaded Project">
+            <p className="mt-3 text-sm leading-relaxed text-white/70">
+              After a user deploys a project through KORAX Token Builder AI, this
+              page can automatically receive the deployed token, vault, staking
+              addresses, project name, symbol, network, and description.
+            </p>
+
+            <div className="mt-5 grid gap-3">
+              <SmallCard
+                label="Project"
+                value={form.projectName || "Not loaded yet"}
+              />
+              <SmallCard label="Symbol" value={form.symbol || "Not loaded yet"} />
+              <SmallCard label="Network" value={form.network} />
+              <SmallCard
+                label="Token"
+                value={form.tokenAddress || "Not loaded yet"}
+              />
+              <SmallCard
+                label="Vault"
+                value={form.vaultAddress || "Not loaded yet"}
+              />
+              <SmallCard
+                label="Staking"
+                value={form.stakingAddress || "Not loaded / disabled"}
+              />
+            </div>
+          </SectionBox>
+
           <SectionBox title="KORAX Publishing Layer">
             <p className="mt-3 text-sm leading-relaxed text-white/70">
-              Website Builder AI generates the full project website package
-              first. GitHub publishing and Vercel deployment are part of the
+              Website Builder AI generates the project website package first.
+              GitHub publishing and Vercel deployment are part of the connected
               KORAX builder pipeline.
             </p>
 
@@ -814,20 +1267,6 @@ export default function WebsiteBuilderAIPage() {
               <SmallCard label="Website Package" value="Generated by AI" />
               <SmallCard label="Publishing" value="GitHub OAuth" />
               <SmallCard label="Hosting" value="Vercel layer next" />
-            </div>
-          </SectionBox>
-
-          <SectionBox title="Builder Access Direction">
-            <p className="mt-3 text-sm leading-relaxed text-white/70">
-              Website Builder AI is planned as a premium KORAX builder layer.
-              It is designed to connect with Token Builder AI and later generate
-              websites that match the project’s contracts, launch logic, staking
-              structure, and visual identity.
-            </p>
-
-            <div className="mt-5 rounded-2xl border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 p-4 text-sm text-white/75">
-              Future access direction: full website generation and assisted
-              publishing may require a higher builder access package.
             </div>
           </SectionBox>
 
@@ -968,15 +1407,30 @@ export default function WebsiteBuilderAIPage() {
 
                 <button
                   type="button"
-                  onClick={() =>
-                    downloadWebsiteZip(result.files, result.websiteName)
-                  }
-                  className="rounded-xl bg-[#7CFF6A] px-5 py-3 text-sm font-bold text-black transition hover:opacity-90"
+                  onClick={handleDownloadWebsiteZip}
+                  disabled={downloadingZip}
+                  className="rounded-xl bg-[#7CFF6A] px-5 py-3 text-sm font-bold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Download Full Website ZIP
+                  {downloadingZip
+                    ? "Preparing ZIP..."
+                    : "Download Full Website ZIP"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={continueToLaunching}
+                  className="rounded-xl border border-[#7CFF6A]/30 bg-[#7CFF6A]/10 px-5 py-3 text-sm font-bold text-[#c4ffbc] transition hover:bg-[#7CFF6A]/20"
+                >
+                  Continue to Launching
                 </button>
               </div>
             </div>
+
+            {downloadError ? (
+              <div className="mt-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                {downloadError}
+              </div>
+            ) : null}
 
             {selectedFileData ? (
               <div className="mt-5 overflow-hidden rounded-2xl border border-white/10 bg-black/35">
@@ -1004,8 +1458,7 @@ export default function WebsiteBuilderAIPage() {
           <SectionBox title="Publish to GitHub">
             <p className="mt-3 text-sm leading-relaxed text-white/70">
               Connect your GitHub account and let KORAX publish the generated
-              website files into a new repository. No manual token copying is
-              required.
+              website files into a new repository.
             </p>
 
             <div className="mt-5 grid gap-4">
@@ -1039,7 +1492,9 @@ export default function WebsiteBuilderAIPage() {
                 disabled={publishingGithub}
                 className="rounded-xl bg-[#7CFF6A] px-5 py-3 font-bold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {publishingGithub ? "Publishing... please wait" : "Publish to GitHub"}
+                {publishingGithub
+                  ? "Publishing... please wait"
+                  : "Publish to GitHub"}
               </button>
 
               {githubStatus ? (
