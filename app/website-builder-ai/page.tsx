@@ -54,24 +54,18 @@ type SavedBuilderProject = {
   description?: string;
   targetAudience?: string;
   network?: string;
-
   tokenAddress?: string;
   token?: string;
-
   vaultAddress?: string;
   vault?: string;
-
   stakingAddress?: string;
   staking?: string;
-
   launchpadAddress?: string;
   launchpad?: string;
-
   websiteStyle?: string;
   primaryColor?: string;
   secondaryColor?: string;
   backgroundStyle?: string;
-
   xLink?: string;
   telegramLink?: string;
   youtubeLink?: string;
@@ -79,7 +73,6 @@ type SavedBuilderProject = {
   instagramLink?: string;
   facebookLink?: string;
   discordLink?: string;
-
   tokenomics?: string;
   roadmap?: string;
   stakingPlans?: string;
@@ -156,7 +149,6 @@ function readSavedBuilderProject(): SavedBuilderProject | null {
 
   for (const key of storageKeys) {
     const raw = window.localStorage.getItem(key);
-
     if (!raw) continue;
 
     try {
@@ -406,6 +398,11 @@ export default function WebsiteBuilderAIPage() {
   const [githubStatus, setGithubStatus] = useState("");
   const [githubRepoUrl, setGithubRepoUrl] = useState("");
 
+  const [vercelToken, setVercelToken] = useState("");
+  const [deployingVercel, setDeployingVercel] = useState(false);
+  const [vercelStatus, setVercelStatus] = useState("");
+  const [vercelDeploymentUrl, setVercelDeploymentUrl] = useState("");
+
   const selectedFileData = useMemo(() => {
     if (!result) return null;
     return (
@@ -449,10 +446,10 @@ export default function WebsiteBuilderAIPage() {
         "Build this website based on the project that was already created through KORAX Token Builder AI.",
         prev.specialInstructions,
         savedProject.projectId ? `Project ID: ${savedProject.projectId}` : "",
-        savedProject.txHash ? `Deployment transaction: ${savedProject.txHash}` : "",
-        savedProject.tokenomics
-          ? `Tokenomics: ${savedProject.tokenomics}`
+        savedProject.txHash
+          ? `Deployment transaction: ${savedProject.txHash}`
           : "",
+        savedProject.tokenomics ? `Tokenomics: ${savedProject.tokenomics}` : "",
         savedProject.presaleStages
           ? `Presale stages: ${savedProject.presaleStages}`
           : "",
@@ -697,6 +694,8 @@ export default function WebsiteBuilderAIPage() {
     setGithubStatus("");
     setGithubRepoUrl("");
     setDownloadError("");
+    setVercelStatus("");
+    setVercelDeploymentUrl("");
 
     try {
       const res = await fetch("/api/website-builder", {
@@ -760,8 +759,7 @@ export default function WebsiteBuilderAIPage() {
 
       websiteName: result?.websiteName || form.projectName,
       websiteSummary: result?.summary || "",
-      websiteGenerated:
-      Boolean(result?.files?.length),
+      websiteGenerated: Boolean(result?.files?.length),
 
       websiteStyle: form.websiteStyle,
       primaryColor: form.primaryColor,
@@ -824,12 +822,76 @@ export default function WebsiteBuilderAIPage() {
     window.location.href = "/api/github/oauth/start";
   }
 
+  function openVercelImport() {
+    if (githubRepoUrl) {
+      window.open(
+        `https://vercel.com/new/clone?repository-url=${encodeURIComponent(
+          githubRepoUrl
+        )}`,
+        "_blank",
+        "noopener,noreferrer"
+      );
+      return;
+    }
+
+    window.open("https://vercel.com/new", "_blank", "noopener,noreferrer");
+  }
+
+  async function deployToVercelWithApi() {
+    if (deployingVercel) return;
+
+    setDeployingVercel(true);
+    setVercelStatus("");
+    setVercelDeploymentUrl("");
+
+    try {
+      if (!githubRepoUrl) {
+        throw new Error("Publish the website to GitHub first.");
+      }
+
+      if (!vercelToken.trim()) {
+        throw new Error("Enter your Vercel token first.");
+      }
+
+      const response = await fetch("/api/vercel/deploy", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          vercelToken: vercelToken.trim(),
+          githubRepoUrl,
+          projectName: result?.websiteName || form.projectName,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error || "Vercel deployment failed.");
+      }
+
+      setVercelDeploymentUrl(data.deploymentUrl || "");
+      setVercelStatus(
+        data.deploymentUrl
+          ? `Deployment started: ${data.deploymentUrl}`
+          : "Deployment started successfully."
+      );
+    } catch (err: any) {
+      setVercelStatus(err?.message || "Vercel deployment failed.");
+    } finally {
+      setDeployingVercel(false);
+    }
+  }
+
   async function publishToGitHub() {
     if (publishingGithub) return;
 
     setPublishingGithub(true);
     setGithubStatus("");
     setGithubRepoUrl("");
+    setVercelStatus("");
+    setVercelDeploymentUrl("");
 
     try {
       if (!result) {
@@ -1206,7 +1268,9 @@ export default function WebsiteBuilderAIPage() {
 
             <button
               onClick={generateWebsite}
-              disabled={loading || builderAccess.loading || !builderAccess.hasAccess}
+              disabled={
+                loading || builderAccess.loading || !builderAccess.hasAccess
+              }
               className="rounded-xl bg-[#7CFF6A] px-5 py-3 font-bold text-black shadow-[0_0_25px_rgba(124,255,106,0.14)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 md:hover:scale-[1.01]"
             >
               {loading
@@ -1239,7 +1303,10 @@ export default function WebsiteBuilderAIPage() {
                 label="Project"
                 value={form.projectName || "Not loaded yet"}
               />
-              <SmallCard label="Symbol" value={form.symbol || "Not loaded yet"} />
+              <SmallCard
+                label="Symbol"
+                value={form.symbol || "Not loaded yet"}
+              />
               <SmallCard label="Network" value={form.network} />
               <SmallCard
                 label="Token"
@@ -1513,6 +1580,81 @@ export default function WebsiteBuilderAIPage() {
                   )}
                 </div>
               ) : null}
+            </div>
+          </SectionBox>
+
+          <SectionBox title="Deploy to Vercel">
+            <p className="mt-3 text-sm leading-relaxed text-white/70">
+              After publishing the generated website to GitHub, deploy it to the
+              user's own Vercel account using a Vercel token. If the user's
+              Vercel account is on the Free/Hobby plan, the deployment will use
+              that account plan.
+            </p>
+
+            <div className="mt-5 grid gap-4">
+              {githubRepoUrl ? (
+                <div className="rounded-2xl border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 p-4 text-sm leading-relaxed text-white/75">
+                  GitHub repository is ready:
+                  <div className="mt-3 break-all font-semibold text-[#c4ffbc]">
+                    {githubRepoUrl}
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-white/10 bg-black/25 p-4 text-sm leading-relaxed text-white/60">
+                  First publish the generated website to GitHub. Then you can
+                  deploy it to Vercel.
+                </div>
+              )}
+
+              <input
+                type="password"
+                value={vercelToken}
+                onChange={(e) => setVercelToken(e.target.value)}
+                placeholder="Vercel Token"
+                className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
+              />
+
+              <button
+                type="button"
+                onClick={deployToVercelWithApi}
+                disabled={deployingVercel || !githubRepoUrl}
+                className="rounded-xl bg-[#7CFF6A] px-5 py-3 font-bold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {deployingVercel ? "Deploying to Vercel..." : "Deploy to Vercel"}
+              </button>
+
+              <button
+                type="button"
+                onClick={openVercelImport}
+                className="rounded-xl border border-white/10 bg-white/5 px-5 py-3 font-bold text-white transition hover:bg-white/10"
+              >
+                Open Vercel Import Manually
+              </button>
+
+              {vercelStatus ? (
+                <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80">
+                  {vercelDeploymentUrl ? (
+                    <a
+                      href={vercelDeploymentUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#c4ffbc] hover:text-white"
+                    >
+                      {vercelStatus}
+                    </a>
+                  ) : (
+                    vercelStatus
+                  )}
+                </div>
+              ) : null}
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-xs leading-relaxed text-white/55">
+                The Vercel token is used only to create and deploy this
+                generated website to the user's own Vercel account. For this
+                version, users can generate a token from Vercel Account
+                Settings. Later, KORAX can add full Vercel OAuth for one-click
+                deployment.
+              </div>
             </div>
           </SectionBox>
 
