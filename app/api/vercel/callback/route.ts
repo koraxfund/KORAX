@@ -1,5 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 
+type VercelTokenResponse = {
+  access_token?: string;
+  refresh_token?: string;
+  token_type?: string;
+  expires_in?: number;
+  scope?: string;
+  error?: string;
+  error_description?: string;
+};
+
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
 
@@ -20,9 +30,57 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  const clientId = process.env.VERCEL_CLIENT_ID;
+  const clientSecret = process.env.VERCEL_CLIENT_SECRET;
+  const redirectUri = process.env.VERCEL_OAUTH_REDIRECT_URI;
+
+  if (!clientId || !clientSecret || !redirectUri) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          "Missing VERCEL_CLIENT_ID, VERCEL_CLIENT_SECRET, or VERCEL_OAUTH_REDIRECT_URI",
+      },
+      { status: 500 }
+    );
+  }
+
+  const body = new URLSearchParams({
+    grant_type: "authorization_code",
+    client_id: clientId,
+    client_secret: clientSecret,
+    code,
+    redirect_uri: redirectUri,
+  });
+
+  const tokenResponse = await fetch("https://api.vercel.com/login/oauth/token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: body.toString(),
+  });
+
+  const tokenData = (await tokenResponse.json()) as VercelTokenResponse;
+
+  if (!tokenResponse.ok) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Failed to exchange authorization code for token",
+        details: tokenData,
+      },
+      { status: tokenResponse.status }
+    );
+  }
+
   return NextResponse.json({
     ok: true,
-    message: "Vercel OAuth callback route works.",
-    code,
+    message: "Vercel OAuth connected successfully.",
+    token_type: tokenData.token_type,
+    expires_in: tokenData.expires_in,
+    scope: tokenData.scope,
+    has_access_token: Boolean(tokenData.access_token),
+    has_refresh_token: Boolean(tokenData.refresh_token),
   });
 }
