@@ -12,23 +12,11 @@ export async function GET() {
     return NextResponse.json(
       {
         ok: false,
-        error:
-           return NextResponse.json(
-  {
-    ok: false,
-    error: "Missing KORAX env vars - build test 3",
-    hasClientId: Boolean(clientId),
-    hasRedirectUri: Boolean(redirectUri),
-    hasKoraxTest: Boolean(process.env.KORAX_TEST),
-    koraxTestValue: process.env.KORAX_TEST || null,
-    availableKoraxKeys: Object.keys(process.env)
-      .filter((key) => key.includes("KORAX"))
-      .sort(),
-  },
-  { status: 500 }
-);
+        error: "Missing KORAX env vars - build test 3",
         hasClientId: Boolean(clientId),
         hasRedirectUri: Boolean(redirectUri),
+        hasKoraxTest: Boolean(process.env.KORAX_TEST),
+        koraxTestValue: process.env.KORAX_TEST || null,
         availableKoraxKeys: Object.keys(process.env)
           .filter((key) => key.includes("KORAX"))
           .sort(),
