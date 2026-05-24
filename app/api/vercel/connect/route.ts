@@ -13,7 +13,7 @@ export async function GET() {
       {
         ok: false,
         error:
-          "Missing KORAX_VERCEL_CLIENT_ID or KORAX_VERCEL_OAUTH_REDIRECT_URI",
+           "Missing KORAX env vars - build test 2",
         hasClientId: Boolean(clientId),
         hasRedirectUri: Boolean(redirectUri),
         availableKoraxKeys: Object.keys(process.env)
