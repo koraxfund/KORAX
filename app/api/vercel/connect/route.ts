@@ -9,6 +9,8 @@ export async function GET() {
       {
         ok: false,
         error: "Missing VERCEL_CLIENT_ID or VERCEL_OAUTH_REDIRECT_URI",
+        hasClientId: Boolean(clientId),
+        hasRedirectUri: Boolean(redirectUri),
       },
       { status: 500 }
     );
@@ -19,7 +21,6 @@ export async function GET() {
   authUrl.searchParams.set("client_id", clientId);
   authUrl.searchParams.set("redirect_uri", redirectUri);
   authUrl.searchParams.set("response_type", "code");
-  authUrl.searchParams.set("scope", "openid email profile");
 
   return NextResponse.redirect(authUrl.toString());
 }
