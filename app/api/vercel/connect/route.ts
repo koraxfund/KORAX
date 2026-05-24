@@ -5,20 +5,20 @@ export const revalidate = 0;
 export const runtime = "nodejs";
 
 export async function GET() {
-  const clientId = process.env.KORAX_VERCEL_CLIENT_ID;
-  const redirectUri = process.env.KORAX_VERCEL_OAUTH_REDIRECT_URI;
+  const clientId = process.env.OAUTH_CLIENT_ID;
+  const redirectUri = process.env.OAUTH_REDIRECT_URI;
 
   if (!clientId || !redirectUri) {
     return NextResponse.json(
       {
         ok: false,
-        error: "Missing KORAX env vars - build test 3",
+        error: "Missing simple OAuth env vars",
         hasClientId: Boolean(clientId),
         hasRedirectUri: Boolean(redirectUri),
-        hasKoraxTest: Boolean(process.env.KORAX_TEST),
-        koraxTestValue: process.env.KORAX_TEST || null,
-        availableKoraxKeys: Object.keys(process.env)
-          .filter((key) => key.includes("KORAX"))
+        hasTestEnv: Boolean(process.env.TEST_ENV),
+        testEnvValue: process.env.TEST_ENV || null,
+        availableOAuthKeys: Object.keys(process.env)
+          .filter((key) => key.includes("OAUTH") || key.includes("TEST"))
           .sort(),
       },
       { status: 500 }

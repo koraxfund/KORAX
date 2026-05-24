@@ -31,21 +31,21 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const clientId = process.env.KORAX_VERCEL_CLIENT_ID;
-  const clientSecret = process.env.KORAX_VERCEL_CLIENT_SECRET;
-  const redirectUri = process.env.KORAX_VERCEL_OAUTH_REDIRECT_URI;
+  const clientId = process.env.OAUTH_CLIENT_ID;
+  const clientSecret = process.env.OAUTH_CLIENT_SECRET;
+  const redirectUri = process.env.OAUTH_REDIRECT_URI;
 
   if (!clientId || !clientSecret || !redirectUri) {
     return NextResponse.json(
       {
         ok: false,
-        error:
-          "Missing KORAX_VERCEL_CLIENT_ID, KORAX_VERCEL_CLIENT_SECRET, or KORAX_VERCEL_OAUTH_REDIRECT_URI",
+        error: "Missing simple OAuth callback env vars",
         hasClientId: Boolean(clientId),
         hasClientSecret: Boolean(clientSecret),
         hasRedirectUri: Boolean(redirectUri),
-        availableKoraxKeys: Object.keys(process.env)
-          .filter((key) => key.includes("KORAX"))
+        hasTestEnv: Boolean(process.env.TEST_ENV),
+        availableOAuthKeys: Object.keys(process.env)
+          .filter((key) => key.includes("OAUTH") || key.includes("TEST"))
           .sort(),
       },
       { status: 500 }
