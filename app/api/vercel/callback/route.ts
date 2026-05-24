@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const runtime = "nodejs";
+
 type VercelTokenResponse = {
   access_token?: string;
   refresh_token?: string;
@@ -17,10 +21,7 @@ export async function GET(req: NextRequest) {
   const error = url.searchParams.get("error");
 
   if (error) {
-    return NextResponse.json(
-      { ok: false, error },
-      { status: 400 }
-    );
+    return NextResponse.json({ ok: false, error }, { status: 400 });
   }
 
   if (!code) {
@@ -30,16 +31,22 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const clientId = process.env.VERCEL_CLIENT_ID;
-  const clientSecret = process.env.VERCEL_CLIENT_SECRET;
-  const redirectUri = process.env.VERCEL_OAUTH_REDIRECT_URI;
+  const clientId = process.env.KORAX_VERCEL_CLIENT_ID;
+  const clientSecret = process.env.KORAX_VERCEL_CLIENT_SECRET;
+  const redirectUri = process.env.KORAX_VERCEL_OAUTH_REDIRECT_URI;
 
   if (!clientId || !clientSecret || !redirectUri) {
     return NextResponse.json(
       {
         ok: false,
         error:
-          "Missing VERCEL_CLIENT_ID, VERCEL_CLIENT_SECRET, or VERCEL_OAUTH_REDIRECT_URI",
+          "Missing KORAX_VERCEL_CLIENT_ID, KORAX_VERCEL_CLIENT_SECRET, or KORAX_VERCEL_OAUTH_REDIRECT_URI",
+        hasClientId: Boolean(clientId),
+        hasClientSecret: Boolean(clientSecret),
+        hasRedirectUri: Boolean(redirectUri),
+        availableKoraxKeys: Object.keys(process.env)
+          .filter((key) => key.includes("KORAX"))
+          .sort(),
       },
       { status: 500 }
     );

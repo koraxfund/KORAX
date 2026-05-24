@@ -1,21 +1,23 @@
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const runtime = "nodejs";
 
 export async function GET() {
-  const clientId = process.env.VERCEL_CLIENT_ID;
-  const redirectUri = process.env.VERCEL_OAUTH_REDIRECT_URI;
+  const clientId = process.env.KORAX_VERCEL_CLIENT_ID;
+  const redirectUri = process.env.KORAX_VERCEL_OAUTH_REDIRECT_URI;
 
   if (!clientId || !redirectUri) {
     return NextResponse.json(
       {
         ok: false,
-        error: "Missing VERCEL_CLIENT_ID or VERCEL_OAUTH_REDIRECT_URI",
+        error:
+          "Missing KORAX_VERCEL_CLIENT_ID or KORAX_VERCEL_OAUTH_REDIRECT_URI",
         hasClientId: Boolean(clientId),
         hasRedirectUri: Boolean(redirectUri),
-        nodeEnv: process.env.NODE_ENV,
-        availableVercelKeys: Object.keys(process.env)
-          .filter((key) => key.includes("VERCEL"))
+        availableKoraxKeys: Object.keys(process.env)
+          .filter((key) => key.includes("KORAX"))
           .sort(),
       },
       { status: 500 }
