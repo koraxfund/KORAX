@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
+
+const OFFICIAL_X_URL = "https://x.com/Korax_fund";
 
 const XIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
   <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
@@ -19,6 +22,24 @@ const TelegramIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
     <path
       fill="currentColor"
       d="M9.04 15.47 8.8 19.2c.56 0 .8-.24 1.09-.53l2.62-2.5 5.43 3.97c.99.55 1.7.26 1.95-.92l3.53-16.5h0c.31-1.43-.52-1.99-1.49-1.63L1.5 9.6c-1.39.54-1.37 1.32-.25 1.66l5.46 1.7L19.4 5.26c.61-.37 1.17-.17.71.2L9.04 15.47Z"
+    />
+  </svg>
+);
+
+const ExternalIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+    <path
+      fill="currentColor"
+      d="M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42 9.3-9.29H14V3ZM5 5h6v2H7v10h10v-4h2v6H5V5Z"
+    />
+  </svg>
+);
+
+const MailIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+    <path
+      fill="currentColor"
+      d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2Zm0 4-8 5-8-5V6l8 5 8-5v2Z"
     />
   </svg>
 );
@@ -48,20 +69,177 @@ type NavItem = {
   sublabel?: string;
 };
 
+type SocialItem = {
+  label: string;
+  href?: string;
+  note?: string;
+  icon: ReactNode;
+  internal?: boolean;
+};
+
 function shortAddress(address?: string) {
   if (!address) return "";
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
-function TelegramDropdown({
-  buttonClassName,
-  iconClassName = "h-4 w-4",
+const socialLinks: SocialItem[] = [
+  {
+    label: "X / Twitter",
+    href: OFFICIAL_X_URL,
+    note: "Official alternative account",
+    icon: <XIcon className="h-4 w-4" />,
+  },
+  {
+    label: "Telegram Channel",
+    href: "https://t.me/koraxfund",
+    note: "Official updates",
+    icon: <TelegramIcon className="h-4 w-4" />,
+  },
+  {
+    label: "Telegram Group",
+    href: "https://t.me/koraxgroub",
+    note: "Community discussion",
+    icon: <TelegramIcon className="h-4 w-4" />,
+  },
+  {
+    label: "YouTube",
+    href: "https://www.youtube.com/@koraxfund",
+    note: "Official videos",
+    icon: <ExternalIcon className="h-4 w-4" />,
+  },
+  {
+    label: "TikTok",
+    href: "https://www.tiktok.com/@koraxfund",
+    note: "Short-form updates",
+    icon: <ExternalIcon className="h-4 w-4" />,
+  },
+  {
+    label: "Instagram",
+    href: "https://www.instagram.com/koraxfund",
+    note: "Visual updates",
+    icon: <ExternalIcon className="h-4 w-4" />,
+  },
+  {
+    label: "Facebook",
+    href: "https://www.facebook.com/share/1Kv3xhJbmd/",
+    note: "Official Facebook page",
+    icon: <ExternalIcon className="h-4 w-4" />,
+  },
+  {
+    label: "Threads",
+    href: "https://www.threads.net/@koraxfund",
+    note: "Threads updates",
+    icon: <ExternalIcon className="h-4 w-4" />,
+  },
+  {
+    label: "LinkedIn",
+    href: "https://www.linkedin.com/company/koraxfund",
+    note: "Professional updates",
+    icon: <ExternalIcon className="h-4 w-4" />,
+  },
+  {
+    label: "Email",
+    href: "mailto:contact@korax.fund",
+    note: "contact@korax.fund",
+    icon: <MailIcon className="h-4 w-4" />,
+  },
+  {
+    label: "Docs",
+    href: "/docs",
+    note: "Project documentation",
+    icon: <ExternalIcon className="h-4 w-4" />,
+    internal: true,
+  },
+  {
+    label: "Discord",
+    note: "Coming soon",
+    icon: <ExternalIcon className="h-4 w-4" />,
+  },
+  {
+    label: "Medium",
+    note: "Coming soon",
+    icon: <ExternalIcon className="h-4 w-4" />,
+  },
+  {
+    label: "Reddit",
+    note: "Coming soon",
+    icon: <ExternalIcon className="h-4 w-4" />,
+  },
+  {
+    label: "CoinMarketCap",
+    note: "After listing",
+    icon: <ExternalIcon className="h-4 w-4" />,
+  },
+  {
+    label: "CoinGecko",
+    note: "After listing",
+    icon: <ExternalIcon className="h-4 w-4" />,
+  },
+  {
+    label: "BscScan",
+    note: "Contract page coming soon",
+    icon: <ExternalIcon className="h-4 w-4" />,
+  },
+];
+
+function SocialLinkRow({ item }: { item: SocialItem }) {
+  const content = (
+    <>
+      <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 group-hover:border-[#7CFF6A]/25 group-hover:text-[#c4ffbc]">
+        {item.icon}
+      </span>
+
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold">{item.label}</span>
+        {item.note ? (
+          <span className="block truncate text-xs text-white/40">
+            {item.note}
+          </span>
+        ) : null}
+      </span>
+    </>
+  );
+
+  if (!item.href) {
+    return (
+      <div className="flex items-center gap-3 rounded-xl px-3 py-3 text-white/35">
+        {content}
+      </div>
+    );
+  }
+
+  if (item.internal) {
+    return (
+      <Link
+        href={item.href}
+        className="group flex items-center gap-3 rounded-xl px-3 py-3 text-white/75 transition hover:bg-[#7CFF6A]/10 hover:text-[#c4ffbc]"
+      >
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <a
+      href={item.href}
+      target="_blank"
+      rel="noreferrer"
+      className="group flex items-center gap-3 rounded-xl px-3 py-3 text-white/75 transition hover:bg-[#7CFF6A]/10 hover:text-[#c4ffbc]"
+    >
+      {content}
+    </a>
+  );
+}
+
+function FindUsDropdown({
   align = "right",
+  fullWidth = false,
 }: {
-  buttonClassName: string;
-  iconClassName?: string;
   align?: "left" | "right" | "center";
+  fullWidth?: boolean;
 }) {
+  const [socialOpen, setSocialOpen] = useState(false);
+
   const positionClass =
     align === "left"
       ? "left-0"
@@ -70,37 +248,45 @@ function TelegramDropdown({
       : "right-0";
 
   return (
-    <details className="group relative">
-      <summary
-        className={`${buttonClassName} list-none cursor-pointer`}
-        aria-label="Telegram"
-        title="Telegram"
+    <div className={fullWidth ? "relative w-full" : "relative"}>
+      <button
+        type="button"
+        onClick={() => setSocialOpen((prev) => !prev)}
+        className={[
+          "inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 text-sm font-semibold text-white/85 transition hover:border-[#7CFF6A]/30 hover:bg-[#7CFF6A]/10 hover:text-[#c4ffbc] sm:h-10 sm:px-4",
+          fullWidth ? "w-full" : "whitespace-nowrap",
+        ].join(" ")}
+        aria-expanded={socialOpen}
+        aria-label="Find KORAX social links"
       >
-        <TelegramIcon className={iconClassName} />
-      </summary>
+        <span>Find us here</span>
+        <span className="text-white/45">{socialOpen ? "−" : "+"}</span>
+      </button>
 
-      <div
-        className={`absolute top-12 z-50 min-w-[180px] rounded-2xl border border-white/10 bg-black/95 p-2 shadow-2xl ${positionClass}`}
-      >
-        <a
-          href="https://t.me/koraxfund"
-          target="_blank"
-          rel="noreferrer"
-          className="block rounded-xl px-3 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
+      {socialOpen ? (
+        <div
+          className={[
+            "absolute top-12 z-50 max-h-[70vh] w-72 overflow-y-auto rounded-2xl border border-white/10 bg-[#050914]/95 p-2 shadow-[0_24px_80px_rgba(0,0,0,0.75)] backdrop-blur-xl",
+            fullWidth ? "left-0 right-0 w-full" : positionClass,
+          ].join(" ")}
         >
-          Telegram Channel
-        </a>
+          <div className="border-b border-white/10 px-3 py-3">
+            <div className="text-xs uppercase tracking-[0.22em] text-[#c4ffbc]">
+              KORAX Socials
+            </div>
+            <div className="mt-1 text-xs leading-relaxed text-white/45">
+              Official channels and community links.
+            </div>
+          </div>
 
-        <a
-          href="https://t.me/koraxgroub"
-          target="_blank"
-          rel="noreferrer"
-          className="mt-1 block rounded-xl px-3 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
-        >
-          Telegram Group
-        </a>
-      </div>
-    </details>
+          <div className="mt-2 grid gap-1">
+            {socialLinks.map((item) => (
+              <SocialLinkRow key={item.label} item={item} />
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -187,22 +373,9 @@ export default function Topbar() {
           </nav>
 
           <div className="flex items-center gap-1.5 sm:gap-2">
-            <a
-              href="https://x.com/koraxfund"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10 sm:h-9 sm:w-9"
-              aria-label="X"
-              title="X"
-            >
-              <XIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            </a>
-
-            <TelegramDropdown
-              buttonClassName="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10 sm:h-9 sm:w-9"
-              iconClassName="h-3.5 w-3.5 sm:h-4 sm:w-4"
-              align="right"
-            />
+            <div className="hidden sm:block">
+              <FindUsDropdown align="right" />
+            </div>
 
             <ConnectButton.Custom>
               {({
@@ -355,6 +528,10 @@ export default function Topbar() {
                   </ConnectButton.Custom>
                 </div>
 
+                <div className="mb-3">
+                  <FindUsDropdown align="center" fullWidth />
+                </div>
+
                 <div className="grid gap-2 rounded-2xl border border-white/10 bg-white/5 p-3">
                   {nav.map((item) => (
                     <Link
@@ -383,25 +560,6 @@ export default function Topbar() {
                       ) : null}
                     </Link>
                   ))}
-                </div>
-
-                <div className="mt-3 flex items-center justify-center gap-2">
-                  <a
-                    href="https://x.com/koraxfund"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
-                    aria-label="X"
-                    title="X"
-                  >
-                    <XIcon className="h-5 w-5" />
-                  </a>
-
-                  <TelegramDropdown
-                    buttonClassName="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
-                    iconClassName="h-5 w-5"
-                    align="center"
-                  />
                 </div>
               </div>
             </div>

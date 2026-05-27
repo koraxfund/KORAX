@@ -191,7 +191,7 @@ function SocialIcons() {
         </a>
 
         <a
-          href="https://x.com/koraxfund"
+          href="https://x.com/korax_fund"
           target="_blank"
           rel="noopener noreferrer"
           aria-label="KORAX on X"
@@ -297,7 +297,7 @@ export default function RootLayout({
     url: "https://korax.fund",
     logo: "https://korax.fund/raven-logo.png",
     sameAs: [
-      "https://x.com/koraxfund",
+      "https://x.com/korax_fund",
       "https://t.me/koraxfund",
       "https://t.me/koraxgroub",
       "https://www.facebook.com/share/186CHPa3cN/",
