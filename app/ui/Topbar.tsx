@@ -253,7 +253,7 @@ function FindUsDropdown({
         type="button"
         onClick={() => setSocialOpen((prev) => !prev)}
         className={[
-          "inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-white/10 bg-white/5 px-2 text-xs font-bold text-white/85 transition hover:border-[#7CFF6A]/30 hover:bg-[#7CFF6A]/10 hover:text-[#c4ffbc] sm:h-10 sm:gap-2 sm:px-4 sm:text-sm",
+          "inline-flex h-9 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 px-0 text-xs font-bold text-white/85 transition hover:border-[#7CFF6A]/30 hover:bg-[#7CFF6A]/10 hover:text-[#c4ffbc] sm:h-10 sm:w-auto sm:gap-2 sm:px-4 sm:text-sm",
           fullWidth ? "w-full" : "whitespace-nowrap",
         ].join(" ")}
         aria-expanded={socialOpen}
@@ -399,10 +399,7 @@ export default function Topbar() {
                         type="button"
                         className="h-9 shrink-0 whitespace-nowrap rounded-xl bg-[#7CFF6A] px-3 text-sm font-semibold text-black sm:h-10 sm:px-5 sm:text-base"
                       >
-                        <span className="hidden sm:inline">
-                          Connect Wallet
-                        </span>
-                        <span className="sm:hidden">Wallet</span>
+                        Connect Wallet
                       </button>
                     ) : chain.unsupported ? (
                       <button
