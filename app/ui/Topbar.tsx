@@ -259,7 +259,8 @@ function FindUsDropdown({
         aria-expanded={socialOpen}
         aria-label="Find KORAX social links"
       >
-        <span>Find us here</span>
+        <span className="hidden sm:inline">Find us here</span>
+        <span className="sm:hidden">Socials</span>
         <span className="text-white/45">{socialOpen ? "−" : "+"}</span>
       </button>
 
@@ -328,7 +329,7 @@ export default function Topbar() {
   return (
     <header className="fixed left-0 right-0 top-0 z-50">
       <div className="mx-auto w-full max-w-[1500px] px-4 pt-4">
-        <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/35 px-3 py-3 backdrop-blur-md">
+        <div className="flex items-center justify-between gap-2 rounded-2xl border border-white/10 bg-black/35 px-3 py-3 backdrop-blur-md">
           <Link href="/" className="flex min-w-0 items-center gap-2">
             <img
               src="/raven-logo.png"
@@ -372,10 +373,8 @@ export default function Topbar() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <div className="hidden sm:block">
-              <FindUsDropdown align="right" />
-            </div>
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+            <FindUsDropdown align="right" />
 
             <ConnectButton.Custom>
               {({
@@ -414,7 +413,7 @@ export default function Topbar() {
                       <button
                         onClick={openAccountModal}
                         type="button"
-                        className="h-9 max-w-[140px] shrink-0 overflow-hidden text-ellipsis whitespace-nowrap rounded-xl bg-[#7CFF6A] px-3 text-sm font-semibold text-black sm:h-10 sm:max-w-none sm:px-5 sm:text-base"
+                        className="h-9 max-w-[118px] shrink-0 overflow-hidden text-ellipsis whitespace-nowrap rounded-xl bg-[#7CFF6A] px-3 text-sm font-semibold text-black sm:h-10 sm:max-w-none sm:px-5 sm:text-base"
                         title={account.address}
                       >
                         <span className="sm:hidden">
