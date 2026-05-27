@@ -253,22 +253,22 @@ function FindUsDropdown({
         type="button"
         onClick={() => setSocialOpen((prev) => !prev)}
         className={[
-          "inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 text-sm font-semibold text-white/85 transition hover:border-[#7CFF6A]/30 hover:bg-[#7CFF6A]/10 hover:text-[#c4ffbc] sm:h-10 sm:px-4",
+          "inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-white/10 bg-white/5 px-2 text-xs font-bold text-white/85 transition hover:border-[#7CFF6A]/30 hover:bg-[#7CFF6A]/10 hover:text-[#c4ffbc] sm:h-10 sm:gap-2 sm:px-4 sm:text-sm",
           fullWidth ? "w-full" : "whitespace-nowrap",
         ].join(" ")}
         aria-expanded={socialOpen}
         aria-label="Find KORAX social links"
       >
         <span className="hidden sm:inline">Find us here</span>
-        <span className="sm:hidden">Socials</span>
+        <span className="sm:hidden">SM</span>
         <span className="text-white/45">{socialOpen ? "−" : "+"}</span>
       </button>
 
       {socialOpen ? (
         <div
           className={[
-            "absolute top-12 z-50 max-h-[70vh] w-72 overflow-y-auto rounded-2xl border border-white/10 bg-[#050914]/95 p-2 shadow-[0_24px_80px_rgba(0,0,0,0.75)] backdrop-blur-xl",
-            fullWidth ? "left-0 right-0 w-full" : positionClass,
+            "fixed left-4 right-4 top-[92px] z-50 max-h-[70vh] overflow-y-auto rounded-2xl border border-white/10 bg-[#050914]/95 p-2 shadow-[0_24px_80px_rgba(0,0,0,0.75)] backdrop-blur-xl sm:absolute sm:left-auto sm:right-auto sm:top-12 sm:w-72",
+            fullWidth ? "sm:left-0 sm:right-0 sm:w-full" : positionClass,
           ].join(" ")}
         >
           <div className="border-b border-white/10 px-3 py-3">
@@ -336,7 +336,7 @@ export default function Topbar() {
               alt="KORAX"
               className="h-6 w-6 shrink-0 rounded-full object-cover sm:h-7 sm:w-7"
             />
-            <span className="truncate text-[13px] font-semibold tracking-wide text-white sm:text-sm">
+            <span className="shrink-0 text-[13px] font-semibold tracking-wide text-white sm:text-sm">
               KORAX
             </span>
           </Link>
@@ -373,7 +373,7 @@ export default function Topbar() {
             ))}
           </nav>
 
-          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             <FindUsDropdown align="right" />
 
             <ConnectButton.Custom>
@@ -399,7 +399,10 @@ export default function Topbar() {
                         type="button"
                         className="h-9 shrink-0 whitespace-nowrap rounded-xl bg-[#7CFF6A] px-3 text-sm font-semibold text-black sm:h-10 sm:px-5 sm:text-base"
                       >
-                        Connect Wallet
+                        <span className="hidden sm:inline">
+                          Connect Wallet
+                        </span>
+                        <span className="sm:hidden">Wallet</span>
                       </button>
                     ) : chain.unsupported ? (
                       <button
