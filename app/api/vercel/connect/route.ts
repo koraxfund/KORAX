@@ -15,6 +15,7 @@ export async function GET() {
         error: "Missing simple OAuth env vars",
         hasClientId: Boolean(clientId),
         hasRedirectUri: Boolean(redirectUri),
+        redirectUriValue: redirectUri || null,
         hasTestEnv: Boolean(process.env.TEST_ENV),
         testEnvValue: process.env.TEST_ENV || null,
         availableOAuthKeys: Object.keys(process.env)
@@ -25,11 +26,13 @@ export async function GET() {
     );
   }
 
-  const authUrl = new URL("https://vercel.com/oauth/authorize");
-
-  authUrl.searchParams.set("client_id", clientId);
-  authUrl.searchParams.set("redirect_uri", redirectUri);
-  authUrl.searchParams.set("response_type", "code");
-
-  return NextResponse.redirect(authUrl.toString());
+  return NextResponse.json({
+    ok: true,
+    message: "OAuth env loaded.",
+    hasClientId: Boolean(clientId),
+    redirectUriValue: redirectUri,
+    authUrlPreview: `https://vercel.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(
+      redirectUri
+    )}&response_type=code`,
+  });
 }
