@@ -7,6 +7,7 @@ export const runtime = "nodejs";
 type VercelTokenResponse = {
   access_token?: string;
   refresh_token?: string;
+  id_token?: string;
   token_type?: string;
   expires_in?: number;
   scope?: string;
@@ -19,6 +20,7 @@ export async function GET(req: NextRequest) {
 
   const code = url.searchParams.get("code");
   const error = url.searchParams.get("error");
+  const state = url.searchParams.get("state");
 
   if (error) {
     return NextResponse.json({ ok: false, error }, { status: 400 });
@@ -31,6 +33,31 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  const savedState = req.cookies.get("vercel_oauth_state")?.value;
+  const codeVerifier = req.cookies.get("vercel_oauth_code_verifier")?.value;
+
+  if (!savedState || !state || savedState !== state) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Invalid or missing OAuth state",
+        hasSavedState: Boolean(savedState),
+        hasReturnedState: Boolean(state),
+      },
+      { status: 400 }
+    );
+  }
+
+  if (!codeVerifier) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Missing OAuth code verifier cookie",
+      },
+      { status: 400 }
+    );
+  }
+
   const clientId = process.env.OAUTH_CLIENT_ID;
   const clientSecret = process.env.OAUTH_CLIENT_SECRET;
   const redirectUri = process.env.OAUTH_REDIRECT_URI;
@@ -39,14 +66,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(
       {
         ok: false,
-        error: "Missing simple OAuth callback env vars",
+        error: "Missing OAuth callback env vars",
         hasClientId: Boolean(clientId),
         hasClientSecret: Boolean(clientSecret),
         hasRedirectUri: Boolean(redirectUri),
-        hasTestEnv: Boolean(process.env.TEST_ENV),
-        availableOAuthKeys: Object.keys(process.env)
-          .filter((key) => key.includes("OAUTH") || key.includes("TEST"))
-          .sort(),
       },
       { status: 500 }
     );
@@ -58,6 +81,7 @@ export async function GET(req: NextRequest) {
     client_secret: clientSecret,
     code,
     redirect_uri: redirectUri,
+    code_verifier: codeVerifier,
   });
 
   const tokenResponse = await fetch("https://api.vercel.com/login/oauth/token", {
@@ -70,24 +94,29 @@ export async function GET(req: NextRequest) {
 
   const tokenData = (await tokenResponse.json()) as VercelTokenResponse;
 
-  if (!tokenResponse.ok) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "Failed to exchange authorization code for token",
-        details: tokenData,
-      },
-      { status: tokenResponse.status }
-    );
-  }
+  const response = NextResponse.json(
+    tokenResponse.ok
+      ? {
+          ok: true,
+          message: "Vercel OAuth connected successfully.",
+          token_type: tokenData.token_type,
+          expires_in: tokenData.expires_in,
+          scope: tokenData.scope,
+          has_access_token: Boolean(tokenData.access_token),
+          has_refresh_token: Boolean(tokenData.refresh_token),
+          has_id_token: Boolean(tokenData.id_token),
+        }
+      : {
+          ok: false,
+          error: "Failed to exchange authorization code for token",
+          details: tokenData,
+        },
+    { status: tokenResponse.ok ? 200 : tokenResponse.status }
+  );
 
-  return NextResponse.json({
-    ok: true,
-    message: "Vercel OAuth connected successfully.",
-    token_type: tokenData.token_type,
-    expires_in: tokenData.expires_in,
-    scope: tokenData.scope,
-    has_access_token: Boolean(tokenData.access_token),
-    has_refresh_token: Boolean(tokenData.refresh_token),
-  });
+  response.cookies.delete("vercel_oauth_code_verifier");
+  response.cookies.delete("vercel_oauth_state");
+  response.cookies.delete("vercel_oauth_nonce");
+
+  return response;
 }
