@@ -144,40 +144,8 @@ const socialLinks: SocialItem[] = [
     icon: <MailIcon className="h-4 w-4" />,
   },
   {
-    label: "Docs",
-    href: "/docs",
-    note: "Project documentation",
-    icon: <ExternalIcon className="h-4 w-4" />,
-    internal: true,
-  },
-  {
     label: "Discord",
     note: "Coming soon",
-    icon: <ExternalIcon className="h-4 w-4" />,
-  },
-  {
-    label: "Medium",
-    note: "Coming soon",
-    icon: <ExternalIcon className="h-4 w-4" />,
-  },
-  {
-    label: "Reddit",
-    note: "Coming soon",
-    icon: <ExternalIcon className="h-4 w-4" />,
-  },
-  {
-    label: "CoinMarketCap",
-    note: "After listing",
-    icon: <ExternalIcon className="h-4 w-4" />,
-  },
-  {
-    label: "CoinGecko",
-    note: "After listing",
-    icon: <ExternalIcon className="h-4 w-4" />,
-  },
-  {
-    label: "BscScan",
-    note: "Contract page coming soon",
     icon: <ExternalIcon className="h-4 w-4" />,
   },
 ];
@@ -330,15 +298,18 @@ export default function Topbar() {
     <header className="fixed left-0 right-0 top-0 z-50">
       <div className="mx-auto w-full max-w-[1500px] px-4 pt-4">
         <div className="flex items-center justify-between gap-2 rounded-2xl border border-white/10 bg-black/35 px-3 py-3 backdrop-blur-md">
-          <Link href="/" className="flex min-w-0 items-center gap-2">
+          <Link href="/" className="flex min-w-0 items-center gap-2 sm:gap-3">
             <img
               src="/raven-logo.png"
               alt="KORAX"
-              className="h-6 w-6 shrink-0 rounded-full object-cover sm:h-7 sm:w-7"
+              className="h-8 w-8 shrink-0 rounded-full object-cover sm:h-9 sm:w-9"
             />
-            <span className="shrink-0 text-[13px] font-semibold tracking-wide text-white sm:text-sm">
-              KORAX
-            </span>
+
+            <img
+              src="/korax-wordmark.png"
+              alt="KORAX wordmark"
+              className="h-6 w-auto max-w-[110px] shrink-0 object-contain sm:h-7 sm:max-w-[150px] md:h-8 md:max-w-[180px]"
+            />
           </Link>
 
           <nav className="hidden items-center gap-2 lg:flex">
@@ -401,7 +372,7 @@ export default function Topbar() {
                       >
                         Connect Wallet
                       </button>
-                    ) : chain.unsupported ? (
+                    ) : chain?.unsupported ? (
                       <button
                         onClick={openChainModal}
                         type="button"
@@ -453,15 +424,17 @@ export default function Topbar() {
           <div className="fixed left-0 right-0 top-0 z-50 mx-auto w-full max-w-[1500px] px-4 pt-4">
             <div className="rounded-2xl border border-white/10 bg-black/60 backdrop-blur-md">
               <div className="flex items-center justify-between px-4 py-3">
-                <div className="flex items-center gap-2">
+                <div className="flex min-w-0 items-center gap-2">
                   <img
                     src="/raven-logo.png"
                     alt="KORAX"
-                    className="h-7 w-7 rounded-full object-cover"
+                    className="h-7 w-7 shrink-0 rounded-full object-cover"
                   />
-                  <span className="text-sm font-semibold tracking-wide text-white">
-                    KORAX
-                  </span>
+                  <img
+                    src="/korax-wordmark.png"
+                    alt="KORAX wordmark"
+                    className="h-6 w-auto max-w-[120px] object-contain"
+                  />
                 </div>
 
                 <button
@@ -503,7 +476,7 @@ export default function Topbar() {
                             >
                               Connect Wallet
                             </button>
-                          ) : chain.unsupported ? (
+                          ) : chain?.unsupported ? (
                             <button
                               onClick={openChainModal}
                               type="button"
