@@ -50,10 +50,7 @@ export async function GET(req: NextRequest) {
 
   if (!codeVerifier) {
     return NextResponse.json(
-      {
-        ok: false,
-        error: "Missing OAuth code verifier cookie",
-      },
+      { ok: false, error: "Missing OAuth code verifier cookie" },
       { status: 400 }
     );
   }
@@ -105,6 +102,7 @@ export async function GET(req: NextRequest) {
           has_access_token: Boolean(tokenData.access_token),
           has_refresh_token: Boolean(tokenData.refresh_token),
           has_id_token: Boolean(tokenData.id_token),
+          saved_cookie: Boolean(tokenData.access_token),
         }
       : {
           ok: false,
@@ -117,6 +115,16 @@ export async function GET(req: NextRequest) {
   response.cookies.delete("vercel_oauth_code_verifier");
   response.cookies.delete("vercel_oauth_state");
   response.cookies.delete("vercel_oauth_nonce");
+
+  if (tokenResponse.ok && tokenData.access_token) {
+    response.cookies.set("vercel_access_token", tokenData.access_token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: tokenData.expires_in || 3600,
+    });
+  }
 
   return response;
 }
