@@ -54,7 +54,6 @@ export const metadata: Metadata = {
     description:
       "A growing BNB Chain ecosystem with presale, claim, staking, AI project tools, and launch infrastructure.",
     images: ["/raven-logo.png"],
-    creator: "@koraxfund",
   },
   icons: {
     icon: "/favicon.png",
@@ -75,19 +74,6 @@ function EmailIcon() {
     >
       <rect x="3" y="5" width="18" height="14" rx="2" />
       <path d="M4 7l8 6 8-6" />
-    </svg>
-  );
-}
-
-function XIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-5 w-5 text-white"
-      fill="currentColor"
-      aria-hidden="true"
-    >
-      <path d="M18.244 2H21.5l-7.11 8.13L22.75 22h-6.55l-5.13-6.7L5.2 22H1.94l7.61-8.7L1.5 2h6.72l4.64 6.13L18.244 2Zm-1.14 17.9h1.8L7.24 4H5.31l11.79 15.9Z" />
     </svg>
   );
 }
@@ -191,16 +177,6 @@ function SocialIcons() {
         </a>
 
         <a
-          href="https://x.com/korax_fund"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="KORAX on X"
-          className={`${socialButtonClass} hover:border-white/50`}
-        >
-          <XIcon />
-        </a>
-
-        <a
           href="https://www.facebook.com/share/186CHPa3cN/"
           target="_blank"
           rel="noopener noreferrer"
@@ -297,7 +273,6 @@ export default function RootLayout({
     url: "https://korax.fund",
     logo: "https://korax.fund/raven-logo.png",
     sameAs: [
-      "https://x.com/korax_fund",
       "https://t.me/koraxfund",
       "https://t.me/koraxgroub",
       "https://www.facebook.com/share/186CHPa3cN/",
