@@ -10,5 +10,3 @@ export async function GET() {
     route: "github oauth start is working",
   });
 }
-Now
-
