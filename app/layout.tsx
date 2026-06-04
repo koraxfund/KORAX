@@ -2,6 +2,7 @@ import "./globals.css";
 import Topbar from "./ui/Topbar";
 import Providers from "./providers";
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://korax.fund"),
@@ -263,7 +264,7 @@ function SocialIcons() {
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   const organizationLd = {
     "@context": "https://schema.org",
