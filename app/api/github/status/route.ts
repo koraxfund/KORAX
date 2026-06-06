@@ -7,8 +7,15 @@ export const runtime = "nodejs";
 export async function GET(req: NextRequest) {
   const token = req.cookies.get("github_access_token")?.value;
 
-  return NextResponse.json({
-    ok: true,
-    connected: Boolean(token),
-  });
+  return NextResponse.json(
+    {
+      ok: true,
+      connected: Boolean(token),
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    }
+  );
 }
