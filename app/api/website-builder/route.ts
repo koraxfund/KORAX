@@ -151,6 +151,177 @@ function normalizeFiles(files: any[]) {
     }));
 }
 
+function componentNameFromPath(path: string) {
+  const fileName = path.split("/").pop()?.replace(".tsx", "") || "Section";
+  const cleaned = fileName.replace(/[^a-zA-Z0-9]/g, "");
+
+  if (!cleaned) return "Section";
+
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+}
+
+function fallbackComponent(path: string, projectName: string, symbol: string) {
+  const componentName = componentNameFromPath(path);
+  const safeProjectName = JSON.stringify(projectName || "Project");
+  const safeSymbol = JSON.stringify(symbol || "TOKEN");
+
+  if (path === "components/Stats.tsx") {
+    return `export default function Stats() {
+  const stats = [
+    { label: "Project", value: ${safeProjectName} },
+    { label: "Symbol", value: ${safeSymbol} },
+    { label: "Network", value: "BNB Chain" },
+    { label: "Status", value: "Launch Ready" },
+  ];
+
+  return (
+    <section className="mx-auto w-full max-w-6xl px-6 py-16">
+      <div className="grid gap-4 md:grid-cols-4">
+        {stats.map((item) => (
+          <div key={item.label} className="rounded-2xl border border-white/10 bg-white/5 p-5">
+            <div className="text-sm text-white/50">{item.label}</div>
+            <div className="mt-2 text-xl font-bold text-white">{item.value}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+`;
+  }
+
+  if (path === "components/Security.tsx") {
+    return `export default function Security() {
+  return (
+    <section className="mx-auto w-full max-w-6xl px-6 py-16">
+      <div className="rounded-3xl border border-white/10 bg-white/5 p-8">
+        <p className="text-sm uppercase tracking-[0.25em] text-[#7CFF6A]">Security</p>
+        <h2 className="mt-3 text-3xl font-black text-white">Built for trust and transparency.</h2>
+        <p className="mt-4 max-w-3xl text-white/65">
+          ${projectName || "This project"} presents clear contract information, launch details,
+          and transparent project sections so users can review the ecosystem carefully.
+        </p>
+      </div>
+    </section>
+  );
+}
+`;
+  }
+
+  if (path === "components/HowToBuy.tsx") {
+    return `export default function HowToBuy() {
+  const steps = ["Connect wallet", "Check network", "Review project details", "Follow official launch instructions"];
+
+  return (
+    <section className="mx-auto w-full max-w-6xl px-6 py-16">
+      <p className="text-sm uppercase tracking-[0.25em] text-[#7CFF6A]">How to buy</p>
+      <h2 className="mt-3 text-3xl font-black text-white">Simple launch flow.</h2>
+      <div className="mt-8 grid gap-4 md:grid-cols-4">
+        {steps.map((step, index) => (
+          <div key={step} className="rounded-2xl border border-white/10 bg-white/5 p-5">
+            <div className="text-sm text-[#7CFF6A]">Step {index + 1}</div>
+            <div className="mt-2 font-bold text-white">{step}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+`;
+  }
+
+  if (path === "components/Community.tsx") {
+    return `export default function Community() {
+  return (
+    <section className="mx-auto w-full max-w-6xl px-6 py-16">
+      <div className="rounded-3xl border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 p-8">
+        <p className="text-sm uppercase tracking-[0.25em] text-[#c4ffbc]">Community</p>
+        <h2 className="mt-3 text-3xl font-black text-white">Join the ${projectName || "project"} community.</h2>
+        <p className="mt-4 max-w-3xl text-white/70">
+          Follow official channels, review updates, and participate carefully. Always do your own research.
+        </p>
+      </div>
+    </section>
+  );
+}
+`;
+  }
+
+  if (path === "components/Partners.tsx") {
+    return `export default function Partners() {
+  const partners = ["BNB Chain", "MetaMask", "Trust Wallet", "KORAX"];
+
+  return (
+    <section className="mx-auto w-full max-w-6xl px-6 py-16">
+      <p className="text-sm uppercase tracking-[0.25em] text-[#7CFF6A]">Ecosystem</p>
+      <h2 className="mt-3 text-3xl font-black text-white">Compatible ecosystem tools.</h2>
+      <div className="mt-8 grid gap-4 md:grid-cols-4">
+        {partners.map((item) => (
+          <div key={item} className="rounded-2xl border border-white/10 bg-white/5 p-5 text-center font-bold text-white">
+            {item}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+`;
+  }
+
+  return `export default function ${componentName}() {
+  return (
+    <section className="mx-auto w-full max-w-6xl px-6 py-16">
+      <div className="rounded-3xl border border-white/10 bg-white/5 p-8">
+        <h2 className="text-3xl font-black text-white">${componentName}</h2>
+        <p className="mt-4 text-white/65">
+          This section was automatically completed by KORAX Website Builder AI.
+        </p>
+      </div>
+    </section>
+  );
+}
+`;
+}
+
+function addFallbackFiles(
+  files: any[],
+  requiredFiles: string[],
+  projectName: string,
+  symbol: string
+) {
+  const map = new Map<string, any>();
+
+  for (const file of files) {
+    if (!file?.path) continue;
+
+    map.set(file.path, {
+      path: file.path,
+      content: typeof file.content === "string" ? file.content : "",
+    });
+  }
+
+  for (const path of requiredFiles) {
+    const existing = map.get(path);
+
+    if (!existing) {
+      map.set(path, {
+        path,
+        content: fallbackComponent(path, projectName, symbol),
+      });
+      continue;
+    }
+
+    if (!existing.content || existing.content.trim().length < 20) {
+      map.set(path, {
+        path,
+        content: fallbackComponent(path, projectName, symbol),
+      });
+    }
+  }
+
+  return Array.from(map.values());
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -246,41 +417,15 @@ export async function POST(req: Request) {
       );
     }
 
-    secondPass.files = normalizeFiles(secondPass.files);
-
     const requiredFiles = REQUIRED_WEBSITE_FILES;
-    const existingPaths = secondPass.files.map((file: any) => file.path);
 
-    const missing = requiredFiles.filter(
-      (path) => !existingPaths.includes(path)
+    secondPass.files = normalizeFiles(secondPass.files);
+    secondPass.files = addFallbackFiles(
+      secondPass.files,
+      requiredFiles,
+      projectName,
+      symbol
     );
-
-    if (missing.length > 0) {
-      return NextResponse.json(
-        {
-          error: `AI response missing required files: ${missing.join(", ")}`,
-          result: secondPass,
-        },
-        { status: 500 }
-      );
-    }
-
-    const emptyFiles = secondPass.files
-      .filter((file: any) => requiredFiles.includes(file.path))
-      .filter((file: any) => !file.content || file.content.trim().length < 20)
-      .map((file: any) => file.path);
-
-    if (emptyFiles.length > 0) {
-      return NextResponse.json(
-        {
-          error: `AI response returned empty or too-small files: ${emptyFiles.join(
-            ", "
-          )}`,
-          result: secondPass,
-        },
-        { status: 500 }
-      );
-    }
 
     return NextResponse.json({
       result: secondPass,
@@ -288,6 +433,7 @@ export async function POST(req: Request) {
         model: MODEL,
         passes: 2,
         requiredFiles,
+        fallbackEnabled: true,
       },
     });
   } catch (error: any) {
