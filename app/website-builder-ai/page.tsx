@@ -332,6 +332,12 @@ export default function WebsiteBuilderAIPage() {
   const router = useRouter();
   const { address, isConnected } = useAccount();
 
+  const adminWallet =
+    process.env.NEXT_PUBLIC_BUILDER_ADMIN_WALLET?.toLowerCase();
+
+  const isAdminWallet =
+    !!address && !!adminWallet && address.toLowerCase() === adminWallet;
+
   const [form, setForm] = useState({
     projectName: "",
     symbol: "",
@@ -374,6 +380,8 @@ export default function WebsiteBuilderAIPage() {
     hasAccess: false,
     error: "",
   });
+
+  const hasBuilderAccess = builderAccess.hasAccess || isAdminWallet;
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -562,17 +570,13 @@ export default function WebsiteBuilderAIPage() {
         provider
       );
 
-      const [
-        eligibleAmountRaw,
-        totalSlotsRaw,
-        hasAccessRaw,
-        accessData,
-      ] = await Promise.all([
-        accessManager.getEligibleStakedAmount(user),
-        accessManager.getProjectSlots(user),
-        accessManager.hasKoraxAccess(user),
-        accessManager.getAccessData(user),
-      ]);
+      const [eligibleAmountRaw, totalSlotsRaw, hasAccessRaw, accessData] =
+        await Promise.all([
+          accessManager.getEligibleStakedAmount(user),
+          accessManager.getProjectSlots(user),
+          accessManager.hasKoraxAccess(user),
+          accessManager.getAccessData(user),
+        ]);
 
       const tokensPerProjectRaw =
         accessData.currentTokensPerProject ??
@@ -678,7 +682,7 @@ export default function WebsiteBuilderAIPage() {
   async function generateWebsite() {
     if (loading) return;
 
-    if (!builderAccess.hasAccess) {
+    if (!hasBuilderAccess) {
       setError(
         `Website Builder AI requires the Builder Package: stake ${builderAccess.tokensPerProject} KRX on the 12-month staking plan.`
       );
@@ -1229,7 +1233,7 @@ export default function WebsiteBuilderAIPage() {
             <div
               className={[
                 "rounded-2xl border p-4 text-sm leading-relaxed",
-                builderAccess.hasAccess
+                hasBuilderAccess
                   ? "border-[#7CFF6A]/20 bg-[#7CFF6A]/10 text-[#c4ffbc]"
                   : "border-white/10 bg-black/25 text-white/65",
               ].join(" ")}
@@ -1245,10 +1249,11 @@ export default function WebsiteBuilderAIPage() {
                   </span>{" "}
                   staked on the 12-month plan.
                 </>
-              ) : builderAccess.hasAccess ? (
+              ) : hasBuilderAccess ? (
                 <>
-                  Builder Package unlocked. You can use Website Builder AI for
-                  this project.
+                  {isAdminWallet
+                    ? "Admin wallet unlocked. You can test Website Builder AI without staking."
+                    : "Builder Package unlocked. You can use Website Builder AI for this project."}
                 </>
               ) : (
                 <>
@@ -1268,16 +1273,14 @@ export default function WebsiteBuilderAIPage() {
 
             <button
               onClick={generateWebsite}
-              disabled={
-                loading || builderAccess.loading || !builderAccess.hasAccess
-              }
+              disabled={loading || builderAccess.loading || !hasBuilderAccess}
               className="rounded-xl bg-[#7CFF6A] px-5 py-3 font-bold text-black shadow-[0_0_25px_rgba(124,255,106,0.14)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 md:hover:scale-[1.01]"
             >
               {loading
                 ? "Generating Website... please wait"
                 : builderAccess.loading
                 ? "Checking Builder Access..."
-                : builderAccess.hasAccess
+                : hasBuilderAccess
                 ? "Generate Website"
                 : "Builder Package Required"}
             </button>
