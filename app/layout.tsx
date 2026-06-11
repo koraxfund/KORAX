@@ -188,7 +188,7 @@ function SocialIcons() {
         </a>
 
         <a
-          href="https://www.instagram.com/koraxfund?igsh=MWw2NnE4NTB1aW90cA=="
+          href="https://www.instagram.com/korax_fund?igsh=MWw2NnE4NTB1aW90cA=="
           target="_blank"
           rel="noopener noreferrer"
           aria-label="KORAX on Instagram"
@@ -277,7 +277,7 @@ export default function RootLayout({
       "https://t.me/koraxfund",
       "https://t.me/koraxgroub",
       "https://www.facebook.com/share/186CHPa3cN/",
-      "https://www.instagram.com/koraxfund/",
+      "https://www.instagram.com/korax_fund/",
       "https://youtube.com/@koraxfund",
       "https://www.tiktok.com/@koraxfund",
       "https://www.linkedin.com/in/korax-fund-8a3b8b402",

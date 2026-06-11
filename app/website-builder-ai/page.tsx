@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ethers } from "ethers";
 import { useAccount } from "wagmi";
@@ -117,6 +117,8 @@ const CATEGORY_OPTIONS = [
   "Utility Token",
 ];
 
+const SAVED_WEBSITE_RESULT_KEY = "korax_website_builder_saved_result";
+
 function copyToClipboard(text: string) {
   navigator.clipboard.writeText(text);
 }
@@ -163,6 +165,33 @@ function readSavedBuilderProject(): SavedBuilderProject | null {
   }
 
   return null;
+}
+
+function readSavedWebsiteResult(): WebsiteResult | null {
+  if (typeof window === "undefined") return null;
+
+  const raw = window.localStorage.getItem(SAVED_WEBSITE_RESULT_KEY);
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw);
+
+    if (parsed?.files && Array.isArray(parsed.files)) {
+      return parsed as WebsiteResult;
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function saveWebsiteResult(result: WebsiteResult | null) {
+  if (typeof window === "undefined") return;
+
+  if (!result?.files?.length) return;
+
+  window.localStorage.setItem(SAVED_WEBSITE_RESULT_KEY, JSON.stringify(result));
 }
 
 async function downloadWebsiteZip(files: WebsiteFile[], websiteName: string) {
@@ -212,14 +241,19 @@ function SmallCard({ label, value }: { label: string; value: string }) {
 }
 
 function SectionBox({
+  id,
   title,
   children,
 }: {
+  id?: string;
   title: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
-    <section className="rounded-[26px] border border-white/10 bg-black/20 p-5 shadow-[0_16px_45px_rgba(0,0,0,0.28)] md:rounded-[30px] md:p-6 md:shadow-[0_22px_80px_rgba(0,0,0,0.35)]">
+    <section
+      id={id}
+      className="rounded-[26px] border border-white/10 bg-black/20 p-5 shadow-[0_16px_45px_rgba(0,0,0,0.28)] md:rounded-[30px] md:p-6 md:shadow-[0_22px_80px_rgba(0,0,0,0.35)]"
+    >
       <h2 className="text-xl font-bold text-white">{title}</h2>
       {children}
     </section>
@@ -400,6 +434,11 @@ export default function WebsiteBuilderAIPage() {
   const [editInstruction, setEditInstruction] = useState("");
   const [editTargetFile, setEditTargetFile] = useState("Entire website");
 
+  const [githubConnected, setGithubConnected] = useState(false);
+  const [githubLogin, setGithubLogin] = useState("");
+  const [githubProfileUrl, setGithubProfileUrl] = useState("");
+  const [checkingGithub, setCheckingGithub] = useState(false);
+
   const [githubRepoName, setGithubRepoName] = useState("");
   const [githubPrivateRepo, setGithubPrivateRepo] = useState(false);
   const [publishingGithub, setPublishingGithub] = useState(false);
@@ -417,6 +456,22 @@ export default function WebsiteBuilderAIPage() {
       result.files.find((file) => file.path === selectedFile) || result.files[0]
     );
   }, [result, selectedFile]);
+
+  useEffect(() => {
+    const savedWebsite = readSavedWebsiteResult();
+
+    if (savedWebsite?.files?.length) {
+      setResult(savedWebsite);
+      setSelectedFile(savedWebsite.files[0]?.path || "");
+      setGithubRepoName(cleanDownloadName(savedWebsite.websiteName || ""));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (result?.files?.length) {
+      saveWebsiteResult(result);
+    }
+  }, [result]);
 
   useEffect(() => {
     const savedProject = readSavedBuilderProject();
@@ -529,8 +584,55 @@ export default function WebsiteBuilderAIPage() {
     loadBuilderAccess(address);
   }, [address, isConnected]);
 
+  useEffect(() => {
+    checkGithubStatus();
+
+    const params = new URLSearchParams(window.location.search);
+    const github = params.get("github");
+
+    if (github === "connected") {
+      setGithubStatus("GitHub connected successfully. You can publish now.");
+
+      setTimeout(() => {
+        document
+          .getElementById("github-publish")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 250);
+    }
+
+    if (github === "failed_state") {
+      setGithubStatus("GitHub connection failed: security state mismatch.");
+    }
+
+    if (github === "failed_token") {
+      setGithubStatus("GitHub connection failed: token was not received.");
+    }
+  }, []);
+
   function update(key: string, value: string) {
     setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function checkGithubStatus() {
+    try {
+      setCheckingGithub(true);
+
+      const res = await fetch("/api/github/status", {
+        cache: "no-store",
+      });
+
+      const data = await res.json();
+
+      setGithubConnected(Boolean(data?.connected));
+      setGithubLogin(data?.login || "");
+      setGithubProfileUrl(data?.profileUrl || "");
+    } catch {
+      setGithubConnected(false);
+      setGithubLogin("");
+      setGithubProfileUrl("");
+    } finally {
+      setCheckingGithub(false);
+    }
   }
 
   async function loadBuilderAccess(user?: string) {
@@ -718,6 +820,8 @@ export default function WebsiteBuilderAIPage() {
 
       setResult(data.result);
       setSelectedFile(data.result?.files?.[0]?.path || "");
+      setGithubRepoName(cleanDownloadName(data.result?.websiteName || ""));
+      saveWebsiteResult(data.result);
     } catch (err: any) {
       setError(err?.message || "Something went wrong.");
     } finally {
@@ -815,6 +919,7 @@ export default function WebsiteBuilderAIPage() {
       setResult(data.result);
       setSelectedFile(data.result?.files?.[0]?.path || "");
       setEditInstruction("");
+      saveWebsiteResult(data.result);
     } catch (err: any) {
       setEditError(err?.message || "Website edit failed.");
     } finally {
@@ -823,6 +928,10 @@ export default function WebsiteBuilderAIPage() {
   }
 
   function connectGitHub() {
+    if (result?.files?.length) {
+      saveWebsiteResult(result);
+    }
+
     window.location.href = "/api/github/oauth/start";
   }
 
@@ -902,6 +1011,10 @@ export default function WebsiteBuilderAIPage() {
         throw new Error("Generate a website first.");
       }
 
+      if (!githubConnected) {
+        throw new Error("Connect GitHub first, then publish.");
+      }
+
       const repoName =
         githubRepoName.trim() ||
         result.websiteName
@@ -931,6 +1044,7 @@ export default function WebsiteBuilderAIPage() {
 
       setGithubRepoUrl(data.repoUrl);
       setGithubStatus(`Published successfully: ${data.repoUrl}`);
+      checkGithubStatus();
     } catch (err: any) {
       setGithubStatus(err?.message || "GitHub publish failed.");
     } finally {
@@ -1335,8 +1449,8 @@ export default function WebsiteBuilderAIPage() {
 
             <div className="mt-5 grid gap-3">
               <SmallCard label="Website Package" value="Generated by AI" />
-              <SmallCard label="Publishing" value="GitHub OAuth" />
-              <SmallCard label="Hosting" value="Vercel layer next" />
+              <SmallCard label="Publishing" value="User GitHub OAuth" />
+              <SmallCard label="Hosting" value="User Vercel account" />
             </div>
           </SectionBox>
 
@@ -1525,21 +1639,77 @@ export default function WebsiteBuilderAIPage() {
             ) : null}
           </SectionBox>
 
-          <SectionBox title="Publish to GitHub">
+          <SectionBox id="github-publish" title="Publish to GitHub">
             <p className="mt-3 text-sm leading-relaxed text-white/70">
-              Connect your GitHub account and let KORAX publish the generated
-              website files into a new repository.
+              Connect the user's GitHub account and publish the generated
+              website files into a new repository owned by that connected user.
             </p>
 
-            <div className="mt-5 grid gap-4">
-              <button
-                type="button"
-                onClick={connectGitHub}
-                className="rounded-xl border border-white/10 bg-white/5 px-5 py-3 font-semibold text-white transition hover:bg-white/10"
-              >
-                Connect GitHub
-              </button>
+            <div className="mt-5 rounded-2xl border border-white/10 bg-black/25 p-4">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.24em] text-white/40">
+                    GitHub Connection
+                  </p>
 
+                  <h3 className="mt-2 text-lg font-bold text-white">
+                    Publish to the connected user's GitHub account
+                  </h3>
+
+                  <p className="mt-2 text-sm leading-relaxed text-white/60">
+                    KORAX will publish to the GitHub account connected in this
+                    browser. It will not publish to KORAX unless the connected
+                    account is the KORAX account.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={connectGitHub}
+                  className="rounded-xl border border-[#7CFF6A]/30 bg-[#7CFF6A]/10 px-5 py-3 font-bold text-[#c4ffbc] transition hover:bg-[#7CFF6A]/20"
+                >
+                  {githubConnected ? "Reconnect GitHub" : "Connect GitHub"}
+                </button>
+              </div>
+
+              <div className="mt-4">
+                {checkingGithub ? (
+                  <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/65">
+                    Checking GitHub connection...
+                  </div>
+                ) : githubConnected ? (
+                  <div className="rounded-xl border border-[#7CFF6A]/25 bg-[#7CFF6A]/10 px-4 py-3 text-sm text-[#c4ffbc]">
+                    <div className="font-bold">
+                      GitHub connected successfully.
+                    </div>
+
+                    <div className="mt-1 text-white/75">
+                      Connected as:{" "}
+                      {githubProfileUrl ? (
+                        <a
+                          href={githubProfileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-bold text-[#7CFF6A] underline underline-offset-4"
+                        >
+                          {githubLogin || "GitHub user"}
+                        </a>
+                      ) : (
+                        <span className="font-bold text-[#7CFF6A]">
+                          {githubLogin || "GitHub user"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/60">
+                    GitHub is not connected yet.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-4">
               <input
                 value={githubRepoName}
                 onChange={(e) => setGithubRepoName(e.target.value)}
@@ -1559,12 +1729,14 @@ export default function WebsiteBuilderAIPage() {
               <button
                 type="button"
                 onClick={publishToGitHub}
-                disabled={publishingGithub}
+                disabled={publishingGithub || !githubConnected}
                 className="rounded-xl bg-[#7CFF6A] px-5 py-3 font-bold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {publishingGithub
                   ? "Publishing... please wait"
-                  : "Publish to GitHub"}
+                  : githubConnected
+                  ? "Publish to GitHub"
+                  : "Connect GitHub First"}
               </button>
 
               {githubStatus ? (

@@ -163,7 +163,7 @@ const socialLinks: SocialItem[] = [
   },
   {
     label: "Instagram",
-    href: "https://www.instagram.com/koraxfund",
+    href: "https://www.instagram.com/korax_fund",
     note: "Visual updates",
     icon: <InstagramIcon className="h-5 w-5" />,
     iconBg: "from-[#F58529] via-[#DD2A7B] to-[#8134AF]",

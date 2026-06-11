@@ -27,7 +27,10 @@ export async function GET(req: NextRequest) {
   const savedState = req.cookies.get("github_oauth_state")?.value;
 
   if (!code || !state || !savedState || state !== savedState) {
-    const failedUrl = new URL("/website-builder-ai?github=failed_state", req.url);
+    const failedUrl = new URL(
+      "/website-builder-ai?github=failed_state#github-publish",
+      req.url
+    );
     return NextResponse.redirect(failedUrl);
   }
 
@@ -49,11 +52,18 @@ export async function GET(req: NextRequest) {
   const data = await tokenResponse.json();
 
   if (!tokenResponse.ok || !data?.access_token) {
-    const failedUrl = new URL("/website-builder-ai?github=failed_token", req.url);
+    const failedUrl = new URL(
+      "/website-builder-ai?github=failed_token#github-publish",
+      req.url
+    );
     return NextResponse.redirect(failedUrl);
   }
 
-  const successUrl = new URL("/website-builder-ai?github=connected", req.url);
+  const successUrl = new URL(
+    "/website-builder-ai?github=connected#github-publish",
+    req.url
+  );
+
   const res = NextResponse.redirect(successUrl);
 
   res.cookies.set("github_access_token", data.access_token, {
