@@ -9,6 +9,45 @@ type WebsiteFile = {
   content: string;
 };
 
+type GitHubUser = {
+  login: string;
+  html_url?: string;
+};
+
+type GitHubRepo = {
+  name: string;
+  html_url?: string;
+  default_branch?: string;
+};
+
+type GitHubFileResponse = {
+  sha?: string;
+  type?: string;
+};
+
+type GitHubErrorResponse = {
+  message?: string;
+};
+
+type GitHubContentPayload = {
+  message: string;
+  content: string;
+  branch: string;
+  sha?: string;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function getErrorMessage(value: unknown, fallback: string) {
+  if (isRecord(value) && typeof value.message === "string") {
+    return value.message;
+  }
+
+  return fallback;
+}
+
 function cleanRepoName(value: unknown) {
   if (typeof value !== "string") return "korax-generated-site";
 
@@ -30,6 +69,18 @@ function toBase64(content: string) {
   return Buffer.from(content, "utf8").toString("base64");
 }
 
+function encodeGitHubPath(path: string) {
+  return encodeURIComponent(path).replace(/%2F/g, "/");
+}
+
+function isWebsiteFile(value: unknown): value is WebsiteFile {
+  return (
+    isRecord(value) &&
+    typeof value.path === "string" &&
+    typeof value.content === "string"
+  );
+}
+
 async function githubFetch(
   url: string,
   token: string,
@@ -48,42 +99,60 @@ async function githubFetch(
   });
 }
 
-async function getGithubUser(token: string) {
-  const res = await githubFetch("https://api.github.com/user", token);
+async function getGithubUser(token: string): Promise<GitHubUser> {
+  const response = await githubFetch("https://api.github.com/user", token);
+  const data: unknown = await response.json().catch(() => null);
 
-  const data = await res.json().catch(() => null);
-
-  if (!res.ok || !data?.login) {
-    throw new Error(data?.message || "Could not load GitHub user.");
+  if (!response.ok || !isRecord(data) || typeof data.login !== "string") {
+    throw new Error(getErrorMessage(data, "Could not load GitHub user."));
   }
 
-  return data;
+  return {
+    login: data.login,
+    html_url: typeof data.html_url === "string" ? data.html_url : undefined,
+  };
 }
 
-async function getRepo(token: string, owner: string, repo: string) {
-  const res = await githubFetch(
+async function getRepo(
+  token: string,
+  owner: string,
+  repo: string
+): Promise<GitHubRepo | null> {
+  const response = await githubFetch(
     `https://api.github.com/repos/${owner}/${repo}`,
     token
   );
 
-  if (res.status === 404) return null;
+  if (response.status === 404) return null;
 
-  const data = await res.json().catch(() => null);
+  const data: unknown = await response.json().catch(() => null);
 
-  if (!res.ok) {
-    throw new Error(data?.message || "Could not check GitHub repository.");
+  if (!response.ok || !isRecord(data) || typeof data.name !== "string") {
+    throw new Error(
+      getErrorMessage(data, "Could not check GitHub repository.")
+    );
   }
 
-  return data;
+  return {
+    name: data.name,
+    html_url: typeof data.html_url === "string" ? data.html_url : undefined,
+    default_branch:
+      typeof data.default_branch === "string" ? data.default_branch : "main",
+  };
 }
 
-async function createRepo(
-  token: string,
-  repoName: string,
-  privateRepo: boolean,
-  description: string
-) {
-  const res = await githubFetch("https://api.github.com/user/repos", token, {
+async function createRepo({
+  token,
+  repoName,
+  privateRepo,
+  description,
+}: {
+  token: string;
+  repoName: string;
+  privateRepo: boolean;
+  description: string;
+}) {
+  const response = await githubFetch("https://api.github.com/user/repos", token, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -96,98 +165,117 @@ async function createRepo(
     }),
   });
 
-  const data = await res.json().catch(() => null);
+  const data: unknown = await response.json().catch(() => null);
 
-  if (!res.ok) {
+  if (!response.ok) {
     if (
-      res.status === 422 &&
-      typeof data?.message === "string" &&
-      data.message.toLowerCase().includes("already exists")
+      response.status === 422 &&
+      getErrorMessage(data, "").toLowerCase().includes("already exists")
     ) {
-      return null;
+      return;
     }
 
-    throw new Error(data?.message || "Could not create GitHub repository.");
+    throw new Error(
+      getErrorMessage(data, "Could not create GitHub repository.")
+    );
   }
-
-  return data;
 }
 
-async function getExistingFileSha(
-  token: string,
-  owner: string,
-  repo: string,
-  filePath: string
-) {
-  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(
-    filePath
-  ).replace(/%2F/g, "/")}?ref=main`;
+async function getExistingFileSha({
+  token,
+  owner,
+  repo,
+  filePath,
+  branch,
+}: {
+  token: string;
+  owner: string;
+  repo: string;
+  filePath: string;
+  branch: string;
+}) {
+  const response = await githubFetch(
+    `https://api.github.com/repos/${owner}/${repo}/contents/${encodeGitHubPath(
+      filePath
+    )}?ref=${encodeURIComponent(branch)}`,
+    token
+  );
 
-  const res = await githubFetch(url, token);
+  if (response.status === 404) return null;
 
-  if (res.status === 404) return null;
+  const data: unknown = await response.json().catch(() => null);
 
-  const data = await res.json().catch(() => null);
-
-  if (!res.ok) {
-    throw new Error(data?.message || `Could not check file: ${filePath}`);
+  if (!response.ok) {
+    throw new Error(getErrorMessage(data, `Could not check file: ${filePath}`));
   }
 
   if (Array.isArray(data)) return null;
 
-  return data?.sha || null;
+  if (!isRecord(data)) return null;
+
+  const fileResponse = data as GitHubFileResponse;
+
+  return typeof fileResponse.sha === "string" ? fileResponse.sha : null;
 }
 
 async function uploadOrUpdateFile({
   token,
   owner,
   repo,
+  branch,
   file,
 }: {
   token: string;
   owner: string;
   repo: string;
+  branch: string;
   file: WebsiteFile;
 }) {
   const filePath = normalizeFilePath(file.path);
 
   if (!filePath) return;
 
-  const existingSha = await getExistingFileSha(token, owner, repo, filePath);
+  const existingSha = await getExistingFileSha({
+    token,
+    owner,
+    repo,
+    filePath,
+    branch,
+  });
 
-  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(
-    filePath
-  ).replace(/%2F/g, "/")}`;
-
-  const body: Record<string, any> = {
+  const payload: GitHubContentPayload = {
     message: existingSha
       ? `Update ${filePath} from KORAX Website Builder AI`
       : `Add ${filePath} from KORAX Website Builder AI`,
     content: toBase64(file.content || ""),
-    branch: "main",
+    branch,
   };
 
   if (existingSha) {
-    body.sha = existingSha;
+    payload.sha = existingSha;
   }
 
-  const res = await githubFetch(url, token, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
+  const response = await githubFetch(
+    `https://api.github.com/repos/${owner}/${repo}/contents/${encodeGitHubPath(
+      filePath
+    )}`,
+    token,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    }
+  );
 
-  const data = await res.json().catch(() => null);
+  const data: unknown = await response.json().catch(() => null);
 
-  if (!res.ok) {
+  if (!response.ok) {
     throw new Error(
-      data?.message || `Could not upload file to GitHub: ${filePath}`
+      getErrorMessage(data, `Could not upload file to GitHub: ${filePath}`)
     );
   }
-
-  return data;
 }
 
 export async function POST(req: NextRequest) {
@@ -203,36 +291,38 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = await req.json();
+    const body: unknown = await req.json();
 
-    const repoName = cleanRepoName(body?.repoName);
-    const privateRepo = Boolean(body?.privateRepo);
+    if (!isRecord(body)) {
+      return NextResponse.json(
+        { error: "Invalid request body." },
+        { status: 400 }
+      );
+    }
+
+    const repoName = cleanRepoName(body.repoName);
+    const privateRepo = Boolean(body.privateRepo);
     const description =
-      typeof body?.description === "string"
+      typeof body.description === "string"
         ? body.description
         : "Generated by KORAX Website Builder AI";
 
-    const files = Array.isArray(body?.files) ? body.files : [];
+    const filesInput = Array.isArray(body.files) ? body.files : [];
 
-    if (!files.length) {
+    if (!filesInput.length) {
       return NextResponse.json(
         { error: "No generated website files were supplied." },
         { status: 400 }
       );
     }
 
-    const normalizedFiles: WebsiteFile[] = files
-      .filter(
-        (file: any) =>
-          file &&
-          typeof file.path === "string" &&
-          typeof file.content === "string"
-      )
-      .map((file: any) => ({
-        path: normalizeFilePath(file.path),
-        content: file.content,
+    const normalizedFiles: WebsiteFile[] = filesInput
+      .filter(isWebsiteFile)
+      .map((item: WebsiteFile) => ({
+        path: normalizeFilePath(item.path),
+        content: item.content,
       }))
-      .filter((file) => file.path.length > 0);
+      .filter((item: WebsiteFile) => item.path.length > 0);
 
     if (!normalizedFiles.length) {
       return NextResponse.json(
@@ -247,7 +337,13 @@ export async function POST(req: NextRequest) {
     let repo = await getRepo(token, owner, repoName);
 
     if (!repo) {
-      await createRepo(token, repoName, privateRepo, description);
+      await createRepo({
+        token,
+        repoName,
+        privateRepo,
+        description,
+      });
+
       repo = await getRepo(token, owner, repoName);
     }
 
@@ -255,28 +351,35 @@ export async function POST(req: NextRequest) {
       throw new Error("Repository could not be created or loaded.");
     }
 
-    for (const file of normalizedFiles) {
+    const branch = repo.default_branch || "main";
+
+    for (const websiteFile of normalizedFiles) {
       await uploadOrUpdateFile({
         token,
         owner,
         repo: repoName,
-        file,
+        branch,
+        file: websiteFile,
       });
     }
 
-    const repoUrl = `https://github.com/${owner}/${repoName}`;
+    const repoUrl = repo.html_url || `https://github.com/${owner}/${repoName}`;
 
     return NextResponse.json({
       ok: true,
       owner,
       repoName,
       repoUrl,
+      branch,
       filesUploaded: normalizedFiles.length,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "GitHub publish failed.";
+
     return NextResponse.json(
       {
-        error: error?.message || "GitHub publish failed.",
+        error: message,
       },
       { status: 500 }
     );

@@ -110,7 +110,7 @@ function json(value: unknown) {
 }
 
 function provided(value: string) {
-  return value && value.trim().length > 0;
+  return value.trim().length > 0;
 }
 
 function safeSymbol(value: string) {
@@ -240,12 +240,14 @@ export const stats = ${json([
     {
       value: symbol,
       label: "Token Symbol",
-      description: "The public ticker used across the website and project materials.",
+      description:
+        "The public ticker used across the website and project materials.",
     },
     {
       value: input.network,
       label: "Network",
-      description: "Primary network configured for the project website and wallet flow.",
+      description:
+        "Primary network configured for the project website and wallet flow.",
     },
     {
       value: provided(input.tokenAddress) ? "Address Added" : "After Deployment",
@@ -257,7 +259,8 @@ export const stats = ${json([
     {
       value: "Launch Ready",
       label: "Website Package",
-      description: "Generated as a complete Next.js project ready for GitHub and Vercel.",
+      description:
+        "Generated as a complete Next.js project ready for GitHub and Vercel.",
     },
   ])} as const;
 
@@ -410,19 +413,23 @@ export const howToBuySteps = ${json([
 export const partnerItems = ${json([
     {
       name: "BNB Chain",
-      description: "Primary EVM ecosystem target for wallet and contract readiness.",
+      description:
+        "Primary EVM ecosystem target for wallet and contract readiness.",
     },
     {
       name: "RainbowKit",
-      description: "Wallet connection interface for a clean Web3 user experience.",
+      description:
+        "Wallet connection interface for a clean Web3 user experience.",
     },
     {
       name: "Wagmi / Viem",
-      description: "Modern Web3 frontend tooling for Ethereum-compatible networks.",
+      description:
+        "Modern Web3 frontend tooling for Ethereum-compatible networks.",
     },
     {
       name: "KORAX Builder Flow",
-      description: "Generated website package prepared for GitHub and Vercel publishing.",
+      description:
+        "Generated website package prepared for GitHub and Vercel publishing.",
     },
   ])} as const;
 
@@ -447,8 +454,7 @@ export const communityItems = ${json([
 export const faqItems = ${json([
     {
       question: `What is ${name}?`,
-      answer:
-        siteConfig.description,
+      answer: input.shortDescription,
     },
     {
       question: "Is this a live presale?",
@@ -457,8 +463,7 @@ export const faqItems = ${json([
     },
     {
       question: "Which network is supported?",
-      answer:
-        `The website is configured around ${input.network}. If other networks are planned, they should be documented as future expansion only.`,
+      answer: `The website is configured around ${input.network}. If other networks are planned, they should be documented as future expansion only.`,
     },
     {
       question: "Are contract addresses final?",
@@ -1645,6 +1650,7 @@ export function cleanExternalUrl(value?: string | null) {
 
 function buildLogoSvg(input: WebsiteBuilderInput) {
   const initials = safeSymbol(input.symbol).slice(0, 3);
+
   return `
 <svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
   <rect width="512" height="512" rx="120" fill="#020617"/>
