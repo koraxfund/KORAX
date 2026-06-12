@@ -175,13 +175,7 @@ const socialLinks: SocialItem[] = [
     icon: <FacebookIcon className="h-5 w-5" />,
     iconBg: "from-[#1877F2] to-[#0A3D91]",
   },
-  {
-    label: "Threads",
-    href: "https://www.threads.net/@koraxfund",
-    note: "Threads updates",
-    icon: <ThreadsIcon className="h-5 w-5" />,
-    iconBg: "from-[#2A2A2A] to-[#000000]",
-  },
+
   {
     label: "LinkedIn",
     href: "https://www.linkedin.com/company/koraxfund",
