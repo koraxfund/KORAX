@@ -1,86 +1,50 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ethers } from "ethers";
-import { useAccount } from "wagmi";
+import JSZip from "jszip";
+import { useAccount, useWalletClient } from "wagmi";
 import {
   ACCESS_MANAGER_ADDRESS,
+  AI_DEPLOYER_ADDRESS,
   RPC_URL,
   accessManagerAbi,
+  aiDeployerAbi,
 } from "@/lib/korax/contracts";
 
-type WebsiteFile = {
-  path: string;
-  content: string;
-};
-
-type WebsiteResult = {
-  websiteName: string;
-  summary: string;
-  brandDirection: {
-    positioning: string;
-    tone: string;
-    visualIdentity: string;
-    trustAngle: string;
+type DraftResult = {
+  projectSummary: string;
+  projectVerdict: string;
+  brandAngle: string;
+  originalityScore: string;
+  utilityStrengthScore: string;
+  marketFitScore: string;
+  coreUtility: string[];
+  differentiation: string[];
+  tokenomicsPreview: {
+    totalSupplySuggestion: string;
+    presaleAllocationSuggestion: string;
+    stakingAllocationSuggestion: string;
+    treasuryAllocationSuggestion: string;
+    liquidityAllocationSuggestion: string;
+    notes: string;
   };
-  styleGuide: {
-    theme: string;
-    primaryColor: string;
-    secondaryColor: string;
-    background: string;
-    cardStyle: string;
-    fontMood: string;
-    buttonStyle: string;
+  launchPlan: {
+    presaleRecommended: string;
+    suggestedStageCount: string;
+    fundingLogic: string;
+    launchNotes: string;
   };
-  sections: {
-    name: string;
-    purpose: string;
-    headline: string;
-    description: string;
-  }[];
-  files: WebsiteFile[];
-  deploymentNotes: string[];
-  koraxPublishingNote: string;
+  roadmap: string[];
+  weakPoints: string[];
+  risks: string[];
+  improvementActions: string[];
+  pitch: string;
+  koraxConversionNote: string;
 };
 
-type SavedBuilderProject = {
-  projectId?: string;
-  projectName?: string;
-  name?: string;
-  symbol?: string;
-  category?: string;
-  shortDescription?: string;
-  description?: string;
-  targetAudience?: string;
-  network?: string;
-  tokenAddress?: string;
-  token?: string;
-  vaultAddress?: string;
-  vault?: string;
-  stakingAddress?: string;
-  staking?: string;
-  launchpadAddress?: string;
-  launchpad?: string;
-  websiteStyle?: string;
-  primaryColor?: string;
-  secondaryColor?: string;
-  backgroundStyle?: string;
-  xLink?: string;
-  telegramLink?: string;
-  youtubeLink?: string;
-  tiktokLink?: string;
-  instagramLink?: string;
-  facebookLink?: string;
-  discordLink?: string;
-  tokenomics?: string;
-  roadmap?: string;
-  stakingPlans?: string;
-  presaleStages?: string;
-  txHash?: string;
-};
-
-type BuilderAccessState = {
+type AccessState = {
   loading: boolean;
   connected: boolean;
   wallet: string;
@@ -88,50 +52,61 @@ type BuilderAccessState = {
   tokensPerProject: string;
   requiredRewardBps: number;
   totalSlots: number;
+  usedSlots: number;
+  availableSlots: number;
   hasAccess: boolean;
+  registeredProjects: number;
   error: string;
 };
 
-const WEBSITE_STYLE_OPTIONS = [
-  "Premium Dark Web3",
-  "Luxury Crypto",
-  "Cyberpunk",
-  "Minimal Clean",
-  "Meme Energy",
-  "Investor Focused",
-  "AI Startup",
-  "Gaming Web3",
-  "Corporate Light",
-  "Black & White Premium",
+type DeployResult = {
+  projectId: string;
+  token: string;
+  vault: string;
+  staking: string;
+  txHash: string;
+};
+
+type VisualResult = {
+  imageBase64?: string;
+  imageUrl?: string;
+  prompt?: string;
+  model?: string;
+};
+
+type StakingPlanForm = {
+  durationDays: string;
+  rewardBps: string;
+};
+
+const WEBSITE_BUILDER_ROUTE = "/website-builder-ai";
+
+const projectFields = [
+  ["goal", "Main Goal of the Project"],
+  ["problemSolved", "What problem does this project solve?"],
+  ["userCareReason", "Why would users care about this project?"],
+  ["competitiveEdge", "What makes it different from other projects?"],
+  ["tokenUtilityReason", "How does the token create real utility?"],
+  ["holdReason", "Why would people hold the token instead of selling it?"],
+  ["growthLogic", "What is the long-term growth logic?"],
+  ["revenueLogic", "How does the project make money or create ecosystem value?"],
+  ["failureRisk", "What is the strongest reason this project could fail?"],
+] as const;
+
+const freeFeatures = [
+  "Positioning and project verdict",
+  "Utility direction and differentiation",
+  "Tokenomics preview",
+  "Launch logic and roadmap",
+  "AI project visual generation",
+  "Weak points and risks",
 ];
 
-const CATEGORY_OPTIONS = [
-  "Web3",
-  "AI",
-  "Launchpad",
-  "Meme",
-  "DeFi",
-  "Gaming",
-  "Move-to-Earn",
-  "Community",
-  "Utility Token",
-];
+const inputClass =
+  "w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none placeholder:text-white/30 transition focus:border-[#7CFF6A]/45 focus:bg-black/55";
 
-const SAVED_WEBSITE_RESULT_KEY = "korax_website_builder_saved_result";
-
-function copyToClipboard(text: string) {
-  navigator.clipboard.writeText(text);
-}
-
-function cleanDownloadName(value: string) {
-  return (
-    value
-      ?.toLowerCase()
-      .replace(/[^a-z0-9-_]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 60) || "korax-generated-website"
-  );
-}
+const selectClass =
+  "w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none transition focus:border-[#7CFF6A]/45 focus:bg-black/55";
 
 function formatTokenAmount(raw: bigint) {
   return Number(ethers.formatUnits(raw, 18)).toLocaleString("en-US", {
@@ -139,141 +114,172 @@ function formatTokenAmount(raw: bigint) {
   });
 }
 
-function readSavedBuilderProject(): SavedBuilderProject | null {
-  if (typeof window === "undefined") return null;
-
-  const storageKeys = [
-    "korax_last_project",
-    "korax_last_deployed_project",
-    "korax_builder_project",
-    "korax_generated_project",
-  ];
-
-  for (const key of storageKeys) {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) continue;
-
-    try {
-      const parsed = JSON.parse(raw);
-
-      if (parsed && typeof parsed === "object") {
-        return parsed as SavedBuilderProject;
-      }
-    } catch {
-      continue;
-    }
-  }
-
-  return null;
+function shortAddress(address?: string) {
+  if (!address) return "";
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
-function readSavedWebsiteResult(): WebsiteResult | null {
-  if (typeof window === "undefined") return null;
-
-  const raw = window.localStorage.getItem(SAVED_WEBSITE_RESULT_KEY);
-  if (!raw) return null;
-
-  try {
-    const parsed = JSON.parse(raw);
-
-    if (parsed?.files && Array.isArray(parsed.files)) {
-      return parsed as WebsiteResult;
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-function saveWebsiteResult(result: WebsiteResult | null) {
-  if (typeof window === "undefined") return;
-
-  if (!result?.files?.length) return;
-
-  window.localStorage.setItem(SAVED_WEBSITE_RESULT_KEY, JSON.stringify(result));
-}
-
-async function downloadWebsiteZip(files: WebsiteFile[], websiteName: string) {
-  if (!files?.length) {
-    throw new Error("No website files available for download.");
-  }
-
-  const response = await fetch("/api/website-builder/download", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      projectName: websiteName || "korax-generated-website",
-      files,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => null);
-    throw new Error(errorData?.error || "Failed to generate ZIP file.");
-  }
-
-  const blob = await response.blob();
-  const url = window.URL.createObjectURL(blob);
-
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `${cleanDownloadName(websiteName)}-website.zip`;
-
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-
-  window.URL.revokeObjectURL(url);
-}
-
-function SmallCard({ label, value }: { label: string; value: string }) {
+function cleanFileName(value: string) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
-      <div className="text-xs text-white/45">{label}</div>
-      <div className="mt-1 break-words text-sm font-semibold leading-relaxed text-white">
-        {value || "Not provided"}
+    value
+      ?.toLowerCase()
+      .replace(/[^a-z0-9-_]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 60) || "korax-project"
+  );
+}
+
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: ReactNode;
+}) {
+  return (
+    <label className="block">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <span className="text-xs font-black uppercase tracking-[0.22em] text-white/38">
+          {label}
+        </span>
+
+        {hint ? (
+          <span className="text-[11px] text-white/30">{hint}</span>
+        ) : null}
+      </div>
+
+      {children}
+    </label>
+  );
+}
+
+function InfoCard({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/35 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
+      <div className="text-[11px] font-black uppercase tracking-[0.2em] text-white/35">
+        {label}
+      </div>
+
+      <div className="mt-2 break-words text-lg font-black leading-relaxed text-white">
+        {value}
       </div>
     </div>
   );
 }
 
-function SectionBox({
-  id,
-  title,
+function MetricCard({
+  label,
+  value,
+  active,
+}: {
+  label: string;
+  value: string | number;
+  active?: boolean;
+}) {
+  return (
+    <div
+      className={[
+        "rounded-2xl border p-4",
+        active
+          ? "border-[#7CFF6A]/25 bg-[#7CFF6A]/10"
+          : "border-white/10 bg-black/30",
+      ].join(" ")}
+    >
+      <div className="text-xs font-black uppercase tracking-[0.2em] text-white/35">
+        {label}
+      </div>
+      <div className="mt-2 text-lg font-black text-white">{value}</div>
+    </div>
+  );
+}
+
+function StatusPill({
+  active,
   children,
 }: {
-  id?: string;
-  title: string;
+  active?: boolean;
   children: ReactNode;
 }) {
   return (
-    <section
-      id={id}
-      className="rounded-[26px] border border-white/10 bg-black/20 p-5 shadow-[0_16px_45px_rgba(0,0,0,0.28)] md:rounded-[30px] md:p-6 md:shadow-[0_22px_80px_rgba(0,0,0,0.35)]"
+    <span
+      className={[
+        "inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-[0.16em]",
+        active
+          ? "border-[#7CFF6A]/25 bg-[#7CFF6A]/12 text-[#c4ffbc]"
+          : "border-white/10 bg-white/[0.04] text-white/48",
+      ].join(" ")}
     >
-      <h2 className="text-xl font-bold text-white">{title}</h2>
       {children}
+    </span>
+  );
+}
+
+function SectionCard({
+  title,
+  eyebrow,
+  children,
+  right,
+}: {
+  title: string;
+  eyebrow?: string;
+  children: ReactNode;
+  right?: ReactNode;
+}) {
+  return (
+    <section className="relative overflow-hidden rounded-[30px] border border-white/10 bg-black/30 p-5 shadow-[0_22px_90px_rgba(0,0,0,0.42)] backdrop-blur-xl md:p-6">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(124,255,106,0.08),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(40,120,255,0.10),transparent_36%)]" />
+
+      <div className="relative">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div>
+            {eyebrow ? (
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-white/35">
+                {eyebrow}
+              </p>
+            ) : null}
+
+            <h3
+              className={
+                eyebrow
+                  ? "mt-2 text-2xl font-black text-white"
+                  : "text-xl font-black text-white"
+              }
+            >
+              {title}
+            </h3>
+          </div>
+
+          {right}
+        </div>
+
+        {children}
+      </div>
     </section>
   );
 }
 
 function AIEngineVisual() {
   return (
-    <div className="relative min-h-[260px] overflow-hidden rounded-[28px] border border-white/10 bg-[#020816] shadow-[0_20px_70px_rgba(0,0,0,0.55)] md:min-h-[430px] md:rounded-[34px]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(124,255,106,0.10),transparent_34%),radial-gradient(circle_at_top_right,rgba(30,90,180,0.20),transparent_38%)]" />
+    <div className="relative min-h-[360px] overflow-hidden rounded-[34px] border border-white/10 bg-[#020816] shadow-[0_30px_100px_rgba(0,0,0,0.62)] md:min-h-[500px]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(124,255,106,0.12),transparent_31%),radial-gradient(circle_at_top_right,rgba(30,90,180,0.28),transparent_38%),radial-gradient(circle_at_bottom_left,rgba(80,130,255,0.14),transparent_36%)]" />
 
-      <div className="pointer-events-none absolute inset-0 hidden opacity-[0.07] md:block [background-image:linear-gradient(rgba(255,255,255,0.07)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.07)_1px,transparent_1px)] [background-size:24px_24px]" />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.08] [background-image:linear-gradient(rgba(255,255,255,0.07)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.07)_1px,transparent_1px)] [background-size:28px_28px]" />
 
       <svg
-        className="absolute inset-0 h-full w-full opacity-80"
+        className="absolute inset-0 h-full w-full opacity-70"
         viewBox="0 0 100 100"
         preserveAspectRatio="none"
       >
         <defs>
-          <filter id="websiteLightPathGlow">
+          <filter id="tokenLightPathGlow">
             <feGaussianBlur stdDeviation="0.35" result="blur" />
             <feMerge>
               <feMergeNode in="blur" />
@@ -283,127 +289,421 @@ function AIEngineVisual() {
         </defs>
 
         {[
-          "M 5 15 C 25 20, 34 36, 50 50",
-          "M 95 15 C 75 20, 66 36, 50 50",
-          "M 5 85 C 25 80, 34 64, 50 50",
-          "M 95 85 C 75 80, 66 64, 50 50",
-          "M 50 5 C 49 25, 49 38, 50 50",
-          "M 50 95 C 51 75, 51 62, 50 50",
+          "M 5 18 C 25 24, 34 38, 50 50",
+          "M 95 18 C 75 24, 66 38, 50 50",
+          "M 5 83 C 25 78, 34 64, 50 50",
+          "M 95 83 C 75 78, 66 64, 50 50",
+          "M 50 4 C 49 25, 49 38, 50 50",
+          "M 50 96 C 51 75, 51 62, 50 50",
         ].map((d, i) => (
           <path
             key={i}
             d={d}
             fill="none"
-            stroke="rgba(180,220,255,0.26)"
-            strokeWidth="0.7"
+            stroke="rgba(180,220,255,0.18)"
             strokeLinecap="round"
-            filter="url(#websiteLightPathGlow)"
-          />
-        ))}
-
-        {[
-          { x: 5, y: 15 },
-          { x: 95, y: 15 },
-          { x: 5, y: 85 },
-          { x: 95, y: 85 },
-          { x: 50, y: 5 },
-          { x: 50, y: 95 },
-          { x: 50, y: 50 },
-        ].map((node, i) => (
-          <circle
-            key={i}
-            cx={node.x}
-            cy={node.y}
-            r={i === 6 ? 2.2 : 1.4}
-            fill="rgba(255,255,255,0.85)"
+            strokeWidth="0.7"
+            filter="url(#tokenLightPathGlow)"
           />
         ))}
       </svg>
 
-      <div className="absolute left-1/2 top-1/2 z-10 flex h-[150px] w-[150px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-[32px] border border-white/15 bg-[linear-gradient(180deg,rgba(15,24,46,0.98),rgba(4,8,18,0.99))] shadow-[0_0_45px_rgba(120,180,255,0.14)] md:h-[178px] md:w-[178px] md:rounded-[38px]">
-        <div className="absolute inset-[10px] rounded-[24px] border border-[#9fc6ff]/15 shadow-[inset_0_0_26px_rgba(130,180,255,0.10)] md:rounded-[28px]" />
+      <div className="absolute left-[7%] top-[16%] rounded-2xl border border-white/10 bg-black/35 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.35)] ai-float-slow">
+        <div className="text-xs font-black uppercase tracking-[0.22em] text-[#c4ffbc]">
+          Input
+        </div>
+        <div className="mt-2 text-lg font-black text-white">Idea Scan</div>
+        <div className="mt-3 h-1.5 w-40 rounded-full bg-white/10">
+          <div className="h-full w-4/5 rounded-full bg-[#7CFF6A]" />
+        </div>
+      </div>
 
-        <div className="relative text-center">
+      <div className="absolute right-[7%] top-[18%] rounded-2xl border border-white/10 bg-black/35 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.35)] ai-float">
+        <div className="text-xs font-black uppercase tracking-[0.22em] text-blue-200">
+          Output
+        </div>
+        <div className="mt-2 text-lg font-black text-white">KRX Deploy</div>
+        <div className="mt-3 h-1.5 w-40 rounded-full bg-white/10">
+          <div className="h-full w-3/4 rounded-full bg-blue-400" />
+        </div>
+      </div>
+
+      <div className="absolute left-1/2 top-[48%] z-10 flex h-[178px] w-[178px] -translate-x-1/2 -translate-y-1/2 items-center justify-center overflow-hidden rounded-[42px] border border-white/15 bg-[linear-gradient(180deg,rgba(15,24,46,0.98),rgba(4,8,18,0.99))] shadow-[0_0_65px_rgba(120,180,255,0.22)] ai-core">
+        <div className="absolute inset-[10px] rounded-[32px] border border-[#9fc6ff]/15 shadow-[inset_0_0_32px_rgba(130,180,255,0.12)]" />
+
+        <div className="ai-center-dot" />
+
+        <div className="ai-pulse-line ai-pulse-left" />
+        <div className="ai-pulse-line ai-pulse-right" />
+        <div className="ai-pulse-line ai-pulse-top" />
+        <div className="ai-pulse-line ai-pulse-bottom" />
+
+        <div className="ai-pulse-line ai-pulse-left ai-delay-1" />
+        <div className="ai-pulse-line ai-pulse-right ai-delay-1" />
+        <div className="ai-pulse-line ai-pulse-top ai-delay-1" />
+        <div className="ai-pulse-line ai-pulse-bottom ai-delay-1" />
+
+        <div className="relative z-10 text-center">
           <div
-            className="text-[54px] font-black tracking-[0.12em] text-white md:text-[68px]"
+            className="text-[68px] font-black tracking-[0.12em] text-white"
             style={{
               textShadow:
-                "0 0 12px rgba(255,255,255,0.72), 0 0 28px rgba(130,180,255,0.24)",
+                "0 0 12px rgba(255,255,255,0.78), 0 0 36px rgba(130,180,255,0.34)",
             }}
           >
             AI
           </div>
 
-          <div className="mt-1 text-[9px] font-semibold uppercase tracking-[0.28em] text-white/65 md:text-[11px]">
-            WEBSITE ENGINE
+          <div className="mt-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-white/65">
+            Token Engine
           </div>
         </div>
       </div>
 
-      <div className="absolute bottom-4 left-1/2 z-10 w-[88%] -translate-x-1/2 rounded-[20px] border border-white/10 bg-black/35 p-3 shadow-[0_14px_30px_rgba(0,0,0,0.30)] md:bottom-5 md:w-[84%] md:rounded-[24px] md:p-4">
-        <div className="grid grid-cols-3 gap-2 md:gap-3">
-          {["Project", "Contracts", "Website"].map((label) => (
+      <div className="absolute bottom-5 left-1/2 z-10 w-[88%] -translate-x-1/2 rounded-[26px] border border-white/10 bg-black/38 p-4 shadow-[0_18px_45px_rgba(0,0,0,0.34)]">
+        <div className="grid grid-cols-3 gap-3">
+          {["Input", "Reasoning", "Deploy"].map((label, index) => (
             <div
               key={label}
-              className="rounded-2xl border border-white/10 bg-white/[0.03] p-2 md:p-3"
+              className="rounded-2xl border border-white/10 bg-white/[0.035] p-3"
             >
-              <div className="text-[10px] font-semibold text-white/75 md:text-xs">
+              <div className="text-xs font-black uppercase tracking-[0.18em] text-white/58">
                 {label}
               </div>
 
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
-                <span className="block h-full w-2/3 rounded-full bg-white/70" />
+              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
+                <span
+                  className="block h-full rounded-full bg-[#7CFF6A]"
+                  style={{ width: `${62 + index * 12}%` }}
+                />
               </div>
             </div>
           ))}
         </div>
       </div>
+
+      <style jsx>{`
+        @keyframes aiCoreBreath {
+          0%,
+          100% {
+            transform: translate(-50%, -50%) scale(1);
+            box-shadow: 0 0 65px rgba(120, 180, 255, 0.22);
+          }
+          50% {
+            transform: translate(-50%, -51%) scale(1.018);
+            box-shadow: 0 0 84px rgba(124, 255, 106, 0.16);
+          }
+        }
+
+        @keyframes pulseFromLeft {
+          0% {
+            transform: translateY(-50%) scaleX(0);
+            opacity: 0;
+          }
+          16% {
+            opacity: 1;
+          }
+          72% {
+            transform: translateY(-50%) scaleX(1);
+            opacity: 0.92;
+          }
+          100% {
+            transform: translateY(-50%) scaleX(1);
+            opacity: 0;
+          }
+        }
+
+        @keyframes pulseFromRight {
+          0% {
+            transform: translateY(-50%) scaleX(0);
+            opacity: 0;
+          }
+          16% {
+            opacity: 1;
+          }
+          72% {
+            transform: translateY(-50%) scaleX(1);
+            opacity: 0.92;
+          }
+          100% {
+            transform: translateY(-50%) scaleX(1);
+            opacity: 0;
+          }
+        }
+
+        @keyframes pulseFromTop {
+          0% {
+            transform: translateX(-50%) scaleY(0);
+            opacity: 0;
+          }
+          16% {
+            opacity: 1;
+          }
+          72% {
+            transform: translateX(-50%) scaleY(1);
+            opacity: 0.92;
+          }
+          100% {
+            transform: translateX(-50%) scaleY(1);
+            opacity: 0;
+          }
+        }
+
+        @keyframes pulseFromBottom {
+          0% {
+            transform: translateX(-50%) scaleY(0);
+            opacity: 0;
+          }
+          16% {
+            opacity: 1;
+          }
+          72% {
+            transform: translateX(-50%) scaleY(1);
+            opacity: 0.92;
+          }
+          100% {
+            transform: translateX(-50%) scaleY(1);
+            opacity: 0;
+          }
+        }
+
+        @keyframes centerDot {
+          0%,
+          58%,
+          100% {
+            opacity: 0.25;
+            transform: translate(-50%, -50%) scale(0.7);
+          }
+          72% {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1.22);
+          }
+        }
+
+        @keyframes float {
+          0%,
+          100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-10px);
+          }
+        }
+
+        @keyframes floatSlow {
+          0%,
+          100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(8px);
+          }
+        }
+
+        .ai-core {
+          animation: aiCoreBreath 5.8s ease-in-out infinite;
+          will-change: transform;
+        }
+
+        .ai-center-dot {
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          z-index: 3;
+          width: 12px;
+          height: 12px;
+          border-radius: 999px;
+          background: #ffffff;
+          box-shadow:
+            0 0 16px rgba(255, 255, 255, 0.85),
+            0 0 34px rgba(124, 255, 106, 0.55),
+            0 0 58px rgba(70, 150, 255, 0.35);
+          animation: centerDot 2.6s ease-in-out infinite;
+          will-change: transform, opacity;
+        }
+
+        .ai-pulse-line {
+          position: absolute;
+          z-index: 2;
+          pointer-events: none;
+          border-radius: 999px;
+          opacity: 0;
+          will-change: transform, opacity;
+        }
+
+        .ai-pulse-left {
+          left: 16px;
+          top: 50%;
+          width: 72px;
+          height: 2px;
+          transform-origin: left center;
+          background: linear-gradient(
+            90deg,
+            rgba(124, 255, 106, 0),
+            rgba(124, 255, 106, 0.72),
+            rgba(255, 255, 255, 0.95)
+          );
+          box-shadow: 0 0 16px rgba(124, 255, 106, 0.42);
+          animation: pulseFromLeft 2.6s ease-in-out infinite;
+        }
+
+        .ai-pulse-right {
+          right: 16px;
+          top: 50%;
+          width: 72px;
+          height: 2px;
+          transform-origin: right center;
+          background: linear-gradient(
+            270deg,
+            rgba(124, 255, 106, 0),
+            rgba(124, 255, 106, 0.72),
+            rgba(255, 255, 255, 0.95)
+          );
+          box-shadow: 0 0 16px rgba(124, 255, 106, 0.42);
+          animation: pulseFromRight 2.6s ease-in-out infinite;
+        }
+
+        .ai-pulse-top {
+          top: 16px;
+          left: 50%;
+          width: 2px;
+          height: 72px;
+          transform-origin: top center;
+          background: linear-gradient(
+            180deg,
+            rgba(124, 255, 106, 0),
+            rgba(124, 255, 106, 0.72),
+            rgba(255, 255, 255, 0.95)
+          );
+          box-shadow: 0 0 16px rgba(124, 255, 106, 0.42);
+          animation: pulseFromTop 2.6s ease-in-out infinite;
+        }
+
+        .ai-pulse-bottom {
+          bottom: 16px;
+          left: 50%;
+          width: 2px;
+          height: 72px;
+          transform-origin: bottom center;
+          background: linear-gradient(
+            0deg,
+            rgba(124, 255, 106, 0),
+            rgba(124, 255, 106, 0.72),
+            rgba(255, 255, 255, 0.95)
+          );
+          box-shadow: 0 0 16px rgba(124, 255, 106, 0.42);
+          animation: pulseFromBottom 2.6s ease-in-out infinite;
+        }
+
+        .ai-delay-1 {
+          animation-delay: 1.3s;
+        }
+
+        .ai-float {
+          animation: float 6s ease-in-out infinite;
+        }
+
+        .ai-float-slow {
+          animation: floatSlow 7.5s ease-in-out infinite;
+        }
+
+        @media (max-width: 640px) {
+          .ai-pulse-left,
+          .ai-pulse-right {
+            width: 58px;
+          }
+
+          .ai-pulse-top,
+          .ai-pulse-bottom {
+            height: 58px;
+          }
+
+          .ai-center-dot {
+            width: 9px;
+            height: 9px;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .ai-core,
+          .ai-center-dot,
+          .ai-pulse-line,
+          .ai-float,
+          .ai-float-slow {
+            animation: none;
+          }
+        }
+      `}</style>
     </div>
   );
 }
 
-export default function WebsiteBuilderAIPage() {
+export default function AIPage() {
   const router = useRouter();
+
   const { address, isConnected } = useAccount();
-
-  const adminWallet =
-    process.env.NEXT_PUBLIC_BUILDER_ADMIN_WALLET?.toLowerCase();
-
-  const isAdminWallet =
-    !!address && !!adminWallet && address.toLowerCase() === adminWallet;
+  const { data: walletClient } = useWalletClient();
 
   const [form, setForm] = useState({
     projectName: "",
     symbol: "",
-    category: "Web3",
+    category: "AI",
     shortDescription: "",
     targetAudience: "",
-    websiteStyle: "Premium Dark Web3",
-    themeMode: "Dark",
-    colorPreset: "Blue Night",
-    primaryColor: "#0B5FFF",
-    secondaryColor: "#7CFF6A",
-    backgroundPreset: "Dark blue / black gradient",
-    backgroundStyle: "Dark blue-black futuristic gradient",
     network: "BNB Chain",
-    tokenAddress: "",
-    stakingAddress: "",
-    vaultAddress: "",
-    launchpadAddress: "",
-    xLink: "",
-    telegramLink: "",
-    youtubeLink: "",
-    tiktokLink: "",
-    instagramLink: "",
-    facebookLink: "",
-    discordLink: "",
-    websiteSections:
-      "Hero, About, Tokenomics, Roadmap, Staking, Launch on KORAX, Contracts, FAQ, Footer",
-    specialInstructions:
-      "Make it look like a premium Web3 project website with strong trust, serious builder energy, dark design, and clean launch-ready sections.",
+    presale: true,
+    staking: true,
+    vesting: false,
+    style: "Professional",
+    goal: "",
+    problemSolved: "",
+    userCareReason: "",
+    competitiveEdge: "",
+    tokenUtilityReason: "",
+    holdReason: "",
+    growthLogic: "",
+    revenueLogic: "",
+    failureRisk: "",
   });
 
-  const [builderAccess, setBuilderAccess] = useState<BuilderAccessState>({
+  const [deployForm, setDeployForm] = useState({
+    initialSupply: "100000000",
+    maxSupply: "100000000",
+    mintable: false,
+    burnable: true,
+    stakingEnabled: true,
+    stakingRewardsAllocation: "20000000",
+    metadataURI: "",
+  });
+
+  const [stakingPlans, setStakingPlans] = useState<StakingPlanForm[]>([
+    { durationDays: "30", rewardBps: "750" },
+    { durationDays: "90", rewardBps: "2250" },
+    { durationDays: "180", rewardBps: "4500" },
+    { durationDays: "365", rewardBps: "9000" },
+  ]);
+
+  const [visualForm, setVisualForm] = useState({
+    imageType: "Project Poster",
+    visualStyle: "Futuristic Web3",
+    colors: "black, deep blue, neon green, silver",
+    mood: "premium, futuristic, serious, launch-ready",
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<DraftResult | null>(null);
+  const [error, setError] = useState("");
+  const [showCreationStep, setShowCreationStep] = useState(false);
+
+  const [deployingProject, setDeployingProject] = useState(false);
+  const [deployError, setDeployError] = useState("");
+  const [deployResult, setDeployResult] = useState<DeployResult | null>(null);
+
+  const [visualLoading, setVisualLoading] = useState(false);
+  const [visualError, setVisualError] = useState("");
+  const [visualResult, setVisualResult] = useState<VisualResult | null>(null);
+
+  const [access, setAccess] = useState<AccessState>({
     loading: false,
     connected: false,
     wallet: "",
@@ -411,233 +711,287 @@ export default function WebsiteBuilderAIPage() {
     tokensPerProject: "1,500",
     requiredRewardBps: 9000,
     totalSlots: 0,
+    usedSlots: 0,
+    availableSlots: 0,
     hasAccess: false,
+    registeredProjects: 0,
     error: "",
   });
 
-  const hasBuilderAccess = builderAccess.hasAccess || isAdminWallet;
-
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const [result, setResult] = useState<WebsiteResult | null>(null);
-  const [selectedFile, setSelectedFile] = useState("");
-
-  const [loadedProjectFromBuilder, setLoadedProjectFromBuilder] =
-    useState(false);
-
-  const [downloadingZip, setDownloadingZip] = useState(false);
-  const [downloadError, setDownloadError] = useState("");
-
-  const [editing, setEditing] = useState(false);
-  const [editError, setEditError] = useState("");
-  const [editInstruction, setEditInstruction] = useState("");
-  const [editTargetFile, setEditTargetFile] = useState("Entire website");
-
-  const [githubConnected, setGithubConnected] = useState(false);
-  const [githubLogin, setGithubLogin] = useState("");
-  const [githubProfileUrl, setGithubProfileUrl] = useState("");
-  const [checkingGithub, setCheckingGithub] = useState(false);
-
-  const [githubRepoName, setGithubRepoName] = useState("");
-  const [githubPrivateRepo, setGithubPrivateRepo] = useState(false);
-  const [publishingGithub, setPublishingGithub] = useState(false);
-  const [githubStatus, setGithubStatus] = useState("");
-  const [githubRepoUrl, setGithubRepoUrl] = useState("");
-
-  const [vercelToken, setVercelToken] = useState("");
-  const [deployingVercel, setDeployingVercel] = useState(false);
-  const [vercelStatus, setVercelStatus] = useState("");
-  const [vercelDeploymentUrl, setVercelDeploymentUrl] = useState("");
-
-  const selectedFileData = useMemo(() => {
-    if (!result) return null;
-    return (
-      result.files.find((file) => file.path === selectedFile) || result.files[0]
-    );
-  }, [result, selectedFile]);
-
-  useEffect(() => {
-    const savedWebsite = readSavedWebsiteResult();
-
-    if (savedWebsite?.files?.length) {
-      setResult(savedWebsite);
-      setSelectedFile(savedWebsite.files[0]?.path || "");
-      setGithubRepoName(cleanDownloadName(savedWebsite.websiteName || ""));
-    }
-  }, []);
-
-  useEffect(() => {
-    if (result?.files?.length) {
-      saveWebsiteResult(result);
-    }
-  }, [result]);
-
-  useEffect(() => {
-    const savedProject = readSavedBuilderProject();
-
-    if (!savedProject) return;
-
-    setForm((prev) => {
-      const projectName =
-        savedProject.projectName || savedProject.name || prev.projectName;
-
-      const symbol = savedProject.symbol || prev.symbol;
-
-      const shortDescription =
-        savedProject.shortDescription ||
-        savedProject.description ||
-        prev.shortDescription;
-
-      const tokenAddress =
-        savedProject.tokenAddress || savedProject.token || prev.tokenAddress;
-
-      const vaultAddress =
-        savedProject.vaultAddress || savedProject.vault || prev.vaultAddress;
-
-      const stakingAddress =
-        savedProject.stakingAddress ||
-        savedProject.staking ||
-        prev.stakingAddress;
-
-      const launchpadAddress =
-        savedProject.launchpadAddress ||
-        savedProject.launchpad ||
-        prev.launchpadAddress;
-
-      const generatedInstructions = [
-        "Build this website based on the project that was already created through KORAX Token Builder AI.",
-        prev.specialInstructions,
-        savedProject.projectId ? `Project ID: ${savedProject.projectId}` : "",
-        savedProject.txHash
-          ? `Deployment transaction: ${savedProject.txHash}`
-          : "",
-        savedProject.tokenomics ? `Tokenomics: ${savedProject.tokenomics}` : "",
-        savedProject.presaleStages
-          ? `Presale stages: ${savedProject.presaleStages}`
-          : "",
-        savedProject.stakingPlans
-          ? `Staking plans: ${savedProject.stakingPlans}`
-          : "",
-        savedProject.roadmap ? `Roadmap: ${savedProject.roadmap}` : "",
-        tokenAddress
-          ? `Use token contract address in the Contracts section: ${tokenAddress}`
-          : "",
-        vaultAddress
-          ? `Use vault contract address in the Contracts section: ${vaultAddress}`
-          : "",
-        stakingAddress
-          ? `Use staking contract address in the Contracts section: ${stakingAddress}`
-          : "",
-      ]
-        .filter(Boolean)
-        .join("\n\n");
-
-      return {
-        ...prev,
-        projectName,
-        symbol,
-        category: savedProject.category || prev.category,
-        shortDescription,
-        targetAudience: savedProject.targetAudience || prev.targetAudience,
-        network: savedProject.network || prev.network,
-
-        tokenAddress,
-        vaultAddress,
-        stakingAddress:
-          stakingAddress &&
-          stakingAddress !== "0x0000000000000000000000000000000000000000"
-            ? stakingAddress
-            : "",
-        launchpadAddress,
-
-        websiteStyle: savedProject.websiteStyle || prev.websiteStyle,
-        primaryColor: savedProject.primaryColor || prev.primaryColor,
-        secondaryColor: savedProject.secondaryColor || prev.secondaryColor,
-        backgroundStyle: savedProject.backgroundStyle || prev.backgroundStyle,
-
-        xLink: savedProject.xLink || prev.xLink,
-        telegramLink: savedProject.telegramLink || prev.telegramLink,
-        youtubeLink: savedProject.youtubeLink || prev.youtubeLink,
-        tiktokLink: savedProject.tiktokLink || prev.tiktokLink,
-        instagramLink: savedProject.instagramLink || prev.instagramLink,
-        facebookLink: savedProject.facebookLink || prev.facebookLink,
-        discordLink: savedProject.discordLink || prev.discordLink,
-
-        websiteSections:
-          prev.websiteSections ||
-          "Hero, About, Tokenomics, Roadmap, Staking, Launch on KORAX, Contracts, FAQ, Footer",
-
-        specialInstructions: generatedInstructions,
-      };
-    });
-
-    setLoadedProjectFromBuilder(true);
-  }, []);
-
-  useEffect(() => {
-    if (!address || !isConnected) {
-      loadBuilderAccess(undefined);
-      return;
-    }
-
-    loadBuilderAccess(address);
-  }, [address, isConnected]);
-
-  useEffect(() => {
-    checkGithubStatus();
-
-    const params = new URLSearchParams(window.location.search);
-    const github = params.get("github");
-
-    if (github === "connected") {
-      setGithubStatus("GitHub connected successfully. You can publish now.");
-
-      setTimeout(() => {
-        document
-          .getElementById("github-publish")
-          ?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 250);
-    }
-
-    if (github === "failed_state") {
-      setGithubStatus("GitHub connection failed: security state mismatch.");
-    }
-
-    if (github === "failed_token") {
-      setGithubStatus("GitHub connection failed: token was not received.");
-    }
-  }, []);
-
-  function update(key: string, value: string) {
+  function update<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  async function checkGithubStatus() {
-    try {
-      setCheckingGithub(true);
+  function saveProjectForWebsiteBuilder(deployed: DeployResult) {
+    const deployedProjectData = {
+      projectId: deployed.projectId,
 
-      const res = await fetch("/api/github/status", {
-        cache: "no-store",
+      projectName: form.projectName.trim(),
+      symbol: form.symbol.trim().toUpperCase(),
+      category: form.category || "Web3",
+      shortDescription: form.shortDescription,
+      targetAudience: form.targetAudience,
+      network: form.network || "BNB Chain",
+
+      tokenAddress: deployed.token,
+      vaultAddress: deployed.vault,
+      stakingAddress: deployed.staking,
+
+      tokenomics: result ? JSON.stringify(result.tokenomicsPreview) : "",
+      presaleStages: result ? JSON.stringify(result.launchPlan) : "",
+      stakingPlans: JSON.stringify(stakingPlans),
+      roadmap: result ? JSON.stringify(result.roadmap) : "",
+
+      goal: form.goal,
+      problemSolved: form.problemSolved,
+      userCareReason: form.userCareReason,
+      competitiveEdge: form.competitiveEdge,
+      tokenUtilityReason: form.tokenUtilityReason,
+      holdReason: form.holdReason,
+      growthLogic: form.growthLogic,
+      revenueLogic: form.revenueLogic,
+      failureRisk: form.failureRisk,
+
+      projectSummary: result?.projectSummary || "",
+      projectVerdict: result?.projectVerdict || "",
+      brandAngle: result?.brandAngle || "",
+      pitch: result?.pitch || "",
+
+      txHash: deployed.txHash,
+
+      websiteStyle: "KORAX Beast v4",
+      primaryColor: "#0B5FFF",
+      secondaryColor: "#7CFF6A",
+      backgroundStyle:
+        "Deep dark blue-black futuristic command center with premium Web3 glow",
+    };
+
+    window.localStorage.setItem(
+      "korax_last_project",
+      JSON.stringify(deployedProjectData)
+    );
+  }
+
+  function continueToWebsiteBuilder() {
+    if (deployResult) {
+      saveProjectForWebsiteBuilder(deployResult);
+    }
+
+    router.push(WEBSITE_BUILDER_ROUTE);
+  }
+
+  async function downloadCryptoProjectPackage() {
+    if (!deployResult) {
+      setDeployError("Deploy the project first.");
+      return;
+    }
+
+    try {
+      const zip = new JSZip();
+
+      const projectName = form.projectName.trim() || "KORAX Project";
+      const symbol = form.symbol.trim().toUpperCase() || "TKN";
+      const folderName = cleanFileName(`${projectName}-${symbol}`);
+
+      const projectInfo = {
+        projectName,
+        symbol,
+        category: form.category,
+        shortDescription: form.shortDescription,
+        targetAudience: form.targetAudience,
+        network: form.network,
+        ownerWallet: address || "",
+        createdAt: new Date().toISOString(),
+        txHash: deployResult.txHash,
+        projectId: deployResult.projectId,
+      };
+
+      const addresses = {
+        token: deployResult.token,
+        vault: deployResult.vault,
+        staking:
+          deployResult.staking === ethers.ZeroAddress
+            ? "Not deployed"
+            : deployResult.staking,
+      };
+
+      const stakingPlansExport = stakingPlans.map((plan, index) => ({
+        planId: index,
+        durationDays: plan.durationDays,
+        rewardBps: plan.rewardBps,
+        rewardPercent: Number(plan.rewardBps || "0") / 100,
+      }));
+
+      const tokenSettings = {
+        initialSupply: deployForm.initialSupply,
+        maxSupply: deployForm.maxSupply,
+        mintable: deployForm.mintable,
+        burnable: deployForm.burnable,
+        stakingEnabled: deployForm.stakingEnabled,
+        stakingRewardsAllocation: deployForm.stakingRewardsAllocation,
+        metadataURI: deployForm.metadataURI,
+      };
+
+      const aiDraft = result
+        ? {
+            projectSummary: result.projectSummary,
+            projectVerdict: result.projectVerdict,
+            brandAngle: result.brandAngle,
+            originalityScore: result.originalityScore,
+            utilityStrengthScore: result.utilityStrengthScore,
+            marketFitScore: result.marketFitScore,
+            coreUtility: result.coreUtility,
+            differentiation: result.differentiation,
+            tokenomicsPreview: result.tokenomicsPreview,
+            launchPlan: result.launchPlan,
+            roadmap: result.roadmap,
+            weakPoints: result.weakPoints,
+            risks: result.risks,
+            improvementActions: result.improvementActions,
+            pitch: result.pitch,
+            koraxConversionNote: result.koraxConversionNote,
+          }
+        : null;
+
+      const readme = `# ${projectName} (${symbol})
+
+Generated by KORAX Token Builder AI.
+
+## Project
+
+- Name: ${projectName}
+- Symbol: ${symbol}
+- Category: ${form.category}
+- Network: ${form.network}
+- Owner Wallet: ${address || "Not available"}
+
+## Deployed Contracts
+
+- Token: ${deployResult.token}
+- Vault: ${deployResult.vault}
+- Staking: ${
+        deployResult.staking === ethers.ZeroAddress
+          ? "Not deployed"
+          : deployResult.staking
+      }
+
+## Transaction
+
+${deployResult.txHash}
+
+## Token Settings
+
+- Initial Supply: ${deployForm.initialSupply}
+- Max Supply: ${deployForm.maxSupply}
+- Mintable: ${deployForm.mintable ? "Yes" : "No"}
+- Burnable: ${deployForm.burnable ? "Yes" : "No"}
+- Staking Enabled: ${deployForm.stakingEnabled ? "Yes" : "No"}
+- Staking Rewards Allocation: ${deployForm.stakingRewardsAllocation}
+
+## Staking Plans
+
+${stakingPlansExport
+  .map(
+    (plan) =>
+      `- Plan ${plan.planId}: ${plan.durationDays} days / ${plan.rewardPercent}% reward`
+  )
+  .join("\n")}
+
+## AI Summary
+
+${result?.projectSummary || "No AI draft summary available."}
+
+## Notes
+
+This package contains deployed contract addresses, project settings, staking configuration, and AI-generated project strategy.
+
+For security:
+- Verify contracts on BscScan.
+- Review all settings before public launch.
+- Keep owner wallet and deployment wallet secure.
+- This package is informational and does not replace a security audit.
+`;
+
+      zip.file(`${folderName}/README.md`, readme);
+
+      zip.file(
+        `${folderName}/project-info.json`,
+        JSON.stringify(projectInfo, null, 2)
+      );
+
+      zip.file(
+        `${folderName}/contracts/addresses.json`,
+        JSON.stringify(addresses, null, 2)
+      );
+
+      zip.file(
+        `${folderName}/contracts/README.md`,
+        `# Contracts
+
+Token: ${deployResult.token}
+Vault: ${deployResult.vault}
+Staking: ${
+          deployResult.staking === ethers.ZeroAddress
+            ? "Not deployed"
+            : deployResult.staking
+        }
+
+These contracts were deployed through KORAX Token Builder AI.
+`
+      );
+
+      zip.file(
+        `${folderName}/token/token-settings.json`,
+        JSON.stringify(tokenSettings, null, 2)
+      );
+
+      zip.file(
+        `${folderName}/staking/staking-plans.json`,
+        JSON.stringify(stakingPlansExport, null, 2)
+      );
+
+      zip.file(
+        `${folderName}/ai/ai-draft.json`,
+        JSON.stringify(aiDraft, null, 2)
+      );
+
+      zip.file(
+        `${folderName}/launch/launch-plan.json`,
+        JSON.stringify(result?.launchPlan || {}, null, 2)
+      );
+
+      zip.file(
+        `${folderName}/roadmap/roadmap.json`,
+        JSON.stringify(result?.roadmap || [], null, 2)
+      );
+
+      const blob = await zip.generateAsync({
+        type: "blob",
+        compression: "DEFLATE",
+        compressionOptions: {
+          level: 6,
+        },
       });
 
-      const data = await res.json();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
 
-      setGithubConnected(Boolean(data?.connected));
-      setGithubLogin(data?.login || "");
-      setGithubProfileUrl(data?.profileUrl || "");
-    } catch {
-      setGithubConnected(false);
-      setGithubLogin("");
-      setGithubProfileUrl("");
-    } finally {
-      setCheckingGithub(false);
+      link.href = url;
+      link.download = `${folderName}-crypto-project.zip`;
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      setDeployError(err?.message || "Failed to download project package.");
     }
   }
 
-  async function loadBuilderAccess(user?: string) {
+  async function loadAccessData(user?: string) {
     if (!user) {
-      setBuilderAccess({
+      setAccess({
         loading: false,
         connected: false,
         wallet: "",
@@ -645,14 +999,17 @@ export default function WebsiteBuilderAIPage() {
         tokensPerProject: "1,500",
         requiredRewardBps: 9000,
         totalSlots: 0,
+        usedSlots: 0,
+        availableSlots: 0,
         hasAccess: false,
+        registeredProjects: 0,
         error: "",
       });
       return;
     }
 
     try {
-      setBuilderAccess((prev) => ({
+      setAccess((prev) => ({
         ...prev,
         loading: true,
         connected: true,
@@ -664,6 +1021,10 @@ export default function WebsiteBuilderAIPage() {
         throw new Error("Access manager address is missing.");
       }
 
+      if (!AI_DEPLOYER_ADDRESS) {
+        throw new Error("AI deployer address is missing.");
+      }
+
       const provider = new ethers.JsonRpcProvider(RPC_URL);
 
       const accessManager = new ethers.Contract(
@@ -672,13 +1033,27 @@ export default function WebsiteBuilderAIPage() {
         provider
       );
 
-      const [eligibleAmountRaw, totalSlotsRaw, hasAccessRaw, accessData] =
-        await Promise.all([
-          accessManager.getEligibleStakedAmount(user),
-          accessManager.getProjectSlots(user),
-          accessManager.hasKoraxAccess(user),
-          accessManager.getAccessData(user),
-        ]);
+      const aiDeployer = new ethers.Contract(
+        AI_DEPLOYER_ADDRESS,
+        aiDeployerAbi,
+        provider
+      );
+
+      const [
+        eligibleAmountRaw,
+        totalSlotsRaw,
+        hasAccessRaw,
+        usedSlotsRaw,
+        availableSlotsRaw,
+        accessData,
+      ] = await Promise.all([
+        accessManager.getEligibleStakedAmount(user),
+        accessManager.getProjectSlots(user),
+        accessManager.hasKoraxAccess(user),
+        aiDeployer.projectsUsedByOwner(user),
+        aiDeployer.availableProjectSlots(user),
+        accessManager.getAccessData(user),
+      ]);
 
       const tokensPerProjectRaw =
         accessData.currentTokensPerProject ??
@@ -690,7 +1065,7 @@ export default function WebsiteBuilderAIPage() {
         accessData.requiredRewardBps ??
         accessData[3];
 
-      setBuilderAccess({
+      setAccess({
         loading: false,
         connected: true,
         wallet: user,
@@ -700,111 +1075,45 @@ export default function WebsiteBuilderAIPage() {
         ),
         requiredRewardBps: Number(requiredRewardBpsRaw),
         totalSlots: Number(totalSlotsRaw),
+        usedSlots: Number(usedSlotsRaw),
+        availableSlots: Number(availableSlotsRaw),
         hasAccess: Boolean(hasAccessRaw),
+        registeredProjects: Number(usedSlotsRaw),
         error: "",
       });
     } catch (err: any) {
-      setBuilderAccess((prev) => ({
+      setAccess((prev) => ({
         ...prev,
         loading: false,
-        connected: Boolean(user),
-        wallet: user || "",
+        connected: true,
+        wallet: user,
         tokensPerProject: prev.tokensPerProject || "1,500",
         error:
-          err?.shortMessage ||
-          err?.message ||
-          "Failed to load builder access.",
+          err?.shortMessage || err?.message || "Failed to load access data",
       }));
     }
   }
 
-  function applyColorPreset(preset: string) {
-    let primary = "#0B5FFF";
-    let secondary = "#7CFF6A";
-
-    if (preset === "Royal Purple") {
-      primary = "#6D28D9";
-      secondary = "#A78BFA";
-    } else if (preset === "Gold Luxury") {
-      primary = "#D4AF37";
-      secondary = "#F5E7A1";
-    } else if (preset === "Ocean Cyan") {
-      primary = "#06B6D4";
-      secondary = "#67E8F9";
-    } else if (preset === "Black & White") {
-      primary = "#FFFFFF";
-      secondary = "#A1A1AA";
-    } else if (preset === "Neon Green") {
-      primary = "#7CFF6A";
-      secondary = "#D9FFD2";
-    } else if (preset === "Red Energy") {
-      primary = "#EF4444";
-      secondary = "#FCA5A5";
-    } else if (preset === "Orange Fire") {
-      primary = "#F97316";
-      secondary = "#FDBA74";
-    }
-
-    setForm((prev) => ({
-      ...prev,
-      colorPreset: preset,
-      primaryColor: primary,
-      secondaryColor: secondary,
-    }));
-  }
-
-  function applyBackgroundPreset(preset: string) {
-    let backgroundStyle = "Dark blue-black futuristic gradient";
-
-    if (preset === "White clean gradient") {
-      backgroundStyle = "Soft white minimal gradient";
-    } else if (preset === "Glass dark") {
-      backgroundStyle = "Dark glassmorphism with blue glow";
-    } else if (preset === "Mesh premium") {
-      backgroundStyle = "Premium mesh gradient with dark luxury atmosphere";
-    } else if (preset === "Aurora glow") {
-      backgroundStyle = "Aurora glow background with blue green lighting";
-    } else if (preset === "Soft minimal light") {
-      backgroundStyle = "Soft minimal light background with premium clean feel";
-    } else if (preset === "Deep space") {
-      backgroundStyle =
-        "Deep space dark background with subtle stars and blue light";
-    } else if (preset === "Cyber grid") {
-      backgroundStyle =
-        "Cyber grid background with futuristic dark neon structure";
-    }
-
-    setForm((prev) => ({
-      ...prev,
-      backgroundPreset: preset,
-      backgroundStyle,
-    }));
-  }
-
-  async function generateWebsite() {
-    if (loading) return;
-
-    if (!hasBuilderAccess) {
-      setError(
-        `Website Builder AI requires the Builder Package: stake ${builderAccess.tokensPerProject} KRX on the 12-month staking plan.`
-      );
+  useEffect(() => {
+    if (!address || !isConnected) {
+      loadAccessData(undefined);
       return;
     }
+
+    loadAccessData(address);
+  }, [address, isConnected]);
+  async function generateDraft() {
+    if (loading) return;
 
     setLoading(true);
     setError("");
     setResult(null);
-    setSelectedFile("");
-    setEditError("");
-    setEditInstruction("");
-    setGithubStatus("");
-    setGithubRepoUrl("");
-    setDownloadError("");
-    setVercelStatus("");
-    setVercelDeploymentUrl("");
+    setShowCreationStep(false);
+    setDeployError("");
+    setDeployResult(null);
 
     try {
-      const res = await fetch("/api/website-builder", {
+      const res = await fetch("/api/ai-draft", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -815,1036 +1124,1286 @@ export default function WebsiteBuilderAIPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data?.error || "Failed to generate website.");
+        throw new Error(data?.error || "Failed to generate draft");
       }
 
       setResult(data.result);
-      setSelectedFile(data.result?.files?.[0]?.path || "");
-      setGithubRepoName(cleanDownloadName(data.result?.websiteName || ""));
-      saveWebsiteResult(data.result);
     } catch (err: any) {
-      setError(err?.message || "Something went wrong.");
+      setError(err?.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleDownloadWebsiteZip() {
-    if (downloadingZip) return;
+  async function generateVisual() {
+    if (visualLoading) return;
 
-    setDownloadingZip(true);
-    setDownloadError("");
+    setVisualLoading(true);
+    setVisualError("");
+    setVisualResult(null);
 
     try {
-      if (!result?.files?.length) {
-        throw new Error("Generate a website first.");
+      if (!form.projectName.trim()) {
+        throw new Error("Project name is required.");
       }
 
-      await downloadWebsiteZip(
-        result.files,
-        result.websiteName || form.projectName
-      );
+      if (!form.symbol.trim()) {
+        throw new Error("Token symbol is required.");
+      }
+
+      if (!form.shortDescription.trim()) {
+        throw new Error("Short description is required.");
+      }
+
+      const res = await fetch("/api/ai-visual", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          projectName: form.projectName,
+          symbol: form.symbol,
+          category: form.category,
+          shortDescription: form.shortDescription,
+          imageType: visualForm.imageType,
+          visualStyle: visualForm.visualStyle,
+          colors: visualForm.colors,
+          mood: visualForm.mood,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Failed to generate project visual.");
+      }
+
+      setVisualResult({
+        imageBase64: data.imageBase64,
+        imageUrl: data.imageUrl,
+        prompt: data.prompt,
+        model: data.model,
+      });
     } catch (err: any) {
-      setDownloadError(err?.message || "ZIP download failed.");
+      setVisualError(
+        err?.message || "Something went wrong while generating the visual."
+      );
     } finally {
-      setDownloadingZip(false);
+      setVisualLoading(false);
     }
   }
 
-  function continueToLaunching() {
-    const latestProject = {
-      projectName: form.projectName,
-      symbol: form.symbol,
-      category: form.category,
-      shortDescription: form.shortDescription,
-      targetAudience: form.targetAudience,
-      network: form.network,
+  function addStakingPlan() {
+    setStakingPlans((prev) => {
+      if (prev.length >= 10) return prev;
+      return [...prev, { durationDays: "30", rewardBps: "500" }];
+    });
+  }
 
-      tokenAddress: form.tokenAddress,
-      vaultAddress: form.vaultAddress,
-      stakingAddress: form.stakingAddress,
-      launchpadAddress: form.launchpadAddress,
+  function removeStakingPlan(index: number) {
+    setStakingPlans((prev) => prev.filter((_, i) => i !== index));
+  }
 
-      websiteName: result?.websiteName || form.projectName,
-      websiteSummary: result?.summary || "",
-      websiteGenerated: Boolean(result?.files?.length),
-
-      websiteStyle: form.websiteStyle,
-      primaryColor: form.primaryColor,
-      secondaryColor: form.secondaryColor,
-      backgroundStyle: form.backgroundStyle,
-    };
-
-    window.localStorage.setItem(
-      "korax_last_project",
-      JSON.stringify(latestProject)
+  function updateStakingPlan(
+    index: number,
+    key: keyof StakingPlanForm,
+    value: string
+  ) {
+    setStakingPlans((prev) =>
+      prev.map((plan, i) => (i === index ? { ...plan, [key]: value } : plan))
     );
-
-    router.push("/launch");
   }
 
-  async function editWebsite() {
-    if (editing) return;
+  async function deployAIProject() {
+    if (deployingProject) return;
 
-    setEditing(true);
-    setEditError("");
+    setDeployingProject(true);
+    setDeployError("");
+    setDeployResult(null);
 
     try {
-      if (!result) {
-        throw new Error("Generate a website first.");
+      if (!isConnected || !address) {
+        throw new Error("Connect your wallet first.");
       }
 
-      if (!editInstruction.trim()) {
-        throw new Error("Write what you want KORAX AI to change.");
+      if (!walletClient) {
+        throw new Error("Wallet client not ready.");
       }
 
-      const res = await fetch("/api/website-editor", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          currentWebsite: result,
-          editInstruction,
-          targetFile: editTargetFile,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data?.error || "Failed to edit website.");
+      if (!AI_DEPLOYER_ADDRESS) {
+        throw new Error("AI deployer address is missing.");
       }
 
-      setResult(data.result);
-      setSelectedFile(data.result?.files?.[0]?.path || "");
-      setEditInstruction("");
-      saveWebsiteResult(data.result);
-    } catch (err: any) {
-      setEditError(err?.message || "Website edit failed.");
-    } finally {
-      setEditing(false);
-    }
-  }
+      if (!form.projectName.trim()) {
+        throw new Error("Project name is required.");
+      }
 
-  function connectGitHub() {
-    if (result?.files?.length) {
-      saveWebsiteResult(result);
-    }
+      if (!form.symbol.trim()) {
+        throw new Error("Token symbol is required.");
+      }
 
-    window.location.href = "/api/github/oauth/start";
-  }
+      if (access.availableSlots <= 0) {
+        throw new Error("No available KORAX project slots.");
+      }
 
-  function openVercelImport() {
-    if (githubRepoUrl) {
-      window.open(
-        `https://vercel.com/new/clone?repository-url=${encodeURIComponent(
-          githubRepoUrl
-        )}`,
-        "_blank",
-        "noopener,noreferrer"
+      const initialSupply = ethers.parseUnits(
+        deployForm.initialSupply || "0",
+        18
       );
-      return;
-    }
 
-    window.open("https://vercel.com/new", "_blank", "noopener,noreferrer");
-  }
+      const maxSupply = ethers.parseUnits(deployForm.maxSupply || "0", 18);
 
-  async function deployToVercelWithApi() {
-    if (deployingVercel) return;
+      const stakingRewardsAllocation = deployForm.stakingEnabled
+        ? ethers.parseUnits(deployForm.stakingRewardsAllocation || "0", 18)
+        : 0n;
 
-    setDeployingVercel(true);
-    setVercelStatus("");
-    setVercelDeploymentUrl("");
-
-    try {
-      if (!githubRepoUrl) {
-        throw new Error("Publish the website to GitHub first.");
+      if (initialSupply <= 0n) {
+        throw new Error("Initial supply must be greater than 0.");
       }
 
-      if (!vercelToken.trim()) {
-        throw new Error("Enter your Vercel token first.");
+      if (maxSupply < initialSupply) {
+        throw new Error("Max supply cannot be lower than initial supply.");
       }
 
-      const response = await fetch("/api/vercel/deploy", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          vercelToken: vercelToken.trim(),
-          githubRepoUrl,
-          projectName: result?.websiteName || form.projectName,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data?.error || "Vercel deployment failed.");
+      if (!deployForm.mintable && maxSupply !== initialSupply) {
+        throw new Error(
+          "Fixed-supply tokens must have max supply equal to initial supply."
+        );
       }
 
-      setVercelDeploymentUrl(data.deploymentUrl || "");
-      setVercelStatus(
-        data.deploymentUrl
-          ? `Deployment started: ${data.deploymentUrl}`
-          : "Deployment started successfully."
+      if (deployForm.stakingEnabled && stakingRewardsAllocation <= 0n) {
+        throw new Error("Staking rewards allocation must be greater than 0.");
+      }
+
+      if (stakingRewardsAllocation > initialSupply) {
+        throw new Error(
+          "Staking rewards allocation cannot exceed initial supply."
+        );
+      }
+
+      const cleanPlans = deployForm.stakingEnabled
+        ? stakingPlans.map((plan) => ({
+            durationDays: BigInt(plan.durationDays || "0"),
+            rewardBps: BigInt(plan.rewardBps || "0"),
+          }))
+        : [];
+
+      if (deployForm.stakingEnabled) {
+        if (cleanPlans.length === 0) {
+          throw new Error("At least one staking plan is required.");
+        }
+
+        if (cleanPlans.length > 10) {
+          throw new Error("Maximum 10 staking plans allowed.");
+        }
+
+        for (const plan of cleanPlans) {
+          if (plan.durationDays <= 0n) {
+            throw new Error(
+              "Each staking plan must have duration greater than 0."
+            );
+          }
+
+          if (plan.rewardBps <= 0n) {
+            throw new Error(
+              "Each staking plan must have reward BPS greater than 0."
+            );
+          }
+
+          if (plan.rewardBps > 10000n) {
+            throw new Error("Reward BPS cannot exceed 10000.");
+          }
+        }
+      }
+
+      const browserProvider = new ethers.BrowserProvider(
+        walletClient.transport as any
       );
-    } catch (err: any) {
-      setVercelStatus(err?.message || "Vercel deployment failed.");
-    } finally {
-      setDeployingVercel(false);
-    }
-  }
 
-  async function publishToGitHub() {
-    if (publishingGithub) return;
+      const signer = await browserProvider.getSigner();
 
-    setPublishingGithub(true);
-    setGithubStatus("");
-    setGithubRepoUrl("");
-    setVercelStatus("");
-    setVercelDeploymentUrl("");
+      const contract = new ethers.Contract(
+        AI_DEPLOYER_ADDRESS,
+        aiDeployerAbi,
+        signer
+      );
 
-    try {
-      if (!result) {
-        throw new Error("Generate a website first.");
-      }
+      const metadataURI =
+        deployForm.metadataURI.trim() ||
+        `korax-ai:${form.projectName.trim()}:${Date.now()}`;
 
-      if (!githubConnected) {
-        throw new Error("Connect GitHub first, then publish.");
-      }
-
-      const repoName =
-        githubRepoName.trim() ||
-        result.websiteName
-          ?.toLowerCase()
-          .replace(/[^a-z0-9-_]+/g, "-")
-          .replace(/^-+|-+$/g, "") ||
-        "korax-generated-site";
-
-      const res = await fetch("/api/github/publish", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const cfg = {
+        token: {
+          name: form.projectName.trim(),
+          symbol: form.symbol.trim().toUpperCase(),
+          initialSupply,
+          maxSupply,
+          mintable: deployForm.mintable,
+          burnable: deployForm.burnable,
         },
-        body: JSON.stringify({
-          repoName,
-          privateRepo: githubPrivateRepo,
-          files: result.files,
-          description: `Generated by KORAX Website Builder AI for ${result.websiteName}`,
-        }),
-      });
+        stakingEnabled: deployForm.stakingEnabled,
+        stakingRewardsAllocation,
+        metadataURI,
+        stakingPlans: cleanPlans,
+      };
 
-      const data = await res.json();
+      const tx = await contract.deployAIProject(cfg);
+      const receipt = await tx.wait();
 
-      if (!res.ok) {
-        throw new Error(data?.error || "GitHub publish failed.");
+      const iface = new ethers.Interface(aiDeployerAbi);
+      let parsedEvent: any = null;
+
+      for (const log of receipt.logs) {
+        try {
+          const parsed = iface.parseLog(log);
+
+          if (parsed?.name === "AIProjectDeployed") {
+            parsedEvent = parsed;
+            break;
+          }
+        } catch {
+          // ignore unrelated logs
+        }
       }
 
-      setGithubRepoUrl(data.repoUrl);
-      setGithubStatus(`Published successfully: ${data.repoUrl}`);
-      checkGithubStatus();
+      if (!parsedEvent) {
+        throw new Error("Project deployed, but event was not found.");
+      }
+
+      const deployed: DeployResult = {
+        projectId: parsedEvent.args.projectId.toString(),
+        token: parsedEvent.args.token,
+        vault: parsedEvent.args.vault,
+        staking: parsedEvent.args.staking,
+        txHash: receipt.hash,
+      };
+
+      saveProjectForWebsiteBuilder(deployed);
+      setDeployResult(deployed);
+
+      await loadAccessData(address);
     } catch (err: any) {
-      setGithubStatus(err?.message || "GitHub publish failed.");
+      setDeployError(err?.shortMessage || err?.message || "Deployment failed.");
     } finally {
-      setPublishingGithub(false);
+      setDeployingProject(false);
     }
   }
+
+  const canContinueToCreation = !!result && access.availableSlots > 0;
+  const needsUnlock = !!result && access.availableSlots <= 0;
+
+  const visualImageSrc = visualResult?.imageBase64
+    ? `data:image/png;base64,${visualResult.imageBase64}`
+    : visualResult?.imageUrl || "";
+
+  const finalProjectPreview = result
+    ? {
+        name: form.projectName || "Untitled Project",
+        symbol: form.symbol || "TKN",
+        category: form.category,
+        network: form.network,
+        presale: form.presale ? "Launchpad Ready" : "Not Selected",
+        staking: form.staking ? "Enabled" : "Disabled",
+        vesting: form.vesting ? "Enabled" : "Disabled",
+        verdict: result.projectVerdict,
+        summary: result.projectSummary,
+        pitch: result.pitch,
+      }
+    : null;
 
   return (
     <div className="space-y-8">
-      <section className="relative overflow-hidden rounded-[28px] border border-white/10 bg-black/30 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.40)] md:rounded-[34px] md:p-8 md:shadow-[0_30px_110px_rgba(0,0,0,0.55)]">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(124,255,106,0.12),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(30,90,180,0.14),transparent_32%)]" />
+      <section className="relative overflow-hidden rounded-[34px] border border-white/10 bg-black/35 p-5 shadow-[0_30px_120px_rgba(0,0,0,0.55)] backdrop-blur-xl md:p-8">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(124,255,106,0.14),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(30,90,180,0.18),transparent_35%)]" />
+        <div className="pointer-events-none absolute inset-0 opacity-[0.06] [background-image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:52px_52px]" />
 
-        <div className="relative grid gap-8 xl:grid-cols-[1fr_430px] xl:items-center">
-          <div className="max-w-4xl">
-            <div className="inline-flex rounded-full border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#c4ffbc] md:tracking-[0.22em]">
-              KORAX Website Builder AI
+        <div className="relative grid gap-8 xl:grid-cols-[1fr_470px] xl:items-center">
+          <div className="max-w-5xl">
+            <div className="inline-flex rounded-full border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-[#c4ffbc]">
+              KORAX Token Builder AI / Command Mode
             </div>
 
-            <h1 className="mt-5 text-3xl font-black leading-tight text-white sm:text-5xl">
-              Generate a website from your
+            <h1 className="mt-6 text-4xl font-black leading-[0.96] tracking-tight text-white sm:text-6xl xl:text-7xl">
+              Turn an idea into a
               <span className="block text-[#7CFF6A]">
-                deployed Web3 project.
+                serious Web3 launch system.
               </span>
             </h1>
 
-            <p className="mt-5 max-w-3xl text-base leading-relaxed text-white/68 sm:text-lg">
-              Website Builder AI can use the project data created by KORAX Token
-              Builder AI, including token, vault, staking contracts, network,
-              project description, and launch direction.
+            <p className="mt-6 max-w-3xl text-base leading-8 text-white/68 sm:text-lg">
+              KORAX AI helps builders shape project strategy, tokenomics,
+              staking logic, launch direction, risk analysis, AI visuals, and
+              on-chain deployment through a connected builder workflow.
             </p>
+
+            <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <StatusPill active>AI Draft</StatusPill>
+              <StatusPill active={Boolean(visualImageSrc)}>AI Visual</StatusPill>
+              <StatusPill active={access.hasAccess}>1500 KRX Gate</StatusPill>
+              <StatusPill active={Boolean(deployResult)}>On-chain Ready</StatusPill>
+            </div>
           </div>
 
-          <div className="relative">
-            <AIEngineVisual />
-          </div>
+          <AIEngineVisual />
         </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[1fr_420px]">
-        <div className="rounded-[26px] border border-white/10 bg-black/20 p-5 shadow-[0_16px_45px_rgba(0,0,0,0.28)] md:rounded-[30px] md:p-6 md:shadow-[0_22px_80px_rgba(0,0,0,0.35)]">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-white/40">
-                Website Inputs
-              </p>
-              <h2 className="mt-2 text-2xl font-extrabold text-white">
-                Project website setup
-              </h2>
+      <section className="grid gap-6 xl:grid-cols-[1fr_430px]">
+        <SectionCard
+          eyebrow="Builder Input"
+          title="Describe your project"
+          right={<StatusPill active>AI Strategy Engine</StatusPill>}
+        >
+          <div className="mt-6 grid gap-5">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label="Project Name">
+                <input
+                  value={form.projectName}
+                  onChange={(e) => update("projectName", e.target.value)}
+                  placeholder="Project Name"
+                  className={inputClass}
+                />
+              </Field>
 
-              {loadedProjectFromBuilder ? (
-                <div className="mt-4 rounded-2xl border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 px-4 py-3 text-sm text-[#c4ffbc]">
-                  Project data loaded automatically from KORAX Builder. Contract
-                  addresses and project details were added to the Website
-                  Builder AI form.
-                </div>
-              ) : null}
+              <Field label="Token Symbol">
+                <input
+                  value={form.symbol}
+                  onChange={(e) => update("symbol", e.target.value)}
+                  placeholder="Token Symbol"
+                  className={inputClass}
+                />
+              </Field>
             </div>
-
-            <div className="rounded-full border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 px-4 py-2 text-xs font-semibold text-[#c4ffbc]">
-              AI Website Architect
-            </div>
-          </div>
-
-          <div className="mt-6 grid gap-4">
-            <input
-              value={form.projectName}
-              onChange={(e) => update("projectName", e.target.value)}
-              placeholder="Project Name"
-              className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
-            />
-
-            <input
-              value={form.symbol}
-              onChange={(e) => update("symbol", e.target.value)}
-              placeholder="Token Symbol"
-              className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
-            />
-
-            <select
-              value={form.category}
-              onChange={(e) => update("category", e.target.value)}
-              className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-[#7CFF6A]/40"
-            >
-              {CATEGORY_OPTIONS.map((item) => (
-                <option key={item}>{item}</option>
-              ))}
-            </select>
-
-            <textarea
-              value={form.shortDescription}
-              onChange={(e) => update("shortDescription", e.target.value)}
-              placeholder="Project Description"
-              rows={4}
-              className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
-            />
-
-            <input
-              value={form.targetAudience}
-              onChange={(e) => update("targetAudience", e.target.value)}
-              placeholder="Target Audience"
-              className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
-            />
-
-            <select
-              value={form.themeMode}
-              onChange={(e) => update("themeMode", e.target.value)}
-              className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-[#7CFF6A]/40"
-            >
-              <option>Dark</option>
-              <option>Light</option>
-              <option>Auto</option>
-            </select>
-
-            <select
-              value={form.websiteStyle}
-              onChange={(e) => update("websiteStyle", e.target.value)}
-              className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-[#7CFF6A]/40"
-            >
-              {WEBSITE_STYLE_OPTIONS.map((item) => (
-                <option key={item}>{item}</option>
-              ))}
-            </select>
-
-            <select
-              value={form.colorPreset}
-              onChange={(e) => applyColorPreset(e.target.value)}
-              className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-[#7CFF6A]/40"
-            >
-              <option>Blue Night</option>
-              <option>Royal Purple</option>
-              <option>Gold Luxury</option>
-              <option>Ocean Cyan</option>
-              <option>Black & White</option>
-              <option>Neon Green</option>
-              <option>Red Energy</option>
-              <option>Orange Fire</option>
-            </select>
-
-            <select
-              value={form.backgroundPreset}
-              onChange={(e) => applyBackgroundPreset(e.target.value)}
-              className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-[#7CFF6A]/40"
-            >
-              <option>Dark blue / black gradient</option>
-              <option>White clean gradient</option>
-              <option>Glass dark</option>
-              <option>Mesh premium</option>
-              <option>Aurora glow</option>
-              <option>Soft minimal light</option>
-              <option>Deep space</option>
-              <option>Cyber grid</option>
-            </select>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <input
-                value={form.primaryColor}
-                onChange={(e) => update("primaryColor", e.target.value)}
-                placeholder="Primary Color"
-                className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
+              <Field label="Category">
+                <select
+                  value={form.category}
+                  onChange={(e) => update("category", e.target.value)}
+                  className={selectClass}
+                >
+                  <option>AI</option>
+                  <option>Launchpad</option>
+                  <option>Meme</option>
+                  <option>Utility</option>
+                  <option>Gaming</option>
+                  <option>DeFi</option>
+                  <option>Community</option>
+                </select>
+              </Field>
+
+              <Field label="Network">
+                <select
+                  value={form.network}
+                  onChange={(e) => update("network", e.target.value)}
+                  className={selectClass}
+                >
+                  <option value="BNB Chain">BNB Chain</option>
+                  <option value="Solana — Planned for Future">
+                    Solana — Planned for Future
+                  </option>
+                </select>
+              </Field>
+            </div>
+
+            <Field label="Short Description">
+              <textarea
+                value={form.shortDescription}
+                onChange={(e) => update("shortDescription", e.target.value)}
+                placeholder="Short Description"
+                rows={4}
+                className={inputClass}
               />
+            </Field>
 
+            <Field label="Target Audience">
               <input
-                value={form.secondaryColor}
-                onChange={(e) => update("secondaryColor", e.target.value)}
-                placeholder="Secondary Color"
-                className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
+                value={form.targetAudience}
+                onChange={(e) => update("targetAudience", e.target.value)}
+                placeholder="Target Audience"
+                className={inputClass}
               />
-            </div>
+            </Field>
 
-            <input
-              value={form.backgroundStyle}
-              onChange={(e) => update("backgroundStyle", e.target.value)}
-              placeholder="Background Style"
-              className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
-            />
+            <Field label="Brand Style">
+              <select
+                value={form.style}
+                onChange={(e) => update("style", e.target.value)}
+                className={selectClass}
+              >
+                <option>Professional</option>
+                <option>Aggressive Growth</option>
+                <option>Community First</option>
+                <option>Premium Brand</option>
+                <option>Meme Energy</option>
+              </select>
+            </Field>
 
-            <select
-              value={form.network}
-              onChange={(e) => update("network", e.target.value)}
-              className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-[#7CFF6A]/40"
-            >
-              <option>BNB Chain</option>
-              <option>Solana — Planned for Future</option>
-            </select>
+            <div className="rounded-[26px] border border-white/10 bg-black/25 p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-black text-white">
+                    Project Intelligence Questions
+                  </div>
+                  <p className="mt-1 text-xs leading-6 text-white/50">
+                    Strong answers create stronger AI strategy, tokenomics, and
+                    launch direction.
+                  </p>
+                </div>
 
-            <div className="rounded-2xl border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 p-4">
-              <div className="text-sm font-bold text-[#c4ffbc]">
-                Contract Addresses
+                <StatusPill active>9 Signals</StatusPill>
               </div>
 
-              <p className="mt-1 text-xs leading-relaxed text-white/60">
-                These can be loaded automatically from KORAX Token Builder AI
-                after deployment.
-              </p>
-
-              <div className="mt-4 grid gap-4">
-                <input
-                  value={form.tokenAddress}
-                  onChange={(e) => update("tokenAddress", e.target.value)}
-                  placeholder="Token Address"
-                  className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
-                />
-
-                <input
-                  value={form.vaultAddress}
-                  onChange={(e) => update("vaultAddress", e.target.value)}
-                  placeholder="Vault Address"
-                  className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
-                />
-
-                <input
-                  value={form.stakingAddress}
-                  onChange={(e) => update("stakingAddress", e.target.value)}
-                  placeholder="Staking Address"
-                  className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
-                />
-
-                <input
-                  value={form.launchpadAddress}
-                  onChange={(e) => update("launchpadAddress", e.target.value)}
-                  placeholder="Launchpad Address / Sale Reference"
-                  className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
-                />
+              <div className="mt-5 grid gap-4">
+                {projectFields.map(([key, placeholder]) => (
+                  <textarea
+                    key={key}
+                    value={form[key] as string}
+                    onChange={(e) => update(key, e.target.value as any)}
+                    placeholder={placeholder}
+                    rows={3}
+                    className={inputClass}
+                  />
+                ))}
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-              <div className="text-sm font-semibold text-white">
-                Social Links
-              </div>
-
-              <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white/80">
                 <input
-                  value={form.xLink}
-                  onChange={(e) => update("xLink", e.target.value)}
-                  placeholder="X / Twitter Link"
-                  className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
+                  type="checkbox"
+                  checked={form.presale}
+                  onChange={(e) => update("presale", e.target.checked)}
                 />
+                Launchpad
+              </label>
 
+              <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white/80">
                 <input
-                  value={form.telegramLink}
-                  onChange={(e) => update("telegramLink", e.target.value)}
-                  placeholder="Telegram Link"
-                  className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
+                  type="checkbox"
+                  checked={form.staking}
+                  onChange={(e) => {
+                    update("staking", e.target.checked);
+                    setDeployForm((prev) => ({
+                      ...prev,
+                      stakingEnabled: e.target.checked,
+                      stakingRewardsAllocation: e.target.checked
+                        ? prev.stakingRewardsAllocation || "20000000"
+                        : "0",
+                    }));
+                  }}
                 />
+                Staking
+              </label>
 
+              <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white/80">
                 <input
-                  value={form.youtubeLink}
-                  onChange={(e) => update("youtubeLink", e.target.value)}
-                  placeholder="YouTube Link"
-                  className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
+                  type="checkbox"
+                  checked={form.vesting}
+                  onChange={(e) => update("vesting", e.target.checked)}
                 />
-
-                <input
-                  value={form.tiktokLink}
-                  onChange={(e) => update("tiktokLink", e.target.value)}
-                  placeholder="TikTok Link"
-                  className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
-                />
-
-                <input
-                  value={form.instagramLink}
-                  onChange={(e) => update("instagramLink", e.target.value)}
-                  placeholder="Instagram Link"
-                  className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
-                />
-
-                <input
-                  value={form.facebookLink}
-                  onChange={(e) => update("facebookLink", e.target.value)}
-                  placeholder="Facebook Link"
-                  className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
-                />
-
-                <input
-                  value={form.discordLink}
-                  onChange={(e) => update("discordLink", e.target.value)}
-                  placeholder="Discord Link"
-                  className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40 md:col-span-2 xl:col-span-3"
-                />
-              </div>
-            </div>
-
-            <textarea
-              value={form.websiteSections}
-              onChange={(e) => update("websiteSections", e.target.value)}
-              placeholder="Website Sections"
-              rows={3}
-              className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
-            />
-
-            <textarea
-              value={form.specialInstructions}
-              onChange={(e) => update("specialInstructions", e.target.value)}
-              placeholder="Special Instructions"
-              rows={7}
-              className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
-            />
-
-            <div
-              className={[
-                "rounded-2xl border p-4 text-sm leading-relaxed",
-                hasBuilderAccess
-                  ? "border-[#7CFF6A]/20 bg-[#7CFF6A]/10 text-[#c4ffbc]"
-                  : "border-white/10 bg-black/25 text-white/65",
-              ].join(" ")}
-            >
-              {builderAccess.loading ? (
-                "Checking Builder Package access..."
-              ) : !builderAccess.connected ? (
-                <>
-                  Connect your wallet to use Website Builder AI. Required
-                  Builder Package:{" "}
-                  <span className="font-semibold text-white">
-                    {builderAccess.tokensPerProject} KRX
-                  </span>{" "}
-                  staked on the 12-month plan.
-                </>
-              ) : hasBuilderAccess ? (
-                <>
-                  {isAdminWallet
-                    ? "Admin wallet unlocked. You can test Website Builder AI without staking."
-                    : "Builder Package unlocked. You can use Website Builder AI for this project."}
-                </>
-              ) : (
-                <>
-                  Website Builder AI is locked. Stake{" "}
-                  <span className="font-semibold text-white">
-                    {builderAccess.tokensPerProject} KRX
-                  </span>{" "}
-                  on the 12-month staking plan to unlock Token Builder AI,
-                  Website Builder AI, and launch creation tools.
-                </>
-              )}
-
-              {builderAccess.error ? (
-                <div className="mt-2 text-red-200">{builderAccess.error}</div>
-              ) : null}
+                Vesting
+              </label>
             </div>
 
             <button
-              onClick={generateWebsite}
-              disabled={loading || builderAccess.loading || !hasBuilderAccess}
-              className="rounded-xl bg-[#7CFF6A] px-5 py-3 font-bold text-black shadow-[0_0_25px_rgba(124,255,106,0.14)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 md:hover:scale-[1.01]"
+              onClick={generateDraft}
+              disabled={loading}
+              className="rounded-2xl bg-[#7CFF6A] px-6 py-4 font-black text-black shadow-[0_0_32px_rgba(124,255,106,0.18)] transition hover:scale-[1.01] hover:bg-[#a6ff90] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading
-                ? "Generating Website... please wait"
-                : builderAccess.loading
-                ? "Checking Builder Access..."
-                : hasBuilderAccess
-                ? "Generate Website"
-                : "Builder Package Required"}
+                ? "Generating AI Draft... please wait"
+                : "Generate AI Draft"}
             </button>
 
             {error ? (
-              <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+              <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
                 {error}
               </div>
             ) : null}
           </div>
-        </div>
+        </SectionCard>
 
         <div className="space-y-6">
-          <SectionBox title="Auto-Loaded Project">
-            <p className="mt-3 text-sm leading-relaxed text-white/70">
-              After a user deploys a project through KORAX Token Builder AI, this
-              page can automatically receive the deployed token, vault, staking
-              addresses, project name, symbol, network, and description.
-            </p>
-
-            <div className="mt-5 grid gap-3">
-              <SmallCard
-                label="Project"
-                value={form.projectName || "Not loaded yet"}
-              />
-              <SmallCard
-                label="Symbol"
-                value={form.symbol || "Not loaded yet"}
-              />
-              <SmallCard label="Network" value={form.network} />
-              <SmallCard
-                label="Token"
-                value={form.tokenAddress || "Not loaded yet"}
-              />
-              <SmallCard
-                label="Vault"
-                value={form.vaultAddress || "Not loaded yet"}
-              />
-              <SmallCard
-                label="Staking"
-                value={form.stakingAddress || "Not loaded / disabled"}
-              />
+          <SectionCard
+            eyebrow="Access"
+            title="KORAX Builder Package"
+            right={
+              <StatusPill active={access.hasAccess}>
+                {access.hasAccess ? "Unlocked" : "Locked"}
+              </StatusPill>
+            }
+          >
+            <div className="mt-4 rounded-2xl border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 p-4 text-sm leading-7 text-white/75">
+              To unlock the KORAX Builder Package, users need to stake{" "}
+              <span className="font-black text-white">
+                {access.tokensPerProject} KRX
+              </span>{" "}
+              on the{" "}
+              <span className="font-black text-white">12-month staking plan</span>.
+              This package unlocks Token Builder AI, Website Builder AI, and
+              launch creation tools for one project.
             </div>
-          </SectionBox>
 
-          <SectionBox title="KORAX Publishing Layer">
-            <p className="mt-3 text-sm leading-relaxed text-white/70">
-              Website Builder AI generates the project website package first.
-              GitHub publishing and Vercel deployment are part of the connected
-              KORAX builder pipeline.
-            </p>
-
-            <div className="mt-5 grid gap-3">
-              <SmallCard label="Website Package" value="Generated by AI" />
-              <SmallCard label="Publishing" value="User GitHub OAuth" />
-              <SmallCard label="Hosting" value="User Vercel account" />
-            </div>
-          </SectionBox>
-
-          {result ? (
-            <SectionBox title="Generated Website">
-              <p className="mt-3 text-sm leading-relaxed text-white/70">
-                {result.summary}
-              </p>
-
-              <div className="mt-5 grid gap-3">
-                <SmallCard label="Website Name" value={result.websiteName} />
-                <SmallCard label="Theme" value={result.styleGuide.theme} />
-                <SmallCard
-                  label="Primary Color"
-                  value={result.styleGuide.primaryColor}
-                />
-                <SmallCard
-                  label="Secondary Color"
-                  value={result.styleGuide.secondaryColor}
-                />
+            {!access.connected ? (
+              <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-4 text-sm text-white/65">
+                Connect your wallet to view your KORAX access, eligible staking
+                amount, and available project slots.
               </div>
-            </SectionBox>
-          ) : null}
+            ) : access.loading ? (
+              <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-4 text-sm text-white/65">
+                Loading access data...
+              </div>
+            ) : access.error ? (
+              <div className="mt-4 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-200">
+                {access.error}
+              </div>
+            ) : (
+              <div className="mt-4 grid gap-3">
+                <InfoCard label="Wallet" value={shortAddress(access.wallet)} />
+
+                <div className="grid grid-cols-2 gap-3">
+                  <MetricCard
+                    label="Eligible Staked"
+                    value={`${access.eligibleAmount} KRX`}
+                    active={access.hasAccess}
+                  />
+                  <MetricCard
+                    label="Tokens Per Project"
+                    value={`${access.tokensPerProject} KRX`}
+                  />
+                  <MetricCard label="Required Plan" value="12 Months" />
+                  <MetricCard
+                    label="Reward BPS"
+                    value={access.requiredRewardBps}
+                  />
+                  <MetricCard
+                    label="Access Status"
+                    value={access.hasAccess ? "Unlocked" : "Locked"}
+                    active={access.hasAccess}
+                  />
+                  <MetricCard
+                    label="Available Slots"
+                    value={access.availableSlots}
+                    active={access.availableSlots > 0}
+                  />
+                </div>
+              </div>
+            )}
+          </SectionCard>
+
+          <SectionCard eyebrow="Free Draft" title="KORAX AI Intelligence">
+            <p className="mt-3 text-sm leading-7 text-white/60">
+              The free draft helps users understand whether their idea is strong,
+              weak, fixable, or worth converting into a real on-chain project.
+            </p>
+
+            <div className="mt-5 rounded-2xl border border-white/10 bg-black/25 p-5">
+              <div className="text-sm font-black text-white">
+                What the AI checks
+              </div>
+              <ul className="mt-3 space-y-2 text-sm leading-6 text-white/65">
+                {freeFeatures.map((item) => (
+                  <li key={item}>• {item}</li>
+                ))}
+              </ul>
+            </div>
+          </SectionCard>
+
+          <SectionCard eyebrow="Visual AI" title="AI Project Visual">
+            <p className="mt-3 text-sm leading-7 text-white/60">
+              Generate a matching project visual for social media, hero
+              sections, posters, and early branding.
+            </p>
+
+            <div className="mt-5 grid gap-4">
+              <select
+                value={visualForm.imageType}
+                onChange={(e) =>
+                  setVisualForm((prev) => ({
+                    ...prev,
+                    imageType: e.target.value,
+                  }))
+                }
+                className={selectClass}
+              >
+                <option>Project Poster</option>
+                <option>Token Artwork</option>
+                <option>Landing Page Hero</option>
+                <option>Marketing Banner</option>
+                <option>Community Promo Visual</option>
+                <option>Mascot / Character</option>
+                <option>Logo Concept</option>
+              </select>
+
+              <select
+                value={visualForm.visualStyle}
+                onChange={(e) =>
+                  setVisualForm((prev) => ({
+                    ...prev,
+                    visualStyle: e.target.value,
+                  }))
+                }
+                className={selectClass}
+              >
+                <option>Futuristic Web3</option>
+                <option>Luxury Brand</option>
+                <option>Dark Premium</option>
+                <option>Minimal Clean</option>
+                <option>Cyberpunk</option>
+                <option>Community Meme Style</option>
+              </select>
+
+              <input
+                value={visualForm.colors}
+                onChange={(e) =>
+                  setVisualForm((prev) => ({
+                    ...prev,
+                    colors: e.target.value,
+                  }))
+                }
+                placeholder="Preferred colors"
+                className={inputClass}
+              />
+
+              <input
+                value={visualForm.mood}
+                onChange={(e) =>
+                  setVisualForm((prev) => ({ ...prev, mood: e.target.value }))
+                }
+                placeholder="Mood"
+                className={inputClass}
+              />
+
+              <button
+                type="button"
+                onClick={generateVisual}
+                disabled={visualLoading}
+                className="rounded-2xl bg-[#7CFF6A] px-5 py-3 font-black text-black transition hover:bg-[#a6ff90] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {visualLoading
+                  ? "Generating Visual... please wait"
+                  : "Generate Project Visual"}
+              </button>
+
+              {visualError ? (
+                <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                  {visualError}
+                </div>
+              ) : null}
+
+              {visualImageSrc ? (
+                <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/25 p-3">
+                  <img
+                    src={visualImageSrc}
+                    alt="Generated project visual"
+                    className="h-auto w-full rounded-xl object-cover"
+                  />
+
+                  <div className="mt-3 rounded-xl border border-white/10 bg-black/30 p-3 text-xs leading-relaxed text-white/55">
+                    AI visuals are generated from your project description. Text
+                    inside images may not always be perfect, so the best use is
+                    for concept art, posters, branding direction, and early
+                    marketing visuals.
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={generateVisual}
+                      disabled={visualLoading}
+                      className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10 disabled:opacity-60"
+                    >
+                      {visualLoading
+                        ? "Generating..."
+                        : "Generate Another Visual"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDeployForm((prev) => ({
+                          ...prev,
+                          metadataURI:
+                            prev.metadataURI ||
+                            `korax-ai-visual:${form.projectName.trim()}:${Date.now()}`,
+                        }))
+                      }
+                      className="rounded-xl border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 px-4 py-2 text-sm font-semibold text-[#c4ffbc] transition hover:bg-[#7CFF6A]/15"
+                    >
+                      Use Visual as Project Reference
+                    </button>
+                  </div>
+
+                  <div className="mt-3 inline-flex rounded-full border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 px-3 py-1 text-xs font-semibold text-[#c4ffbc]">
+                    Generated by KORAX AI
+                  </div>
+
+                  {visualResult?.prompt ? (
+                    <details className="mt-3 rounded-xl border border-white/10 bg-black/30 p-3 text-xs text-white/60">
+                      <summary className="cursor-pointer font-semibold text-white/80">
+                        Show Prompt
+                      </summary>
+                      <div className="mt-3 whitespace-pre-wrap leading-relaxed">
+                        {visualResult.prompt}
+                      </div>
+                    </details>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          </SectionCard>
         </div>
       </section>
 
       {result ? (
         <section className="space-y-6">
-          <SectionBox title="Brand Direction">
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <SmallCard
-                label="Positioning"
-                value={result.brandDirection.positioning}
-              />
-              <SmallCard label="Tone" value={result.brandDirection.tone} />
-              <SmallCard
-                label="Visual Identity"
-                value={result.brandDirection.visualIdentity}
-              />
-              <SmallCard
-                label="Trust Angle"
-                value={result.brandDirection.trustAngle}
-              />
-            </div>
-          </SectionBox>
-
-          <SectionBox title="Website Sections">
-            <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {result.sections.map((section) => (
-                <div
-                  key={section.name}
-                  className="rounded-2xl border border-white/10 bg-black/25 p-5"
-                >
-                  <div className="text-xs uppercase tracking-[0.22em] text-white/45">
-                    {section.name}
-                  </div>
-
-                  <h3 className="mt-2 font-bold text-white">
-                    {section.headline}
-                  </h3>
-
-                  <p className="mt-2 text-sm leading-relaxed text-white/60">
-                    {section.description}
-                  </p>
-
-                  <p className="mt-3 text-xs leading-relaxed text-white/40">
-                    {section.purpose}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </SectionBox>
-
-          <SectionBox title="Website Editor AI">
-            <p className="mt-3 text-sm leading-relaxed text-white/70">
-              Modify the generated website with simple instructions. You can
-              improve the whole website or target a specific file.
+          <SectionCard eyebrow="AI Draft Result" title="Project intelligence generated">
+            <p className="mt-3 text-sm leading-7 text-white/60">
+              This draft was generated by KORAX AI and refined for stronger
+              positioning, launch logic, risk analysis, and builder clarity.
             </p>
+          </SectionCard>
 
-            <div className="mt-5 grid gap-4">
-              <select
-                value={editTargetFile}
-                onChange={(e) => setEditTargetFile(e.target.value)}
-                className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none"
-              >
-                <option>Entire website</option>
-                {result.files.map((file) => (
-                  <option key={file.path} value={file.path}>
-                    {file.path}
-                  </option>
-                ))}
-              </select>
+          <SectionCard eyebrow="Next Step" title="Move from idea to on-chain project">
+            <div className="mt-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <p className="text-sm leading-7 text-white/60">
+                Your AI draft is ready. You can now deploy the project on-chain
+                through KORAX AI when your wallet has an available project slot.
+              </p>
 
-              <textarea
-                value={editInstruction}
-                onChange={(e) => setEditInstruction(e.target.value)}
-                rows={5}
-                placeholder="Example: Make it more luxury, add staking section, change colors to dark blue, add contract cards, make hero stronger..."
-                className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
-              />
-
-              <button
-                type="button"
-                onClick={editWebsite}
-                disabled={editing}
-                className="rounded-xl bg-[#7CFF6A] px-5 py-3 font-bold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {editing ? "Editing Website... please wait" : "Apply AI Edit"}
-              </button>
-
-              {editError ? (
-                <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-                  {editError}
+              {canContinueToCreation ? (
+                <button
+                  type="button"
+                  onClick={() => setShowCreationStep((prev) => !prev)}
+                  className="rounded-2xl bg-[#7CFF6A] px-5 py-3 font-black text-black transition hover:bg-[#a6ff90]"
+                >
+                  {showCreationStep
+                    ? "Hide Project Creation"
+                    : "Continue to Project Creation"}
+                </button>
+              ) : needsUnlock ? (
+                <div className="rounded-2xl border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 px-4 py-3 text-sm text-white/75">
+                  Unlock the Builder Package with{" "}
+                  <span className="font-black text-white">
+                    {access.tokensPerProject} KRX
+                  </span>{" "}
+                  on the 12-month staking plan.
                 </div>
               ) : null}
             </div>
-          </SectionBox>
+          </SectionCard>
 
-          <SectionBox title="Generated Files">
-            <div className="mt-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <p className="text-sm text-white/60">
-                Review the generated website package. You can copy a single file
-                or download the full website as one ZIP package.
-              </p>
-
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <select
-                  value={selectedFileData?.path || ""}
-                  onChange={(e) => setSelectedFile(e.target.value)}
-                  className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none"
-                >
-                  {result.files.map((file) => (
-                    <option key={file.path} value={file.path}>
-                      {file.path}
-                    </option>
-                  ))}
-                </select>
-
-                <button
-                  type="button"
-                  onClick={handleDownloadWebsiteZip}
-                  disabled={downloadingZip}
-                  className="rounded-xl bg-[#7CFF6A] px-5 py-3 text-sm font-bold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {downloadingZip
-                    ? "Preparing ZIP..."
-                    : "Download Full Website ZIP"}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={continueToLaunching}
-                  className="rounded-xl border border-[#7CFF6A]/30 bg-[#7CFF6A]/10 px-5 py-3 text-sm font-bold text-[#c4ffbc] transition hover:bg-[#7CFF6A]/20"
-                >
-                  Continue to Launching
-                </button>
+          {showCreationStep && finalProjectPreview ? (
+            <section className="space-y-6 rounded-[30px] border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 p-5 shadow-[0_22px_90px_rgba(0,0,0,0.42)] md:p-6">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.28em] text-[#c4ffbc]">
+                  Project Creation Preview
+                </p>
+                <h3 className="mt-2 text-3xl font-black text-white">
+                  Review before on-chain deployment
+                </h3>
+                <p className="mt-3 text-sm leading-7 text-white/75">
+                  This step connects your AI draft to the real KORAX AI Deployer
+                  contract.
+                </p>
               </div>
-            </div>
 
-            {downloadError ? (
-              <div className="mt-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-                {downloadError}
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                {[
+                  ["Project Name", finalProjectPreview.name],
+                  ["Token Symbol", finalProjectPreview.symbol],
+                  ["Category", finalProjectPreview.category],
+                  ["Network", finalProjectPreview.network],
+                  ["Launchpad", finalProjectPreview.presale],
+                  ["Staking", finalProjectPreview.staking],
+                  ["Vesting", finalProjectPreview.vesting],
+                  ["AI Verdict", finalProjectPreview.verdict],
+                ].map(([label, value]) => (
+                  <InfoCard key={label} label={label} value={value} />
+                ))}
               </div>
-            ) : null}
 
-            {selectedFileData ? (
-              <div className="mt-5 overflow-hidden rounded-2xl border border-white/10 bg-black/35">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
-                  <div className="font-mono text-sm text-white">
-                    {selectedFileData.path}
+              <div className="grid gap-4 lg:grid-cols-2">
+                <SectionCard title="Summary">
+                  <p className="mt-3 text-sm leading-7 text-white/70">
+                    {finalProjectPreview.summary}
+                  </p>
+                </SectionCard>
+
+                <SectionCard title="Pitch">
+                  <p className="mt-3 text-sm leading-7 text-white/70">
+                    {finalProjectPreview.pitch}
+                  </p>
+                </SectionCard>
+              </div>
+
+              <SectionCard title="Flexible Token Settings">
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <Field label="Initial Supply">
+                    <input
+                      value={deployForm.initialSupply}
+                      onChange={(e) =>
+                        setDeployForm((prev) => ({
+                          ...prev,
+                          initialSupply: e.target.value,
+                          maxSupply: prev.mintable
+                            ? prev.maxSupply
+                            : e.target.value,
+                        }))
+                      }
+                      placeholder="100000000"
+                      className={inputClass}
+                    />
+                  </Field>
+
+                  <Field label="Max Supply">
+                    <input
+                      value={deployForm.maxSupply}
+                      onChange={(e) =>
+                        setDeployForm((prev) => ({
+                          ...prev,
+                          maxSupply: e.target.value,
+                        }))
+                      }
+                      placeholder="100000000"
+                      disabled={!deployForm.mintable}
+                      className={`${inputClass} disabled:opacity-50`}
+                    />
+                  </Field>
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white/80">
+                    <input
+                      type="checkbox"
+                      checked={deployForm.mintable}
+                      onChange={(e) =>
+                        setDeployForm((prev) => ({
+                          ...prev,
+                          mintable: e.target.checked,
+                          maxSupply: e.target.checked
+                            ? prev.maxSupply
+                            : prev.initialSupply,
+                        }))
+                      }
+                    />
+                    Mintable token
+                  </label>
+
+                  <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white/80">
+                    <input
+                      type="checkbox"
+                      checked={deployForm.burnable}
+                      onChange={(e) =>
+                        setDeployForm((prev) => ({
+                          ...prev,
+                          burnable: e.target.checked,
+                        }))
+                      }
+                    />
+                    Burnable token
+                  </label>
+                </div>
+
+                <p className="mt-4 text-sm leading-7 text-white/55">
+                  If minting is disabled, max supply must equal initial supply.
+                  If minting is enabled, the project owner can mint later up to
+                  the max supply limit.
+                </p>
+              </SectionCard>
+
+              <SectionCard title="Flexible Staking Settings">
+                <label className="mt-4 flex items-center gap-3 rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white/80">
+                  <input
+                    type="checkbox"
+                    checked={deployForm.stakingEnabled}
+                    onChange={(e) =>
+                      setDeployForm((prev) => ({
+                        ...prev,
+                        stakingEnabled: e.target.checked,
+                        stakingRewardsAllocation: e.target.checked
+                          ? prev.stakingRewardsAllocation || "20000000"
+                          : "0",
+                      }))
+                    }
+                  />
+                  Deploy staking contract
+                </label>
+
+                <div className="mt-4">
+                  <Field label="Staking Rewards Allocation">
+                    <input
+                      value={deployForm.stakingRewardsAllocation}
+                      onChange={(e) =>
+                        setDeployForm((prev) => ({
+                          ...prev,
+                          stakingRewardsAllocation: e.target.value,
+                        }))
+                      }
+                      placeholder="20000000"
+                      disabled={!deployForm.stakingEnabled}
+                      className={`${inputClass} disabled:opacity-50`}
+                    />
+                  </Field>
+                </div>
+
+                {deployForm.stakingEnabled ? (
+                  <div className="mt-5 space-y-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <div className="font-black text-white">
+                          Staking Plans
+                        </div>
+                        <p className="mt-1 text-xs text-white/50">
+                          Add from 1 to 10 custom staking plans. Reward BPS:
+                          10000 = 100%.
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={addStakingPlan}
+                        disabled={stakingPlans.length >= 10}
+                        className="rounded-xl border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 px-4 py-2 text-sm font-semibold text-[#c4ffbc] disabled:opacity-50"
+                      >
+                        Add Plan
+                      </button>
+                    </div>
+
+                    {stakingPlans.map((plan, index) => (
+                      <div
+                        key={index}
+                        className="grid gap-3 rounded-2xl border border-white/10 bg-black/25 p-4 md:grid-cols-[1fr_1fr_auto]"
+                      >
+                        <input
+                          value={plan.durationDays}
+                          onChange={(e) =>
+                            updateStakingPlan(
+                              index,
+                              "durationDays",
+                              e.target.value
+                            )
+                          }
+                          placeholder="Duration days"
+                          className={inputClass}
+                        />
+
+                        <input
+                          value={plan.rewardBps}
+                          onChange={(e) =>
+                            updateStakingPlan(index, "rewardBps", e.target.value)
+                          }
+                          placeholder="Reward BPS"
+                          className={inputClass}
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() => removeStakingPlan(index)}
+                          disabled={stakingPlans.length <= 1}
+                          className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-100 disabled:opacity-50"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
                   </div>
+                ) : null}
+              </SectionCard>
+
+              <SectionCard title="Metadata URI / Project Reference">
+                <input
+                  value={deployForm.metadataURI}
+                  onChange={(e) =>
+                    setDeployForm((prev) => ({
+                      ...prev,
+                      metadataURI: e.target.value,
+                    }))
+                  }
+                  placeholder="Optional: IPFS / website / project reference"
+                  className={`mt-4 ${inputClass}`}
+                />
+
+                <p className="mt-4 text-sm leading-7 text-white/55">
+                  The staking rewards allocation will be sent automatically to
+                  the project vault. The remaining initial supply will be sent to
+                  your wallet.
+                </p>
+              </SectionCard>
+
+              <SectionCard title="Project Slot Status">
+                <p className="mt-3 text-sm leading-7 text-white/70">
+                  Available Slots:{" "}
+                  <span className="font-black text-white">
+                    {access.availableSlots}
+                  </span>
+                </p>
+                <p className="mt-2 text-sm leading-7 text-white/60">
+                  Deploying this project will consume one available KORAX
+                  project slot.
+                </p>
+              </SectionCard>
+
+              <div className="space-y-4">
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={deployAIProject}
+                    disabled={deployingProject || access.availableSlots <= 0}
+                    className="rounded-2xl bg-[#7CFF6A] px-5 py-3 font-black text-black transition hover:bg-[#a6ff90] disabled:opacity-50"
+                  >
+                    {deployingProject
+                      ? "Deploying Project... please wait"
+                      : "Deploy AI Project On-chain"}
+                  </button>
 
                   <button
                     type="button"
-                    onClick={() => copyToClipboard(selectedFileData.content)}
-                    className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
+                    onClick={() => setShowCreationStep(false)}
+                    className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-semibold text-white"
                   >
-                    Copy File
+                    Back
                   </button>
                 </div>
 
-                <pre className="max-h-[360px] overflow-auto p-4 text-xs leading-relaxed text-white/75 md:max-h-[560px]">
-                  <code>{selectedFileData.content}</code>
-                </pre>
-              </div>
-            ) : null}
-          </SectionBox>
-
-          <SectionBox id="github-publish" title="Publish to GitHub">
-            <p className="mt-3 text-sm leading-relaxed text-white/70">
-              Connect the user's GitHub account and publish the generated
-              website files into a new repository owned by that connected user.
-            </p>
-
-            <div className="mt-5 rounded-2xl border border-white/10 bg-black/25 p-4">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.24em] text-white/40">
-                    GitHub Connection
-                  </p>
-
-                  <h3 className="mt-2 text-lg font-bold text-white">
-                    Publish to the connected user's GitHub account
-                  </h3>
-
-                  <p className="mt-2 text-sm leading-relaxed text-white/60">
-                    KORAX will publish to the GitHub account connected in this
-                    browser. It will not publish to KORAX unless the connected
-                    account is the KORAX account.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={connectGitHub}
-                  className="rounded-xl border border-[#7CFF6A]/30 bg-[#7CFF6A]/10 px-5 py-3 font-bold text-[#c4ffbc] transition hover:bg-[#7CFF6A]/20"
-                >
-                  {githubConnected ? "Reconnect GitHub" : "Connect GitHub"}
-                </button>
-              </div>
-
-              <div className="mt-4">
-                {checkingGithub ? (
-                  <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/65">
-                    Checking GitHub connection...
+                {deployError ? (
+                  <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                    {deployError}
                   </div>
-                ) : githubConnected ? (
-                  <div className="rounded-xl border border-[#7CFF6A]/25 bg-[#7CFF6A]/10 px-4 py-3 text-sm text-[#c4ffbc]">
-                    <div className="font-bold">
-                      GitHub connected successfully.
+                ) : null}
+
+                {deployResult ? (
+                  <div className="rounded-2xl border border-[#7CFF6A]/20 bg-black/35 p-5">
+                    <div className="text-lg font-black text-[#c4ffbc]">
+                      Project deployed successfully
                     </div>
 
-                    <div className="mt-1 text-white/75">
-                      Connected as:{" "}
-                      {githubProfileUrl ? (
-                        <a
-                          href={githubProfileUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-bold text-[#7CFF6A] underline underline-offset-4"
-                        >
-                          {githubLogin || "GitHub user"}
-                        </a>
-                      ) : (
-                        <span className="font-bold text-[#7CFF6A]">
-                          {githubLogin || "GitHub user"}
+                    <div className="mt-4 grid gap-3 text-sm text-white/75">
+                      <div>
+                        <span className="text-white/45">Project ID:</span>{" "}
+                        <span className="font-semibold text-white">
+                          {deployResult.projectId}
                         </span>
-                      )}
+                      </div>
+
+                      <div>
+                        <span className="text-white/45">Token:</span>{" "}
+                        <span className="break-all font-semibold text-white">
+                          {deployResult.token}
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-white/45">Vault:</span>{" "}
+                        <span className="break-all font-semibold text-white">
+                          {deployResult.vault}
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-white/45">Staking:</span>{" "}
+                        <span className="break-all font-semibold text-white">
+                          {deployResult.staking === ethers.ZeroAddress
+                            ? "Not deployed"
+                            : deployResult.staking}
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-white/45">Transaction:</span>{" "}
+                        <span className="break-all font-semibold text-white">
+                          {deployResult.txHash}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 flex flex-wrap gap-3">
+                      <button
+                        type="button"
+                        onClick={downloadCryptoProjectPackage}
+                        className="rounded-xl border border-white/10 bg-white/5 px-5 py-3 font-bold text-white transition hover:bg-white/10"
+                      >
+                        Download Crypto Project Package
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={continueToWebsiteBuilder}
+                        className="rounded-xl bg-[#7CFF6A] px-5 py-3 font-bold text-black transition hover:bg-[#a6ff90]"
+                      >
+                        Continue to Website Builder AI
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          saveProjectForWebsiteBuilder(deployResult);
+                          router.push(WEBSITE_BUILDER_ROUTE);
+                        }}
+                        className="rounded-xl border border-[#7CFF6A]/30 bg-[#7CFF6A]/10 px-5 py-3 font-bold text-[#c4ffbc] transition hover:bg-[#7CFF6A]/20"
+                      >
+                        Reload Data & Continue
+                      </button>
                     </div>
                   </div>
-                ) : (
-                  <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/60">
-                    GitHub is not connected yet.
-                  </div>
-                )}
+                ) : null}
               </div>
-            </div>
+            </section>
+          ) : null}
 
-            <div className="mt-5 grid gap-4">
-              <input
-                value={githubRepoName}
-                onChange={(e) => setGithubRepoName(e.target.value)}
-                placeholder="Repository name, example: my-web3-project"
-                className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
-              />
+          <div className="grid gap-6 lg:grid-cols-3">
+            <InfoCard label="Project Verdict" value={result.projectVerdict} />
+            <InfoCard label="Originality Score" value={result.originalityScore} />
+            <InfoCard
+              label="Utility Strength Score"
+              value={result.utilityStrengthScore}
+            />
+          </div>
 
-              <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white/80">
-                <input
-                  type="checkbox"
-                  checked={githubPrivateRepo}
-                  onChange={(e) => setGithubPrivateRepo(e.target.checked)}
-                />
-                Create private repository
-              </label>
+          <InfoCard label="Market Fit Score" value={result.marketFitScore} />
 
-              <button
-                type="button"
-                onClick={publishToGitHub}
-                disabled={publishingGithub || !githubConnected}
-                className="rounded-xl bg-[#7CFF6A] px-5 py-3 font-bold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {publishingGithub
-                  ? "Publishing... please wait"
-                  : githubConnected
-                  ? "Publish to GitHub"
-                  : "Connect GitHub First"}
-              </button>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <SectionCard title="Project Summary">
+              <p className="mt-3 leading-7 text-white/70">
+                {result.projectSummary}
+              </p>
 
-              {githubStatus ? (
-                <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80">
-                  {githubRepoUrl ? (
-                    <a
-                      href={githubRepoUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[#c4ffbc] hover:text-white"
-                    >
-                      {githubStatus}
-                    </a>
-                  ) : (
-                    githubStatus
-                  )}
+              <h3 className="mt-6 text-lg font-black text-white">Brand Angle</h3>
+              <p className="mt-3 leading-7 text-white/70">
+                {result.brandAngle}
+              </p>
+
+              <h3 className="mt-6 text-lg font-black text-white">Pitch</h3>
+              <p className="mt-3 leading-7 text-white/70">{result.pitch}</p>
+            </SectionCard>
+
+            <SectionCard title="Core Utility">
+              <ul className="mt-3 space-y-2 text-white/70">
+                {result.coreUtility.map((item, idx) => (
+                  <li key={idx}>• {item}</li>
+                ))}
+              </ul>
+
+              <h3 className="mt-6 text-lg font-black text-white">
+                Differentiation
+              </h3>
+              <ul className="mt-3 space-y-2 text-white/70">
+                {result.differentiation.map((item, idx) => (
+                  <li key={idx}>• {item}</li>
+                ))}
+              </ul>
+            </SectionCard>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <SectionCard title="Tokenomics Preview">
+              <div className="mt-4 space-y-3 text-sm text-white/70">
+                <div>
+                  <span className="font-black text-white">Supply:</span>{" "}
+                  {result.tokenomicsPreview.totalSupplySuggestion}
                 </div>
-              ) : null}
-            </div>
-          </SectionBox>
-
-          <SectionBox title="Deploy to Vercel">
-            <p className="mt-3 text-sm leading-relaxed text-white/70">
-              After publishing the generated website to GitHub, deploy it to the
-              user's own Vercel account using a Vercel token. If the user's
-              Vercel account is on the Free/Hobby plan, the deployment will use
-              that account plan.
-            </p>
-
-            <div className="mt-5 grid gap-4">
-              {githubRepoUrl ? (
-                <div className="rounded-2xl border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 p-4 text-sm leading-relaxed text-white/75">
-                  GitHub repository is ready:
-                  <div className="mt-3 break-all font-semibold text-[#c4ffbc]">
-                    {githubRepoUrl}
-                  </div>
+                <div>
+                  <span className="font-black text-white">Launchpad:</span>{" "}
+                  {result.tokenomicsPreview.presaleAllocationSuggestion}
                 </div>
-              ) : (
-                <div className="rounded-2xl border border-white/10 bg-black/25 p-4 text-sm leading-relaxed text-white/60">
-                  First publish the generated website to GitHub. Then you can
-                  deploy it to Vercel.
+                <div>
+                  <span className="font-black text-white">Staking:</span>{" "}
+                  {result.tokenomicsPreview.stakingAllocationSuggestion}
                 </div>
-              )}
-
-              <input
-                type="password"
-                value={vercelToken}
-                onChange={(e) => setVercelToken(e.target.value)}
-                placeholder="Vercel Token"
-                className="rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-[#7CFF6A]/40"
-              />
-
-              <button
-                type="button"
-                onClick={deployToVercelWithApi}
-                disabled={deployingVercel || !githubRepoUrl}
-                className="rounded-xl bg-[#7CFF6A] px-5 py-3 font-bold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {deployingVercel ? "Deploying to Vercel..." : "Deploy to Vercel"}
-              </button>
-
-              <button
-                type="button"
-                onClick={openVercelImport}
-                className="rounded-xl border border-white/10 bg-white/5 px-5 py-3 font-bold text-white transition hover:bg-white/10"
-              >
-                Open Vercel Import Manually
-              </button>
-
-              {vercelStatus ? (
-                <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80">
-                  {vercelDeploymentUrl ? (
-                    <a
-                      href={vercelDeploymentUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[#c4ffbc] hover:text-white"
-                    >
-                      {vercelStatus}
-                    </a>
-                  ) : (
-                    vercelStatus
-                  )}
+                <div>
+                  <span className="font-black text-white">Treasury:</span>{" "}
+                  {result.tokenomicsPreview.treasuryAllocationSuggestion}
                 </div>
-              ) : null}
-
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-xs leading-relaxed text-white/55">
-                The Vercel token is used only to create and deploy this
-                generated website to the user's own Vercel account. For this
-                version, users can generate a token from Vercel Account
-                Settings. Later, KORAX can add full Vercel OAuth for one-click
-                deployment.
+                <div>
+                  <span className="font-black text-white">Liquidity:</span>{" "}
+                  {result.tokenomicsPreview.liquidityAllocationSuggestion}
+                </div>
+                <div>
+                  <span className="font-black text-white">Notes:</span>{" "}
+                  {result.tokenomicsPreview.notes}
+                </div>
               </div>
+            </SectionCard>
+
+            <SectionCard title="Launch Plan">
+              <div className="mt-4 space-y-3 text-sm text-white/70">
+                <div>
+                  <span className="font-black text-white">
+                    Launch Recommended:
+                  </span>{" "}
+                  {result.launchPlan.presaleRecommended}
+                </div>
+                <div>
+                  <span className="font-black text-white">
+                    Suggested Stages:
+                  </span>{" "}
+                  {result.launchPlan.suggestedStageCount}
+                </div>
+                <div>
+                  <span className="font-black text-white">Funding Logic:</span>{" "}
+                  {result.launchPlan.fundingLogic}
+                </div>
+                <div>
+                  <span className="font-black text-white">Launch Notes:</span>{" "}
+                  {result.launchPlan.launchNotes}
+                </div>
+              </div>
+            </SectionCard>
+          </div>
+
+          <SectionCard title="Roadmap">
+            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {result.roadmap.map((step, idx) => (
+                <div
+                  key={idx}
+                  className="rounded-2xl border border-white/10 bg-black/25 p-4 text-sm leading-7 text-white/70"
+                >
+                  <div className="mb-2 font-black text-white">
+                    Phase {idx + 1}
+                  </div>
+                  {step}
+                </div>
+              ))}
             </div>
-          </SectionBox>
+          </SectionCard>
 
-          <section className="rounded-[26px] border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 p-5 md:rounded-[30px] md:p-6">
-            <h2 className="text-xl font-bold text-[#c4ffbc]">
-              KORAX Publishing Note
-            </h2>
+          <div className="grid gap-6 lg:grid-cols-3">
+            <SectionCard title="Weak Points">
+              <ul className="mt-3 space-y-2 text-white/70">
+                {result.weakPoints.map((item, idx) => (
+                  <li key={idx}>• {item}</li>
+                ))}
+              </ul>
+            </SectionCard>
 
-            <p className="mt-3 text-sm leading-relaxed text-white/75">
-              {result.koraxPublishingNote}
-            </p>
+            <SectionCard title="Risks">
+              <ul className="mt-3 space-y-2 text-white/70">
+                {result.risks.map((item, idx) => (
+                  <li key={idx}>• {item}</li>
+                ))}
+              </ul>
+            </SectionCard>
 
-            <div className="mt-5 rounded-2xl border border-white/10 bg-black/25 p-4 text-sm text-white/65">
-              Next planned steps: Vercel deployment, domain connection, and
-              managed publishing options.
+            <SectionCard title="Improvement Actions">
+              <ul className="mt-3 space-y-2 text-white/70">
+                {result.improvementActions.map((item, idx) => (
+                  <li key={idx}>• {item}</li>
+                ))}
+              </ul>
+            </SectionCard>
+          </div>
+
+          <section className="relative overflow-hidden rounded-[30px] border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 p-5 md:p-6">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(124,255,106,0.10),transparent_36%)]" />
+
+            <div className="relative">
+              <h3 className="text-2xl font-black text-[#c4ffbc]">
+                Next Step with KORAX
+              </h3>
+              <p className="mt-3 text-sm leading-7 text-white/75">
+                {result.koraxConversionNote}
+              </p>
             </div>
           </section>
         </section>
