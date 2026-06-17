@@ -59,16 +59,44 @@ export const accessManagerAbi = [
   "event LaunchLevelsUpdated(uint256 level1Amount,uint256 level2Amount,uint256 level3Amount)",
 ];
 
-export const projectFactoryAbi = [
-  "function availableProjectSlots(address user) view returns (uint256)",
-  "function projectsUsedByOwner(address user) view returns (uint256)",
-  "function registerExistingProject((string name,string symbol,address token,address presale,address staking,address vault,string metadataURI) cfg) returns (uint256 projectId)",
-];
-
 export const projectRegistryAbi = [
+  "function owner() view returns (address)",
+  "function nextProjectId() view returns (uint256)",
+
+  "function authorizedFactories(address factory) view returns (bool)",
+  "function ownerProjects(address owner,uint256 index) view returns (uint256)",
+  "function projects(uint256 projectId) view returns (uint256 id,address owner,string name,string symbol,address token,address presale,address staking,address vault,string metadataURI,uint256 createdAt,bool active)",
+
   "function getOwnerProjects(address owner) view returns (uint256[] memory)",
   "function getProject(uint256 projectId) view returns (tuple(uint256 id,address owner,string name,string symbol,address token,address presale,address staking,address vault,string metadataURI,uint256 createdAt,bool active))",
+
   "function setFactoryAuthorization(address factory,bool authorized)",
+
+  "event FactoryAuthorized(address indexed factory,bool authorized)",
+  "event ProjectRegistered(uint256 indexed projectId,address indexed owner,string name,string symbol,address token,address presale,address staking,address vault,string metadataURI)",
+];
+
+export const projectFactoryAbi = [
+  "function owner() view returns (address)",
+
+  "function accessManager() view returns (address)",
+  "function registry() view returns (address)",
+
+  "function MAX_NAME_LENGTH() view returns (uint256)",
+  "function MAX_SYMBOL_LENGTH() view returns (uint256)",
+  "function MAX_METADATA_LENGTH() view returns (uint256)",
+
+  "function projectsUsedByOwner(address user) view returns (uint256)",
+  "function availableProjectSlots(address user) view returns (uint256)",
+
+  "function registerExistingProject((string name,string symbol,address token,address presale,address staking,address vault,string metadataURI) cfg) returns (uint256 projectId)",
+
+  "function setAccessManager(address newAccessManager)",
+  "function setRegistry(address newRegistry)",
+
+  "event AccessManagerUpdated(address indexed oldAccessManager,address indexed newAccessManager)",
+  "event RegistryUpdated(address indexed oldRegistry,address indexed newRegistry)",
+  "event ExistingProjectRegistered(uint256 indexed projectId,address indexed owner,string name,string symbol,address token,address presale,address staking,address vault)",
 ];
 
 export const aiDeployerAbi = [
@@ -216,9 +244,11 @@ export const aiVaultAbi = [
   "function staking() view returns (address)",
   "function reservedForStaking() view returns (uint256)",
   "function availableForOwnerWithdraw() view returns (uint256)",
+
   "function setStaking(address staking_)",
   "function pullForStaking(address to,uint256 amount)",
   "function ownerWithdraw(address to,uint256 amount)",
+
   "function owner() view returns (address)",
 
   "event StakingSet(address indexed staking)",
@@ -239,4 +269,18 @@ export const erc20Abi = [
 
 export function getRpcProvider() {
   return new ethers.JsonRpcProvider(RPC_URL);
+}
+
+export function hasAddress(value: string) {
+  return Boolean(value && ethers.isAddress(value));
+}
+
+export function getExplorerAddressUrl(address: string) {
+  if (!hasAddress(address)) return "";
+  return `https://bscscan.com/address/${address}`;
+}
+
+export function getExplorerTxUrl(txHash: string) {
+  if (!txHash) return "";
+  return `https://bscscan.com/tx/${txHash}`;
 }

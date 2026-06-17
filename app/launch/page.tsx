@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ethers } from "ethers";
 import { useAccount, useWalletClient } from "wagmi";
 import {
@@ -75,6 +75,23 @@ type LoadedSale = {
   stages: LoadedStage[];
 };
 
+type PublicProject = {
+  id: string;
+  owner: string;
+  name: string;
+  symbol: string;
+  token: string;
+  presale: string;
+  staking: string;
+  vault: string;
+  metadataURI: string;
+  createdAt: string;
+  createdAtUnix: string;
+  active: boolean;
+  slug: string;
+  launchUrl: string;
+};
+
 type LoadedBuilderProject = {
   projectName?: string;
   symbol?: string;
@@ -143,9 +160,162 @@ function readLastBuilderProject(): LoadedBuilderProject | null {
   }
 }
 
+function SectionBox({
+  title,
+  eyebrow,
+  children,
+  right,
+}: {
+  title: string;
+  eyebrow?: string;
+  children: ReactNode;
+  right?: ReactNode;
+}) {
+  return (
+    <section className="relative overflow-hidden rounded-[30px] border border-white/10 bg-black/25 p-5 shadow-[0_25px_90px_rgba(0,0,0,0.42)] backdrop-blur-md md:p-6">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(124,255,106,0.08),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(30,90,180,0.12),transparent_34%)]" />
+
+      <div className="relative">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div>
+            {eyebrow ? (
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-[#c4ffbc]">
+                {eyebrow}
+              </p>
+            ) : null}
+
+            <h2 className="mt-2 text-2xl font-black text-white">{title}</h2>
+          </div>
+
+          {right}
+        </div>
+
+        {children}
+      </div>
+    </section>
+  );
+}
+
+function StatusPill({
+  active,
+  children,
+}: {
+  active?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <span
+      className={[
+        "inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-[0.16em]",
+        active
+          ? "border-[#7CFF6A]/25 bg-[#7CFF6A]/12 text-[#c4ffbc]"
+          : "border-white/10 bg-white/[0.04] text-white/48",
+      ].join(" ")}
+    >
+      {children}
+    </span>
+  );
+}
+
+function InfoCard({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
+      <div className="text-xs text-white/45">{label}</div>
+      <div className="mt-2 break-all text-sm font-semibold text-white">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function ProjectIconCard({
+  project,
+  active,
+}: {
+  project: PublicProject;
+  active?: boolean;
+}) {
+  const firstLetter = (project.name || "K").slice(0, 1).toUpperCase();
+
+  return (
+    <a
+      href={project.launchUrl}
+      className={[
+        "group relative block overflow-hidden rounded-[34px] border p-5 transition hover:-translate-y-1 hover:shadow-[0_28px_90px_rgba(124,255,106,0.18)]",
+        active
+          ? "border-[#7CFF6A]/35 bg-[#7CFF6A]/12"
+          : "border-white/10 bg-black/35",
+      ].join(" ")}
+    >
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(124,255,106,0.16),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(30,90,180,0.22),transparent_35%)]" />
+
+      <div className="relative">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex h-24 w-24 items-center justify-center rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(15,24,46,0.98),rgba(4,8,18,0.99))] text-5xl font-black text-white shadow-[0_0_42px_rgba(124,255,106,0.13)] transition group-hover:scale-[1.03]">
+            {firstLetter}
+          </div>
+
+          <StatusPill active={project.active}>
+            {project.active ? "Live" : "Inactive"}
+          </StatusPill>
+        </div>
+
+        <h3 className="mt-5 line-clamp-2 text-2xl font-black text-white">
+          {project.name}
+        </h3>
+
+        <div className="mt-2 text-sm font-black uppercase tracking-[0.22em] text-[#c4ffbc]">
+          {project.symbol}
+        </div>
+
+        <p className="mt-4 line-clamp-3 text-sm leading-7 text-white/60">
+          Registered on KORAX Project Registry and ready to be connected with
+          Launchpad sale setup.
+        </p>
+
+        <div className="mt-5 grid gap-3">
+          <InfoCard label="Launch Link" value={project.launchUrl} />
+          <InfoCard
+            label="Token"
+            value={project.token ? shortAddress(project.token) : "Not available"}
+          />
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 px-4 py-3 text-center text-sm font-black text-[#c4ffbc]">
+          Open Project Launch Page
+        </div>
+      </div>
+    </a>
+  );
+}
+
 export default function LaunchPage() {
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
+
+  const [publicProjects, setPublicProjects] = useState<PublicProject[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
+  const [projectsError, setProjectsError] = useState("");
+  const [activeProjectSlug, setActiveProjectSlug] = useState("");
+
+  const activeProject = useMemo(() => {
+    if (!publicProjects.length) return null;
+
+    if (activeProjectSlug) {
+      return (
+        publicProjects.find((item) => item.slug === activeProjectSlug) ||
+        publicProjects[0]
+      );
+    }
+
+    return publicProjects[0];
+  }, [publicProjects, activeProjectSlug]);
 
   const [loadedBuilderProject, setLoadedBuilderProject] =
     useState<LoadedBuilderProject | null>(null);
@@ -183,19 +353,6 @@ export default function LaunchPage() {
     requireKoraxAccess: true,
   });
 
-  useEffect(() => {
-    const project = readLastBuilderProject();
-
-    if (!project) return;
-
-    setLoadedBuilderProject(project);
-
-    setCreatorForm((prev) => ({
-      ...prev,
-      saleToken: project.tokenAddress || prev.saleToken,
-    }));
-  }, []);
-
   const [adminForm, setAdminForm] = useState({
     saleId: "0",
     creatorAddress: "",
@@ -231,6 +388,59 @@ export default function LaunchPage() {
   const [loadingSale, setLoadingSale] = useState(false);
   const [buying, setBuying] = useState(false);
   const [claiming, setClaiming] = useState(false);
+
+  async function loadPublicProjects() {
+    setProjectsLoading(true);
+    setProjectsError("");
+
+    try {
+      const res = await fetch("/api/public-projects?limit=50", {
+        cache: "no-store",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data?.ok) {
+        throw new Error(data?.error || "Failed to load public projects.");
+      }
+
+      setPublicProjects(Array.isArray(data.projects) ? data.projects : []);
+    } catch (err: any) {
+      setProjectsError(
+        err?.message || "Failed to load public projects from registry."
+      );
+      setPublicProjects([]);
+    } finally {
+      setProjectsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setActiveProjectSlug(params.get("project") || "");
+
+    const project = readLastBuilderProject();
+
+    if (project) {
+      setLoadedBuilderProject(project);
+
+      setCreatorForm((prev) => ({
+        ...prev,
+        saleToken: project.tokenAddress || prev.saleToken,
+      }));
+    }
+
+    loadPublicProjects();
+  }, []);
+
+  useEffect(() => {
+    if (!activeProject?.token) return;
+
+    setCreatorForm((prev) => ({
+      ...prev,
+      saleToken: activeProject.token || prev.saleToken,
+    }));
+  }, [activeProject?.token]);
 
   async function getBrowserSigner() {
     if (!isConnected || !address) {
@@ -333,10 +543,9 @@ export default function LaunchPage() {
         loading: false,
         connected: true,
         wallet: user,
-        eligibleAmount: Number(ethers.formatUnits(eligibleBig, 18)).toLocaleString(
-          "en-US",
-          { maximumFractionDigits: 4 }
-        ),
+        eligibleAmount: Number(
+          ethers.formatUnits(eligibleBig, 18)
+        ).toLocaleString("en-US", { maximumFractionDigits: 4 }),
         launchLevel: Number(launchData.launchLevel),
         totalProjectSlots: Number(accessData.totalProjectSlots),
         hasLaunchAccess: Boolean(hasLaunchAccessRaw),
@@ -373,7 +582,6 @@ export default function LaunchPage() {
     loadAccess(address);
     loadLaunchpadPermissions(address);
   }, [address, isConnected]);
-
   async function createSale() {
     setCreatingSale(true);
     setCreatorStatus("");
@@ -446,6 +654,8 @@ export default function LaunchPage() {
       setCreatorStatus(
         `Launch sale created successfully. Transaction: ${receipt.hash}`
       );
+
+      await loadPublicProjects();
     } catch (err: any) {
       setCreatorStatus(
         err?.shortMessage ||
@@ -760,19 +970,12 @@ export default function LaunchPage() {
         </div>
 
         <div className="mt-4 grid gap-3">
-          <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-            <div className="text-xs text-white/45">Requirement</div>
-            <div className="mt-1 text-lg font-bold text-white">
-              {level.minKrx.toLocaleString("en-US")} KRX
-            </div>
-          </div>
+          <InfoCard
+            label="Requirement"
+            value={`${level.minKrx.toLocaleString("en-US")} KRX`}
+          />
 
-          <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-            <div className="text-xs text-white/45">Max Participation</div>
-            <div className="mt-1 text-lg font-bold text-white">
-              ${level.maxUsd}
-            </div>
-          </div>
+          <InfoCard label="Max Participation" value={`$${level.maxUsd}`} />
         </div>
 
         <p className="mt-4 text-sm leading-relaxed text-white/65">
@@ -846,76 +1049,121 @@ export default function LaunchPage() {
         </div>
       </section>
 
-      {loadedBuilderProject ? (
-        <section className="rounded-[30px] border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 p-6 backdrop-blur-md">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.28em] text-[#c4ffbc]">
-                Project Loaded from KORAX Builder
-              </p>
+      <SectionBox
+        eyebrow="Global Project Registry"
+        title="Public KORAX Launch Projects"
+        right={
+          <button
+            type="button"
+            onClick={loadPublicProjects}
+            disabled={projectsLoading}
+            className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10 disabled:opacity-50"
+          >
+            {projectsLoading ? "Refreshing..." : "Refresh"}
+          </button>
+        }
+      >
+        <p className="mt-3 max-w-3xl text-sm leading-7 text-white/60">
+          Projects registered in the KORAX Project Registry appear here for all
+          visitors. Each project receives a public launch link.
+        </p>
 
-              <h2 className="mt-2 text-2xl font-black text-white">
-                {loadedBuilderProject.projectName || "Loaded Project"}
-                {loadedBuilderProject.symbol ? (
-                  <span className="text-[#c4ffbc]">
-                    {" "}
-                    ({loadedBuilderProject.symbol})
-                  </span>
-                ) : null}
-              </h2>
+        {projectsError ? (
+          <div className="mt-5 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            {projectsError}
+          </div>
+        ) : null}
 
-              <p className="mt-3 max-w-3xl text-sm leading-relaxed text-white/70">
-                {loadedBuilderProject.shortDescription ||
-                  loadedBuilderProject.websiteSummary ||
-                  "This project was loaded from the KORAX builder flow and is ready for launch setup."}
-              </p>
+        {projectsLoading ? (
+          <div className="mt-6 rounded-2xl border border-white/10 bg-black/25 p-5 text-sm text-white/60">
+            Loading public projects from Project Registry...
+          </div>
+        ) : publicProjects.length > 0 ? (
+          <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {publicProjects.map((project) => (
+              <ProjectIconCard
+                key={project.id}
+                project={project}
+                active={activeProject?.slug === project.slug}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="mt-6 rounded-[26px] border border-white/10 bg-black/25 p-6">
+            <div className="text-lg font-black text-white">
+              No public launches yet
             </div>
+            <p className="mt-3 text-sm leading-7 text-white/60">
+              After the first project is registered in the KORAX Project
+              Registry, it will appear here for everyone.
+            </p>
+          </div>
+        )}
+      </SectionBox>
 
-            <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm font-semibold text-white/75">
-              Website:{" "}
-              <span className="text-[#c4ffbc]">
-                {loadedBuilderProject.websiteGenerated
-                  ? "Generated"
-                  : "Not generated"}
-              </span>
-            </div>
+      {activeProject ? (
+        <SectionBox
+          eyebrow="Selected Project"
+          title={`${activeProject.name} (${activeProject.symbol})`}
+          right={<StatusPill active={activeProject.active}>Registry Live</StatusPill>}
+        >
+          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <InfoCard label="Project ID" value={activeProject.id} />
+            <InfoCard label="Owner" value={shortAddress(activeProject.owner)} />
+            <InfoCard label="Token" value={activeProject.token} />
+            <InfoCard
+              label="Created"
+              value={
+                activeProject.createdAt
+                  ? new Date(activeProject.createdAt).toLocaleDateString()
+                  : "Unknown"
+              }
+            />
           </div>
 
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
-            <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-              <div className="text-xs text-white/45">Token Contract</div>
-              <div className="mt-2 break-all text-sm font-semibold text-white">
-                {loadedBuilderProject.tokenAddress || "Not available"}
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-              <div className="text-xs text-white/45">Vault Contract</div>
-              <div className="mt-2 break-all text-sm font-semibold text-white">
-                {loadedBuilderProject.vaultAddress || "Not available"}
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-              <div className="text-xs text-white/45">Staking Contract</div>
-              <div className="mt-2 break-all text-sm font-semibold text-white">
-                {loadedBuilderProject.stakingAddress ||
-                  "Not deployed / disabled"}
-              </div>
-            </div>
+          <div className="mt-5 rounded-2xl border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 p-4 text-sm leading-7 text-white/75">
+            This project token is automatically selected for launch sale setup
+            if your wallet is the Launchpad owner or an approved sale creator.
           </div>
-
-          <div className="mt-5 rounded-2xl border border-white/10 bg-black/25 p-4 text-sm leading-relaxed text-white/70">
-            Next step: configure the launch sale stages, prices, fund receiver,
-            and KORAX access requirement. The sale token field has been filled
-            automatically from the deployed project token.
-          </div>
-        </section>
+        </SectionBox>
       ) : null}
 
-      <section className="rounded-[30px] border border-white/10 bg-black/20 p-6 backdrop-blur-md">
-        <h2 className="text-xl font-bold text-white">Launch Access Levels</h2>
+      {loadedBuilderProject ? (
+        <SectionBox eyebrow="Local Builder Data" title="Last project from your builder flow">
+          <p className="mt-3 max-w-3xl text-sm leading-7 text-white/60">
+            This section is only loaded from your current browser to help you
+            continue your own builder flow. Public projects above come from the
+            on-chain Project Registry.
+          </p>
 
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            <InfoCard
+              label="Project"
+              value={
+                loadedBuilderProject.projectName ||
+                loadedBuilderProject.websiteName ||
+                "Loaded Project"
+              }
+            />
+
+            <InfoCard
+              label="Token"
+              value={loadedBuilderProject.tokenAddress || "Not available"}
+            />
+
+            <InfoCard
+              label="Website"
+              value={
+                loadedBuilderProject.websiteGenerated
+                  ? "Generated"
+                  : "Not generated"
+              }
+            />
+          </div>
+        </SectionBox>
+      ) : null}
+
+      <SectionBox title="Launch Access Levels">
         <p className="mt-2 text-sm leading-relaxed text-white/60">
           Participation limits are based on KRX staking access.
         </p>
@@ -923,7 +1171,7 @@ export default function LaunchPage() {
         <div className="mt-6 grid gap-4 lg:grid-cols-3">
           {LEVELS.map(levelCard)}
         </div>
-      </section>
+      </SectionBox>
 
       <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
         <div className="rounded-[30px] border border-white/10 bg-black/20 p-6 backdrop-blur-md">

@@ -140,7 +140,7 @@ export default function RoadmapPage() {
             </h2>
             <p className="mt-1 text-sm text-white/60">
               A transparent overview of what has been built, what is live, and
-              what is currently under development.
+              what is currently .
             </p>
           </div>
 
