@@ -103,10 +103,10 @@ const freeFeatures = [
 ];
 
 const inputClass =
-  "w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none placeholder:text-white/30 transition focus:border-[#7CFF6A]/45 focus:bg-black/55";
+  "w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none placeholder:text-white/30 transition focus:border-blue-400/45 focus:bg-black/55 focus:shadow-[0_0_28px_rgba(59,130,246,0.12)]";
 
 const selectClass =
-  "w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none transition focus:border-[#7CFF6A]/45 focus:bg-black/55";
+  "w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none transition focus:border-blue-400/45 focus:bg-black/55 focus:shadow-[0_0_28px_rgba(59,130,246,0.12)]";
 
 function formatTokenAmount(raw: bigint) {
   return Number(ethers.formatUnits(raw, 18)).toLocaleString("en-US", {
@@ -163,7 +163,7 @@ function InfoCard({
   value: string | number;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-black/35 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
+    <div className="ai-card-3d rounded-2xl border border-white/10 bg-black/35 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
       <div className="text-[11px] font-black uppercase tracking-[0.2em] text-white/35">
         {label}
       </div>
@@ -187,15 +187,16 @@ function MetricCard({
   return (
     <div
       className={[
-        "rounded-2xl border p-4",
+        "ai-card-3d rounded-2xl border p-4",
         active
-          ? "border-[#7CFF6A]/25 bg-[#7CFF6A]/10"
+          ? "border-blue-400/30 bg-blue-500/10"
           : "border-white/10 bg-black/30",
       ].join(" ")}
     >
       <div className="text-xs font-black uppercase tracking-[0.2em] text-white/35">
         {label}
       </div>
+
       <div className="mt-2 text-lg font-black text-white">{value}</div>
     </div>
   );
@@ -213,7 +214,7 @@ function StatusPill({
       className={[
         "inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-[0.16em]",
         active
-          ? "border-[#7CFF6A]/25 bg-[#7CFF6A]/12 text-[#c4ffbc]"
+          ? "border-blue-400/30 bg-blue-500/10 text-blue-100 shadow-[0_0_22px_rgba(59,130,246,0.14)]"
           : "border-white/10 bg-white/[0.04] text-white/48",
       ].join(" ")}
     >
@@ -234,14 +235,15 @@ function SectionCard({
   right?: ReactNode;
 }) {
   return (
-    <section className="relative overflow-hidden rounded-[30px] border border-white/10 bg-black/30 p-5 shadow-[0_22px_90px_rgba(0,0,0,0.42)] backdrop-blur-xl md:p-6">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(124,255,106,0.08),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(40,120,255,0.10),transparent_36%)]" />
+    <section className="ai-section-card relative overflow-hidden rounded-[34px] border border-white/10 bg-black/30 p-5 shadow-[0_24px_95px_rgba(0,0,0,0.44)] backdrop-blur-xl md:p-6">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.12),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.10),transparent_36%)]" />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.045] [background-image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:42px_42px]" />
 
       <div className="relative">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
             {eyebrow ? (
-              <p className="text-xs font-black uppercase tracking-[0.25em] text-white/35">
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-blue-100">
                 {eyebrow}
               </p>
             ) : null}
@@ -280,9 +282,9 @@ function FlowStep({
   return (
     <div
       className={[
-        "rounded-2xl border p-4 transition",
+        "ai-card-3d rounded-2xl border p-4 transition",
         active
-          ? "border-[#7CFF6A]/25 bg-[#7CFF6A]/10"
+          ? "border-blue-400/30 bg-blue-500/10"
           : "border-white/10 bg-white/[0.035]",
       ].join(" ")}
     >
@@ -290,7 +292,7 @@ function FlowStep({
         <div
           className={[
             "flex h-10 w-10 items-center justify-center rounded-2xl text-xs font-black",
-            active ? "bg-[#7CFF6A] text-black" : "bg-white/10 text-white/55",
+            active ? "bg-blue-500 text-white" : "bg-white/10 text-white/55",
           ].join(" ")}
         >
           {index}
@@ -304,14 +306,36 @@ function FlowStep({
   );
 }
 
+function KoraxMiniBrand() {
+  return (
+    <div className="relative flex flex-col items-center justify-center bg-transparent">
+      <div className="absolute h-32 w-32 rounded-full bg-blue-500/15 blur-3xl" />
+
+      <img
+        src="/Korax-logo.png"
+        alt="KORAX logo"
+        className="ai-mini-logo relative h-20 w-20 bg-transparent object-contain drop-shadow-[0_0_24px_rgba(59,130,246,0.88)]"
+      />
+
+      <img
+        src="/korax-wordmark.png"
+        alt="KORAX wordmark"
+        className="relative mt-2 h-8 w-auto max-w-[170px] bg-transparent object-contain drop-shadow-[0_0_18px_rgba(59,130,246,0.8)]"
+      />
+    </div>
+  );
+}
+
 function AIEngineVisual() {
   return (
-    <div className="relative min-h-[360px] overflow-hidden rounded-[34px] border border-white/10 bg-[#020816] shadow-[0_30px_100px_rgba(0,0,0,0.62)] md:min-h-[500px]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(124,255,106,0.12),transparent_31%),radial-gradient(circle_at_top_right,rgba(30,90,180,0.28),transparent_38%),radial-gradient(circle_at_bottom_left,rgba(80,130,255,0.14),transparent_36%)]" />
+    <div className="ai-engine-shell relative min-h-[390px] overflow-hidden rounded-[38px] border border-white/10 bg-[#020816] shadow-[0_35px_130px_rgba(0,0,0,0.68)] md:min-h-[520px]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.24),transparent_30%),radial-gradient(circle_at_top_right,rgba(14,165,233,0.22),transparent_38%),radial-gradient(circle_at_bottom_left,rgba(96,165,250,0.14),transparent_36%)]" />
 
       <div className="pointer-events-none absolute inset-0 opacity-[0.08] [background-image:linear-gradient(rgba(255,255,255,0.07)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.07)_1px,transparent_1px)] [background-size:28px_28px]" />
 
-      <div className="pointer-events-none absolute left-1/2 top-1/2 h-[330px] w-[330px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#7CFF6A]/10 shadow-[0_0_100px_rgba(124,255,106,0.12)]" />
+      <div className="ai-processor-orbit absolute left-1/2 top-1/2 h-[360px] w-[360px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-blue-400/10 shadow-[0_0_100px_rgba(59,130,246,0.16)]" />
+      <div className="ai-processor-orbit ai-processor-orbit-two absolute left-1/2 top-1/2 h-[285px] w-[285px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan-300/10" />
+      <div className="ai-processor-orbit ai-processor-orbit-three absolute left-1/2 top-1/2 h-[215px] w-[215px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10" />
 
       <div className="edge-pulse edge-left" />
       <div className="edge-pulse edge-right" />
@@ -319,13 +343,13 @@ function AIEngineVisual() {
       <div className="edge-pulse edge-bottom" />
 
       <svg
-        className="absolute inset-0 h-full w-full opacity-75"
+        className="absolute inset-0 h-full w-full opacity-80"
         viewBox="0 0 100 100"
         preserveAspectRatio="none"
       >
         <defs>
-          <filter id="tokenLightPathGlow">
-            <feGaussianBlur stdDeviation="0.35" result="blur" />
+          <filter id="aiLightPathGlow">
+            <feGaussianBlur stdDeviation="0.45" result="blur" />
             <feMerge>
               <feMergeNode in="blur" />
               <feMergeNode in="SourceGraphic" />
@@ -340,15 +364,17 @@ function AIEngineVisual() {
           "M 95 83 C 75 78, 66 64, 50 50",
           "M 50 4 C 49 25, 49 38, 50 50",
           "M 50 96 C 51 75, 51 62, 50 50",
+          "M 14 50 C 27 48, 38 48, 50 50",
+          "M 86 50 C 73 48, 62 48, 50 50",
         ].map((d, i) => (
           <path
             key={i}
             d={d}
             fill="none"
-            stroke="rgba(180,220,255,0.25)"
+            stroke="rgba(147,197,253,0.32)"
             strokeLinecap="round"
             strokeWidth="0.7"
-            filter="url(#tokenLightPathGlow)"
+            filter="url(#aiLightPathGlow)"
           />
         ))}
 
@@ -359,60 +385,67 @@ function AIEngineVisual() {
           { x: 95, y: 83 },
           { x: 50, y: 4 },
           { x: 50, y: 96 },
+          { x: 14, y: 50 },
+          { x: 86, y: 50 },
           { x: 50, y: 50 },
         ].map((node, i) => (
           <circle
             key={i}
             cx={node.x}
             cy={node.y}
-            fill="rgba(255,255,255,0.85)"
-            r={i === 6 ? 2.2 : 1.25}
+            fill={i === 8 ? "rgba(255,255,255,0.95)" : "rgba(147,197,253,0.85)"}
+            r={i === 8 ? 2.4 : 1.15}
           />
         ))}
       </svg>
 
-      <div className="absolute left-1/2 top-[48%] z-10 flex h-[178px] w-[178px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-[42px] border border-white/15 bg-[linear-gradient(180deg,rgba(15,24,46,0.98),rgba(4,8,18,0.99))] shadow-[0_0_65px_rgba(120,180,255,0.22)] ai-core">
-        <div className="absolute inset-[10px] rounded-[32px] border border-[#9fc6ff]/15 shadow-[inset_0_0_32px_rgba(130,180,255,0.12)]" />
-        <div className="absolute inset-[-16px] rounded-[54px] border border-[#7CFF6A]/10 ai-center-ring" />
+      <div className="ai-core absolute left-1/2 top-[48%] z-10 flex h-[188px] w-[188px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-blue-300/20 bg-[radial-gradient(circle_at_50%_28%,rgba(96,165,250,0.22),rgba(4,8,18,0.99)_55%,rgba(2,6,23,1))] shadow-[0_0_78px_rgba(59,130,246,0.34)]">
+        <div className="absolute inset-[11px] rounded-full border border-blue-200/15 shadow-[inset_0_0_42px_rgba(96,165,250,0.15)]" />
+        <div className="ai-center-ring absolute inset-[-18px] rounded-full border border-blue-400/15" />
+        <div className="ai-center-ring-two absolute inset-[-34px] rounded-full border border-cyan-300/10" />
 
         <div className="relative text-center">
           <div
-            className="text-[68px] font-black tracking-[0.12em] text-white"
+            className="text-[72px] font-black tracking-[0.12em] text-white"
             style={{
               textShadow:
-                "0 0 12px rgba(255,255,255,0.78), 0 0 36px rgba(130,180,255,0.34)",
+                "0 0 14px rgba(255,255,255,0.88), 0 0 42px rgba(59,130,246,0.55), 0 0 76px rgba(14,165,233,0.25)",
             }}
           >
             AI
           </div>
 
-          <div className="mt-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-white/65">
-            Token Engine
+          <div className="mt-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-blue-100/80">
+            Neural Core
           </div>
         </div>
       </div>
 
-      <div className="absolute left-[7%] top-[16%] rounded-2xl border border-white/10 bg-black/35 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.35)] ai-float-slow">
-        <div className="text-xs font-black uppercase tracking-[0.22em] text-[#c4ffbc]">
+      <div className="ai-chip-card ai-float-slow absolute left-[6%] top-[14%] rounded-2xl border border-white/10 bg-black/38 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.38)] backdrop-blur-md">
+        <div className="text-xs font-black uppercase tracking-[0.22em] text-blue-100">
           Input
         </div>
+
         <div className="mt-2 text-lg font-black text-white">Idea Scan</div>
+
         <div className="mt-3 h-1.5 w-40 rounded-full bg-white/10">
-          <div className="h-full w-4/5 rounded-full bg-[#7CFF6A]" />
+          <div className="h-full w-4/5 rounded-full bg-blue-400 shadow-[0_0_18px_rgba(59,130,246,0.55)]" />
         </div>
       </div>
 
-      <div className="absolute right-[7%] top-[18%] rounded-2xl border border-white/10 bg-black/35 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.35)] ai-float">
-        <div className="text-xs font-black uppercase tracking-[0.22em] text-blue-200">
+      <div className="ai-chip-card ai-float absolute right-[6%] top-[17%] rounded-2xl border border-white/10 bg-black/38 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.38)] backdrop-blur-md">
+        <div className="text-xs font-black uppercase tracking-[0.22em] text-cyan-100">
           Output
         </div>
+
         <div className="mt-2 text-lg font-black text-white">KRX Deploy</div>
+
         <div className="mt-3 h-1.5 w-40 rounded-full bg-white/10">
-          <div className="h-full w-3/4 rounded-full bg-blue-400" />
+          <div className="h-full w-3/4 rounded-full bg-cyan-300 shadow-[0_0_18px_rgba(34,211,238,0.45)]" />
         </div>
       </div>
 
-      <div className="absolute bottom-5 left-1/2 z-10 w-[88%] -translate-x-1/2 rounded-[26px] border border-white/10 bg-black/38 p-4 shadow-[0_18px_45px_rgba(0,0,0,0.34)]">
+      <div className="absolute bottom-5 left-1/2 z-10 w-[88%] -translate-x-1/2 rounded-[28px] border border-white/10 bg-black/40 p-4 shadow-[0_18px_45px_rgba(0,0,0,0.38)] backdrop-blur-md">
         <div className="grid grid-cols-3 gap-3">
           {["Input", "Reasoning", "Deploy"].map((label, index) => (
             <div
@@ -425,7 +458,7 @@ function AIEngineVisual() {
 
               <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
                 <span
-                  className="block h-full rounded-full bg-[#7CFF6A]"
+                  className="block h-full rounded-full bg-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.45)]"
                   style={{ width: `${62 + index * 12}%` }}
                 />
               </div>
@@ -434,7 +467,7 @@ function AIEngineVisual() {
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         @keyframes edgeLeft {
           0% {
             left: -8%;
@@ -442,15 +475,18 @@ function AIEngineVisual() {
             opacity: 0;
             transform: translateY(-50%) scale(0.7);
           }
+
           16% {
             opacity: 1;
           }
+
           70% {
             left: 50%;
             top: 50%;
-            opacity: 0.85;
+            opacity: 0.9;
             transform: translate(-50%, -50%) scale(1);
           }
+
           100% {
             left: 50%;
             top: 50%;
@@ -466,15 +502,18 @@ function AIEngineVisual() {
             opacity: 0;
             transform: translateY(-50%) scale(0.7);
           }
+
           16% {
             opacity: 1;
           }
+
           70% {
             right: 50%;
             top: 50%;
-            opacity: 0.85;
+            opacity: 0.9;
             transform: translate(50%, -50%) scale(1);
           }
+
           100% {
             right: 50%;
             top: 50%;
@@ -490,15 +529,18 @@ function AIEngineVisual() {
             opacity: 0;
             transform: translateX(-50%) scale(0.7);
           }
+
           16% {
             opacity: 1;
           }
+
           70% {
             left: 50%;
             top: 50%;
-            opacity: 0.85;
+            opacity: 0.9;
             transform: translate(-50%, -50%) scale(1);
           }
+
           100% {
             left: 50%;
             top: 50%;
@@ -514,15 +556,18 @@ function AIEngineVisual() {
             opacity: 0;
             transform: translateX(-50%) scale(0.7);
           }
+
           16% {
             opacity: 1;
           }
+
           70% {
             left: 50%;
             bottom: 50%;
-            opacity: 0.85;
+            opacity: 0.9;
             transform: translate(-50%, 50%) scale(1);
           }
+
           100% {
             left: 50%;
             bottom: 50%;
@@ -535,23 +580,45 @@ function AIEngineVisual() {
           0%,
           100% {
             transform: translate(-50%, -50%) scale(1);
-            box-shadow: 0 0 65px rgba(120, 180, 255, 0.22);
+            box-shadow: 0 0 78px rgba(59, 130, 246, 0.34);
           }
+
           50% {
-            transform: translate(-50%, -51.5%) scale(1.025);
-            box-shadow: 0 0 84px rgba(124, 255, 106, 0.16);
+            transform: translate(-50%, -51.5%) scale(1.028);
+            box-shadow: 0 0 96px rgba(14, 165, 233, 0.34);
           }
         }
 
         @keyframes ringPulse {
           0%,
           100% {
-            opacity: 0.25;
+            opacity: 0.24;
             transform: scale(0.96);
           }
+
           50% {
-            opacity: 0.65;
-            transform: scale(1.04);
+            opacity: 0.7;
+            transform: scale(1.045);
+          }
+        }
+
+        @keyframes ringSpin {
+          0% {
+            transform: translate(-50%, -50%) rotate(0deg);
+          }
+
+          100% {
+            transform: translate(-50%, -50%) rotate(360deg);
+          }
+        }
+
+        @keyframes ringSpinReverse {
+          0% {
+            transform: translate(-50%, -50%) rotate(360deg);
+          }
+
+          100% {
+            transform: translate(-50%, -50%) rotate(0deg);
           }
         }
 
@@ -560,6 +627,7 @@ function AIEngineVisual() {
           100% {
             transform: translateY(0);
           }
+
           50% {
             transform: translateY(-10px);
           }
@@ -570,6 +638,7 @@ function AIEngineVisual() {
           100% {
             transform: translateY(0);
           }
+
           50% {
             transform: translateY(8px);
           }
@@ -581,10 +650,10 @@ function AIEngineVisual() {
           width: 18px;
           height: 18px;
           border-radius: 999px;
-          background: #7cff6a;
+          background: #60a5fa;
           box-shadow:
-            0 0 18px rgba(124, 255, 106, 0.62),
-            0 0 42px rgba(70, 150, 255, 0.28);
+            0 0 18px rgba(96, 165, 250, 0.72),
+            0 0 42px rgba(14, 165, 233, 0.32);
           will-change: transform, opacity, left, right, top, bottom;
         }
 
@@ -616,6 +685,24 @@ function AIEngineVisual() {
           animation: ringPulse 3.6s ease-in-out infinite;
         }
 
+        .ai-center-ring-two {
+          animation: ringPulse 4.4s ease-in-out infinite;
+          animation-delay: 0.45s;
+        }
+
+        .ai-processor-orbit {
+          animation: ringSpin 18s linear infinite;
+          transform-origin: center;
+        }
+
+        .ai-processor-orbit-two {
+          animation: ringSpinReverse 15s linear infinite;
+        }
+
+        .ai-processor-orbit-three {
+          animation: ringSpin 11s linear infinite;
+        }
+
         .ai-float {
           animation: float 6s ease-in-out infinite;
         }
@@ -628,6 +715,10 @@ function AIEngineVisual() {
           .edge-pulse {
             width: 12px;
             height: 12px;
+          }
+
+          .ai-chip-card {
+            display: none;
           }
         }
       `}</style>
@@ -683,7 +774,7 @@ export default function AIPage() {
   const [visualForm, setVisualForm] = useState({
     imageType: "Project Poster",
     visualStyle: "Futuristic Web3",
-    colors: "black, deep blue, neon green, silver",
+    colors: "black, deep blue, electric blue, cyan, silver",
     mood: "premium, futuristic, serious, launch-ready",
   });
 
@@ -757,8 +848,8 @@ export default function AIPage() {
       txHash: deployed.txHash,
 
       websiteStyle: "KORAX Beast v4",
-      primaryColor: "#0B5FFF",
-      secondaryColor: "#7CFF6A",
+      primaryColor: "#2563EB",
+      secondaryColor: "#22D3EE",
       backgroundStyle:
         "Deep dark blue-black futuristic command center with premium Web3 glow",
     };
@@ -1099,6 +1190,7 @@ These contracts were deployed through KORAX Token Builder AI.
 
     loadAccessData(address);
   }, [address, isConnected]);
+
   async function generateDraft() {
     if (loading) return;
 
@@ -1410,28 +1502,147 @@ These contracts were deployed through KORAX Token Builder AI.
 
   return (
     <div className="space-y-8">
-      <section className="relative overflow-hidden rounded-[34px] border border-white/10 bg-black/35 p-5 shadow-[0_30px_120px_rgba(0,0,0,0.55)] backdrop-blur-xl md:p-8">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(124,255,106,0.14),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(30,90,180,0.18),transparent_35%)]" />
-        <div className="pointer-events-none absolute inset-0 opacity-[0.06] [background-image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:52px_52px]" />
+      <style>{`
+        @keyframes aiHeroScan {
+          0% {
+            transform: translateX(-120%);
+            opacity: 0;
+          }
+
+          20% {
+            opacity: 1;
+          }
+
+          80% {
+            opacity: 1;
+          }
+
+          100% {
+            transform: translateX(120%);
+            opacity: 0;
+          }
+        }
+
+        @keyframes aiHeroShimmer {
+          0% {
+            transform: translateX(-120%);
+            opacity: 0;
+          }
+
+          30% {
+            opacity: 1;
+          }
+
+          70% {
+            opacity: 1;
+          }
+
+          100% {
+            transform: translateX(120%);
+            opacity: 0;
+          }
+        }
+
+        @keyframes aiMiniLogoSpin {
+          0% {
+            transform: rotateY(0deg) rotateX(0deg) translateY(0);
+          }
+
+          50% {
+            transform: rotateY(180deg) rotateX(7deg) translateY(-4px);
+          }
+
+          100% {
+            transform: rotateY(360deg) rotateX(0deg) translateY(0);
+          }
+        }
+
+        .ai-hero-3d {
+          transform-style: preserve-3d;
+          perspective: 1200px;
+        }
+
+        .ai-section-card,
+        .ai-card-3d {
+          position: relative;
+          transform-style: preserve-3d;
+          transition:
+            transform 220ms ease,
+            border-color 220ms ease,
+            background 220ms ease,
+            box-shadow 220ms ease;
+        }
+
+        .ai-section-card:hover,
+        .ai-card-3d:hover {
+          border-color: rgba(59, 130, 246, 0.38);
+          box-shadow: 0 32px 100px rgba(59, 130, 246, 0.13);
+        }
+
+        .ai-card-3d:hover {
+          transform: translateY(-6px) rotateX(2deg) rotateY(-2deg);
+          background: rgba(37, 99, 235, 0.075);
+        }
+
+        .ai-hero-scan {
+          animation: aiHeroScan 4.4s ease-in-out infinite;
+        }
+
+        .ai-hero-shimmer {
+          animation: aiHeroShimmer 5.4s ease-in-out infinite;
+        }
+
+        .ai-mini-logo {
+          transform-style: preserve-3d;
+          animation: aiMiniLogoSpin 8s linear infinite;
+          will-change: transform;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .ai-hero-scan,
+          .ai-hero-shimmer,
+          .ai-mini-logo {
+            animation: none;
+          }
+
+          .ai-card-3d:hover {
+            transform: none;
+          }
+        }
+      `}</style>
+
+      <section className="ai-hero-3d relative overflow-hidden rounded-[38px] border border-white/10 bg-black/35 p-5 shadow-[0_35px_130px_rgba(0,0,0,0.62)] backdrop-blur-xl md:p-8">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.24),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.16),transparent_35%)]" />
+        <div className="pointer-events-none absolute inset-0 opacity-[0.075] [background-image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:52px_52px]" />
+        <div className="ai-hero-scan pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-blue-400/10 to-transparent" />
+        <div className="ai-hero-shimmer pointer-events-none absolute left-0 top-0 h-full w-1/4 bg-gradient-to-r from-transparent via-white/5 to-transparent" />
 
         <div className="relative grid gap-8 xl:grid-cols-[1fr_470px] xl:items-center">
           <div className="max-w-5xl">
-            <div className="inline-flex rounded-full border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-[#c4ffbc]">
+            <div className="inline-flex rounded-full border border-blue-400/25 bg-blue-500/10 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-blue-100 shadow-[0_0_30px_rgba(59,130,246,0.16)]">
               KORAX Token Builder AI / Command Mode
             </div>
 
-            <h1 className="mt-6 text-4xl font-black leading-[0.96] tracking-tight text-white sm:text-6xl xl:text-7xl">
-              Turn an idea into a
-              <span className="block text-[#7CFF6A]">
-                serious Web3 launch system.
-              </span>
-            </h1>
+            <div className="mt-6 flex flex-col gap-5 lg:flex-row lg:items-center">
+              <div className="hidden lg:block">
+                <KoraxMiniBrand />
+              </div>
 
-            <p className="mt-6 max-w-3xl text-base leading-8 text-white/68 sm:text-lg">
-              KORAX AI helps builders shape project strategy, tokenomics,
-              staking logic, launch direction, risk analysis, AI visuals, and
-              on-chain deployment through a connected builder workflow.
-            </p>
+              <div>
+                <h1 className="text-4xl font-black leading-[0.96] tracking-tight text-white sm:text-6xl xl:text-7xl">
+                  Turn an idea into a
+                  <span className="block bg-gradient-to-r from-blue-100 via-white to-cyan-200 bg-clip-text text-transparent drop-shadow-[0_0_18px_rgba(59,130,246,0.55)]">
+                    serious Web3 launch system.
+                  </span>
+                </h1>
+
+                <p className="mt-6 max-w-3xl text-base leading-8 text-white/68 sm:text-lg">
+                  KORAX AI helps builders shape project strategy, tokenomics,
+                  staking logic, launch direction, risk analysis, AI visuals,
+                  and on-chain deployment through a connected builder workflow.
+                </p>
+              </div>
+            </div>
 
             <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <StatusPill active>AI Draft</StatusPill>
@@ -1536,12 +1747,13 @@ These contracts were deployed through KORAX Token Builder AI.
               </select>
             </Field>
 
-            <div className="rounded-[26px] border border-white/10 bg-black/25 p-5">
+            <div className="rounded-[28px] border border-white/10 bg-black/25 p-5 shadow-[0_20px_70px_rgba(0,0,0,0.28)]">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <div className="text-sm font-black text-white">
                     Project Intelligence Questions
                   </div>
+
                   <p className="mt-1 text-xs leading-6 text-white/50">
                     Strong answers create stronger AI strategy, tokenomics, and
                     launch direction.
@@ -1606,7 +1818,7 @@ These contracts were deployed through KORAX Token Builder AI.
             <button
               onClick={generateDraft}
               disabled={loading}
-              className="rounded-2xl bg-[#7CFF6A] px-6 py-4 font-black text-black shadow-[0_0_32px_rgba(124,255,106,0.18)] transition hover:scale-[1.01] hover:bg-[#a6ff90] disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-2xl bg-blue-500 px-6 py-4 font-black text-white shadow-[0_0_36px_rgba(59,130,246,0.28)] transition hover:scale-[1.01] hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading
                 ? "Generating AI Draft... please wait"
@@ -1631,14 +1843,16 @@ These contracts were deployed through KORAX Token Builder AI.
               </StatusPill>
             }
           >
-            <div className="mt-4 rounded-2xl border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 p-4 text-sm leading-7 text-white/75">
+            <div className="mt-4 rounded-2xl border border-blue-400/25 bg-blue-500/10 p-4 text-sm leading-7 text-white/75">
               To unlock the KORAX Builder Package, users need to stake{" "}
               <span className="font-black text-white">
                 {access.tokensPerProject} KRX
               </span>{" "}
               on the{" "}
-              <span className="font-black text-white">12-month staking plan</span>.
-              This package unlocks Token Builder AI, Website Builder AI, and
+              <span className="font-black text-white">
+                12-month staking plan
+              </span>
+              . This package unlocks Token Builder AI, Website Builder AI, and
               launch creation tools for one project.
             </div>
 
@@ -1665,20 +1879,25 @@ These contracts were deployed through KORAX Token Builder AI.
                     value={`${access.eligibleAmount} KRX`}
                     active={access.hasAccess}
                   />
+
                   <MetricCard
                     label="Tokens Per Project"
                     value={`${access.tokensPerProject} KRX`}
                   />
+
                   <MetricCard label="Required Plan" value="12 Months" />
+
                   <MetricCard
                     label="Reward BPS"
                     value={access.requiredRewardBps}
                   />
+
                   <MetricCard
                     label="Access Status"
                     value={access.hasAccess ? "Unlocked" : "Locked"}
                     active={access.hasAccess}
                   />
+
                   <MetricCard
                     label="Available Slots"
                     value={access.availableSlots}
@@ -1699,6 +1918,7 @@ These contracts were deployed through KORAX Token Builder AI.
               <div className="text-sm font-black text-white">
                 What the AI checks
               </div>
+
               <ul className="mt-3 space-y-2 text-sm leading-6 text-white/65">
                 {freeFeatures.map((item) => (
                   <li key={item}>• {item}</li>
@@ -1776,7 +1996,7 @@ These contracts were deployed through KORAX Token Builder AI.
                 type="button"
                 onClick={generateVisual}
                 disabled={visualLoading}
-                className="rounded-2xl bg-[#7CFF6A] px-5 py-3 font-black text-black transition hover:bg-[#a6ff90] disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-2xl bg-blue-500 px-5 py-3 font-black text-white shadow-[0_0_30px_rgba(59,130,246,0.24)] transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {visualLoading
                   ? "Generating Visual... please wait"
@@ -1826,13 +2046,13 @@ These contracts were deployed through KORAX Token Builder AI.
                             `korax-ai-visual:${form.projectName.trim()}:${Date.now()}`,
                         }))
                       }
-                      className="rounded-xl border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 px-4 py-2 text-sm font-semibold text-[#c4ffbc] transition hover:bg-[#7CFF6A]/15"
+                      className="rounded-xl border border-blue-400/25 bg-blue-500/10 px-4 py-2 text-sm font-semibold text-blue-100 transition hover:bg-blue-500/15"
                     >
                       Use Visual as Project Reference
                     </button>
                   </div>
 
-                  <div className="mt-3 inline-flex rounded-full border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 px-3 py-1 text-xs font-semibold text-[#c4ffbc]">
+                  <div className="mt-3 inline-flex rounded-full border border-blue-400/25 bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-100">
                     Generated by KORAX AI
                   </div>
 
@@ -1841,6 +2061,7 @@ These contracts were deployed through KORAX Token Builder AI.
                       <summary className="cursor-pointer font-semibold text-white/80">
                         Show Prompt
                       </summary>
+
                       <div className="mt-3 whitespace-pre-wrap leading-relaxed">
                         {visualResult.prompt}
                       </div>
@@ -1852,17 +2073,22 @@ These contracts were deployed through KORAX Token Builder AI.
           </SectionCard>
         </div>
       </section>
-
       {result ? (
         <section className="space-y-6">
-          <SectionCard eyebrow="AI Draft Result" title="Project intelligence generated">
+          <SectionCard
+            eyebrow="AI Draft Result"
+            title="Project intelligence generated"
+          >
             <p className="mt-3 text-sm leading-7 text-white/60">
               This draft was generated by KORAX AI and refined for stronger
               positioning, launch logic, risk analysis, and builder clarity.
             </p>
           </SectionCard>
 
-          <SectionCard eyebrow="Next Step" title="Move from idea to on-chain project">
+          <SectionCard
+            eyebrow="Next Step"
+            title="Move from idea to on-chain project"
+          >
             <div className="mt-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <p className="text-sm leading-7 text-white/60">
                 Your AI draft is ready. You can now deploy the project on-chain
@@ -1873,14 +2099,14 @@ These contracts were deployed through KORAX Token Builder AI.
                 <button
                   type="button"
                   onClick={() => setShowCreationStep((prev) => !prev)}
-                  className="rounded-2xl bg-[#7CFF6A] px-5 py-3 font-black text-black transition hover:bg-[#a6ff90]"
+                  className="rounded-2xl bg-blue-500 px-5 py-3 font-black text-white shadow-[0_0_34px_rgba(59,130,246,0.28)] transition hover:bg-blue-400"
                 >
                   {showCreationStep
                     ? "Hide Project Creation"
                     : "Continue to Project Creation"}
                 </button>
               ) : needsUnlock ? (
-                <div className="rounded-2xl border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 px-4 py-3 text-sm text-white/75">
+                <div className="rounded-2xl border border-blue-400/25 bg-blue-500/10 px-4 py-3 text-sm text-white/75">
                   Unlock the Builder Package with{" "}
                   <span className="font-black text-white">
                     {access.tokensPerProject} KRX
@@ -1892,14 +2118,16 @@ These contracts were deployed through KORAX Token Builder AI.
           </SectionCard>
 
           {showCreationStep && finalProjectPreview ? (
-            <section className="space-y-6 rounded-[30px] border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 p-5 shadow-[0_22px_90px_rgba(0,0,0,0.42)] md:p-6">
+            <section className="space-y-6 rounded-[34px] border border-blue-400/25 bg-blue-500/10 p-5 shadow-[0_26px_100px_rgba(0,0,0,0.48)] backdrop-blur-xl md:p-6">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.28em] text-[#c4ffbc]">
+                <p className="text-xs font-black uppercase tracking-[0.28em] text-blue-100">
                   Project Creation Preview
                 </p>
+
                 <h3 className="mt-2 text-3xl font-black text-white">
                   Review before on-chain deployment
                 </h3>
+
                 <p className="mt-3 text-sm leading-7 text-white/75">
                   This step connects your AI draft to the real KORAX AI Deployer
                   contract.
@@ -2052,6 +2280,7 @@ These contracts were deployed through KORAX Token Builder AI.
                         <div className="font-black text-white">
                           Staking Plans
                         </div>
+
                         <p className="mt-1 text-xs text-white/50">
                           Add from 1 to 10 custom staking plans. Reward BPS:
                           10000 = 100%.
@@ -2062,7 +2291,7 @@ These contracts were deployed through KORAX Token Builder AI.
                         type="button"
                         onClick={addStakingPlan}
                         disabled={stakingPlans.length >= 10}
-                        className="rounded-xl border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 px-4 py-2 text-sm font-semibold text-[#c4ffbc] disabled:opacity-50"
+                        className="rounded-xl border border-blue-400/25 bg-blue-500/10 px-4 py-2 text-sm font-semibold text-blue-100 transition hover:bg-blue-500/15 disabled:opacity-50"
                       >
                         Add Plan
                       </button>
@@ -2089,7 +2318,11 @@ These contracts were deployed through KORAX Token Builder AI.
                         <input
                           value={plan.rewardBps}
                           onChange={(e) =>
-                            updateStakingPlan(index, "rewardBps", e.target.value)
+                            updateStakingPlan(
+                              index,
+                              "rewardBps",
+                              e.target.value
+                            )
                           }
                           placeholder="Reward BPS"
                           className={inputClass}
@@ -2099,7 +2332,7 @@ These contracts were deployed through KORAX Token Builder AI.
                           type="button"
                           onClick={() => removeStakingPlan(index)}
                           disabled={stakingPlans.length <= 1}
-                          className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-100 disabled:opacity-50"
+                          className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-100 transition hover:bg-red-500/15 disabled:opacity-50"
                         >
                           Remove
                         </button>
@@ -2136,6 +2369,7 @@ These contracts were deployed through KORAX Token Builder AI.
                     {access.availableSlots}
                   </span>
                 </p>
+
                 <p className="mt-2 text-sm leading-7 text-white/60">
                   Deploying this project will consume one available KORAX
                   project slot.
@@ -2148,7 +2382,7 @@ These contracts were deployed through KORAX Token Builder AI.
                     type="button"
                     onClick={deployAIProject}
                     disabled={deployingProject || access.availableSlots <= 0}
-                    className="rounded-2xl bg-[#7CFF6A] px-5 py-3 font-black text-black transition hover:bg-[#a6ff90] disabled:opacity-50"
+                    className="rounded-2xl bg-blue-500 px-5 py-3 font-black text-white shadow-[0_0_34px_rgba(59,130,246,0.28)] transition hover:bg-blue-400 disabled:opacity-50"
                   >
                     {deployingProject
                       ? "Deploying Project... please wait"
@@ -2158,7 +2392,7 @@ These contracts were deployed through KORAX Token Builder AI.
                   <button
                     type="button"
                     onClick={() => setShowCreationStep(false)}
-                    className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-semibold text-white"
+                    className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-semibold text-white transition hover:bg-white/10"
                   >
                     Back
                   </button>
@@ -2171,8 +2405,8 @@ These contracts were deployed through KORAX Token Builder AI.
                 ) : null}
 
                 {deployResult ? (
-                  <div className="rounded-2xl border border-[#7CFF6A]/20 bg-black/35 p-5">
-                    <div className="text-lg font-black text-[#c4ffbc]">
+                  <div className="rounded-2xl border border-blue-400/25 bg-black/35 p-5 shadow-[0_0_40px_rgba(59,130,246,0.10)]">
+                    <div className="text-lg font-black text-blue-100">
                       Project deployed successfully
                     </div>
 
@@ -2227,7 +2461,7 @@ These contracts were deployed through KORAX Token Builder AI.
                       <button
                         type="button"
                         onClick={continueToWebsiteBuilder}
-                        className="rounded-xl bg-[#7CFF6A] px-5 py-3 font-bold text-black transition hover:bg-[#a6ff90]"
+                        className="rounded-xl bg-blue-500 px-5 py-3 font-bold text-white shadow-[0_0_28px_rgba(59,130,246,0.22)] transition hover:bg-blue-400"
                       >
                         Continue to Website Builder AI
                       </button>
@@ -2238,7 +2472,7 @@ These contracts were deployed through KORAX Token Builder AI.
                           saveProjectForWebsiteBuilder(deployResult);
                           router.push(WEBSITE_BUILDER_ROUTE);
                         }}
-                        className="rounded-xl border border-[#7CFF6A]/30 bg-[#7CFF6A]/10 px-5 py-3 font-bold text-[#c4ffbc] transition hover:bg-[#7CFF6A]/20"
+                        className="rounded-xl border border-blue-400/30 bg-blue-500/10 px-5 py-3 font-bold text-blue-100 transition hover:bg-blue-500/20"
                       >
                         Reload Data & Continue
                       </button>
@@ -2251,7 +2485,12 @@ These contracts were deployed through KORAX Token Builder AI.
 
           <div className="grid gap-6 lg:grid-cols-3">
             <InfoCard label="Project Verdict" value={result.projectVerdict} />
-            <InfoCard label="Originality Score" value={result.originalityScore} />
+
+            <InfoCard
+              label="Originality Score"
+              value={result.originalityScore}
+            />
+
             <InfoCard
               label="Utility Strength Score"
               value={result.utilityStrengthScore}
@@ -2266,12 +2505,16 @@ These contracts were deployed through KORAX Token Builder AI.
                 {result.projectSummary}
               </p>
 
-              <h3 className="mt-6 text-lg font-black text-white">Brand Angle</h3>
+              <h3 className="mt-6 text-lg font-black text-white">
+                Brand Angle
+              </h3>
+
               <p className="mt-3 leading-7 text-white/70">
                 {result.brandAngle}
               </p>
 
               <h3 className="mt-6 text-lg font-black text-white">Pitch</h3>
+
               <p className="mt-3 leading-7 text-white/70">{result.pitch}</p>
             </SectionCard>
 
@@ -2285,6 +2528,7 @@ These contracts were deployed through KORAX Token Builder AI.
               <h3 className="mt-6 text-lg font-black text-white">
                 Differentiation
               </h3>
+
               <ul className="mt-3 space-y-2 text-white/70">
                 {result.differentiation.map((item, idx) => (
                   <li key={idx}>• {item}</li>
@@ -2300,22 +2544,27 @@ These contracts were deployed through KORAX Token Builder AI.
                   <span className="font-black text-white">Supply:</span>{" "}
                   {result.tokenomicsPreview.totalSupplySuggestion}
                 </div>
+
                 <div>
                   <span className="font-black text-white">Launchpad:</span>{" "}
                   {result.tokenomicsPreview.presaleAllocationSuggestion}
                 </div>
+
                 <div>
                   <span className="font-black text-white">Staking:</span>{" "}
                   {result.tokenomicsPreview.stakingAllocationSuggestion}
                 </div>
+
                 <div>
                   <span className="font-black text-white">Treasury:</span>{" "}
                   {result.tokenomicsPreview.treasuryAllocationSuggestion}
                 </div>
+
                 <div>
                   <span className="font-black text-white">Liquidity:</span>{" "}
                   {result.tokenomicsPreview.liquidityAllocationSuggestion}
                 </div>
+
                 <div>
                   <span className="font-black text-white">Notes:</span>{" "}
                   {result.tokenomicsPreview.notes}
@@ -2331,16 +2580,19 @@ These contracts were deployed through KORAX Token Builder AI.
                   </span>{" "}
                   {result.launchPlan.presaleRecommended}
                 </div>
+
                 <div>
                   <span className="font-black text-white">
                     Suggested Stages:
                   </span>{" "}
                   {result.launchPlan.suggestedStageCount}
                 </div>
+
                 <div>
                   <span className="font-black text-white">Funding Logic:</span>{" "}
                   {result.launchPlan.fundingLogic}
                 </div>
+
                 <div>
                   <span className="font-black text-white">Launch Notes:</span>{" "}
                   {result.launchPlan.launchNotes}
@@ -2354,11 +2606,12 @@ These contracts were deployed through KORAX Token Builder AI.
               {result.roadmap.map((step, idx) => (
                 <div
                   key={idx}
-                  className="rounded-2xl border border-white/10 bg-black/25 p-4 text-sm leading-7 text-white/70"
+                  className="ai-card-3d rounded-2xl border border-white/10 bg-black/25 p-4 text-sm leading-7 text-white/70"
                 >
                   <div className="mb-2 font-black text-white">
                     Phase {idx + 1}
                   </div>
+
                   {step}
                 </div>
               ))}
@@ -2391,16 +2644,23 @@ These contracts were deployed through KORAX Token Builder AI.
             </SectionCard>
           </div>
 
-          <section className="relative overflow-hidden rounded-[30px] border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 p-5 md:p-6">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(124,255,106,0.10),transparent_36%)]" />
+          <section className="relative overflow-hidden rounded-[34px] border border-blue-400/25 bg-blue-500/10 p-5 shadow-[0_24px_95px_rgba(0,0,0,0.44)] backdrop-blur-xl md:p-6">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.14),transparent_36%),radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.10),transparent_36%)]" />
 
-            <div className="relative">
-              <h3 className="text-2xl font-black text-[#c4ffbc]">
-                Next Step with KORAX
-              </h3>
-              <p className="mt-3 text-sm leading-7 text-white/75">
-                {result.koraxConversionNote}
-              </p>
+            <div className="relative grid gap-6 lg:grid-cols-[1fr_260px] lg:items-center">
+              <div>
+                <h3 className="text-2xl font-black text-blue-100">
+                  Next Step with KORAX
+                </h3>
+
+                <p className="mt-3 text-sm leading-7 text-white/75">
+                  {result.koraxConversionNote}
+                </p>
+              </div>
+
+              <div className="hidden lg:block">
+                <KoraxMiniBrand />
+              </div>
             </div>
           </section>
         </section>

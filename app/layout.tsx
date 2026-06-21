@@ -7,11 +7,11 @@ import type { ReactNode } from "react";
 export const metadata: Metadata = {
   metadataBase: new URL("https://korax.fund"),
   title: {
-    default: "KORAX (KRX) | Presale, Claim, Staking & Future Launch Tools",
+    default: "KORAX (KRX) | Presale, Claim, Staking & Web3 Builder Tools",
     template: "%s | KORAX",
   },
   description:
-    "KORAX (KRX) is a BNB Chain ecosystem focused on presale, claim, staking, AI project creation, Launchpad access, and future website builder tools.",
+    "KORAX (KRX) is a BNB Chain ecosystem focused on presale, claim, staking, AI project creation, Token Builder AI, Website Builder AI, Launchpad access, and Web3 launch tools.",
   keywords: [
     "KORAX",
     "KRX",
@@ -23,8 +23,11 @@ export const metadata: Metadata = {
     "crypto presale",
     "KORAX AI",
     "Token Builder AI",
-    "Launch Your Project",
     "Website Builder AI",
+    "Launch Your Project",
+    "KORAX Launchpad",
+    "Web3 Builder",
+    "Web3 launch tools",
   ],
   applicationName: "KORAX",
   authors: [{ name: "KORAX" }],
@@ -37,9 +40,9 @@ export const metadata: Metadata = {
     type: "website",
     url: "https://korax.fund",
     siteName: "KORAX",
-    title: "KORAX (KRX) | Presale, Claim, Staking & Future Launch Tools",
+    title: "KORAX (KRX) | Presale, Claim, Staking & Web3 Builder Tools",
     description:
-      "Explore KORAX (KRX), a BNB Chain ecosystem built around presale, claim, staking, AI project creation, Launchpad access, and future launch infrastructure.",
+      "Explore KORAX (KRX), a BNB Chain ecosystem built around presale, claim, staking, Token Builder AI, Website Builder AI, Launchpad access, and Web3 launch infrastructure.",
     images: [
       {
         url: "/raven-logo.png",
@@ -51,9 +54,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "KORAX (KRX) | Presale, Claim, Staking & Future Launch Tools",
+    title: "KORAX (KRX) | Presale, Claim, Staking & Web3 Builder Tools",
     description:
-      "A growing BNB Chain ecosystem with presale, claim, staking, AI project tools, and launch infrastructure.",
+      "A BNB Chain ecosystem with presale, claim, staking, AI project tools, Website Builder AI, Token Builder AI, and launch infrastructure.",
     images: ["/raven-logo.png"],
   },
   icons: {
@@ -88,23 +91,6 @@ function FacebookIcon() {
       aria-hidden="true"
     >
       <path d="M14 8.5h2.2V5.2c-.38-.05-1.7-.16-3.22-.16-3.18 0-5.36 1.94-5.36 5.5v3.1H4v3.7h3.62V24h4.42v-6.66h3.46l.55-3.7h-4.01v-2.74c0-1.07.3-2.4 1.96-2.4Z" />
-    </svg>
-  );
-}
-
-function InstagramIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-5 w-5 text-[#E4405F]"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      aria-hidden="true"
-    >
-      <rect x="3" y="3" width="18" height="18" rx="5" />
-      <circle cx="12" cy="12" r="4" />
-      <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
     </svg>
   );
 }
@@ -178,7 +164,7 @@ function SocialIcons() {
         </a>
 
         <a
-          href="https://www.facebook.com/share/186CHPa3cN/"
+          href="https://www.facebook.com/share/1Kv3xhJbmd/"
           target="_blank"
           rel="noopener noreferrer"
           aria-label="KORAX on Facebook"
@@ -188,17 +174,7 @@ function SocialIcons() {
         </a>
 
         <a
-          href="https://www.instagram.com/korax_fund?igsh=MWw2NnE4NTB1aW90cA=="
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="KORAX on Instagram"
-          className={`${socialButtonClass} hover:border-[#E4405F]/60 hover:bg-[#E4405F]/10`}
-        >
-          <InstagramIcon />
-        </a>
-
-        <a
-          href="https://youtube.com/@koraxfund?si=L6HOiSGjPoYP--MT"
+          href="https://youtube.com/@koraxfund"
           target="_blank"
           rel="noopener noreferrer"
           aria-label="KORAX on YouTube"
@@ -208,7 +184,7 @@ function SocialIcons() {
         </a>
 
         <a
-          href="https://www.tiktok.com/@koraxfund?_r=1&_t=ZG-96ZaUHbiLMf"
+          href="https://www.tiktok.com/@koraxfund"
           target="_blank"
           rel="noopener noreferrer"
           aria-label="KORAX on TikTok"
@@ -218,7 +194,7 @@ function SocialIcons() {
         </a>
 
         <a
-          href="https://www.linkedin.com/in/korax-fund-8a3b8b402?utm_source=share_via&utm_content=profile&utm_medium=member_android"
+          href="https://www.linkedin.com/company/koraxfund"
           target="_blank"
           rel="noopener noreferrer"
           aria-label="KORAX on LinkedIn"
@@ -276,11 +252,10 @@ export default function RootLayout({
     sameAs: [
       "https://t.me/koraxfund",
       "https://t.me/koraxgroub",
-      "https://www.facebook.com/share/186CHPa3cN/",
-      "https://www.instagram.com/korax_fund/",
+      "https://www.facebook.com/share/1Kv3xhJbmd/",
       "https://youtube.com/@koraxfund",
       "https://www.tiktok.com/@koraxfund",
-      "https://www.linkedin.com/in/korax-fund-8a3b8b402",
+      "https://www.linkedin.com/company/koraxfund",
     ],
     contactPoint: [
       {

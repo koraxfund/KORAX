@@ -33,21 +33,6 @@ const TikTokIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
   </svg>
 );
 
-const InstagramIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
-  <svg
-    viewBox="0 0 24 24"
-    className={className}
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    aria-hidden="true"
-  >
-    <rect x="3" y="3" width="18" height="18" rx="5" />
-    <circle cx="12" cy="12" r="4" />
-    <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
-  </svg>
-);
-
 const FacebookIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
   <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
     <path
@@ -62,15 +47,6 @@ const LinkedInIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
     <path
       fill="currentColor"
       d="M4.98 3.5C4.98 4.88 3.86 6 2.5 6S0 4.88 0 3.5 1.12 1 2.5 1s2.48 1.12 2.48 2.5ZM.3 8h4.4v14H.3V8Zm7.2 0h4.2v1.9h.1c.6-1.1 2-2.3 4.1-2.3 4.4 0 5.2 2.9 5.2 6.6V22h-4.4v-6.9c0-1.6 0-3.8-2.3-3.8s-2.7 1.8-2.7 3.7v7H7.5V8Z"
-    />
-  </svg>
-);
-
-const ThreadsIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
-    <path
-      fill="currentColor"
-      d="M12.02 2C6.48 2 2.6 5.82 2.6 12.02c0 6.18 3.88 9.98 9.42 9.98 5.36 0 9.02-3.26 9.02-8.03 0-4.07-2.44-6.26-5.74-6.26-2.72 0-4.82 1.58-4.82 3.97 0 2.1 1.55 3.41 3.54 3.41 1.13 0 2.1-.36 2.79-1.02-.39 1.75-1.93 2.82-4.32 2.82-3.15 0-5.19-1.92-5.19-4.9 0-3.1 2.02-5.04 5.04-5.04 1.94 0 3.25.66 4.25 1.79l1.84-1.64C16.97 5.21 14.86 4.3 12.02 4.3Zm2.1 10.98c-.82 0-1.35-.45-1.35-1.16 0-.73.57-1.21 1.43-1.21.97 0 1.58.56 1.67 1.45-.33.55-.95.92-1.75.92Z"
     />
   </svg>
 );
@@ -114,7 +90,7 @@ const CloseIcon = ({ className = "h-5 w-5" }: { className?: string }) => (
 type NavItem = {
   label: string;
   href: string;
-  soon?: boolean;
+  status?: "Live" | "Planned";
   sublabel?: string;
 };
 
@@ -130,6 +106,14 @@ type SocialItem = {
 function shortAddress(address?: string) {
   if (!address) return "";
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
+
+function statusClass(status: NavItem["status"]) {
+  if (status === "Live") {
+    return "border-blue-400/25 bg-blue-500/10 text-blue-100";
+  }
+
+  return "border-white/10 bg-white/5 text-white/60";
 }
 
 const socialLinks: SocialItem[] = [
@@ -162,20 +146,12 @@ const socialLinks: SocialItem[] = [
     iconBg: "from-[#25F4EE] via-[#111111] to-[#FE2C55]",
   },
   {
-    label: "Instagram",
-    href: "https://www.instagram.com/korax_fund",
-    note: "Visual updates",
-    icon: <InstagramIcon className="h-5 w-5" />,
-    iconBg: "from-[#F58529] via-[#DD2A7B] to-[#8134AF]",
-  },
-  {
     label: "Facebook",
     href: "https://www.facebook.com/share/1Kv3xhJbmd/",
     note: "Official Facebook page",
     icon: <FacebookIcon className="h-5 w-5" />,
     iconBg: "from-[#1877F2] to-[#0A3D91]",
   },
-
   {
     label: "LinkedIn",
     href: "https://www.linkedin.com/company/koraxfund",
@@ -188,7 +164,7 @@ const socialLinks: SocialItem[] = [
     href: "mailto:contact@korax.fund",
     note: "contact@korax.fund",
     icon: <MailIcon className="h-5 w-5" />,
-    iconBg: "from-[#7CFF6A] to-[#1E7A2E]",
+    iconBg: "from-[#2563eb] to-[#020617]",
   },
 ];
 
@@ -214,7 +190,7 @@ function SocialLinkRow({ item }: { item: SocialItem }) {
       </span>
 
       {item.href ? (
-        <span className="ml-auto hidden text-white/25 transition group-hover:text-[#c4ffbc] sm:inline-flex">
+        <span className="ml-auto hidden text-white/25 transition group-hover:text-blue-100 sm:inline-flex">
           <ExternalIcon className="h-4 w-4" />
         </span>
       ) : null}
@@ -274,7 +250,7 @@ function FindUsDropdown({
         type="button"
         onClick={() => setSocialOpen((prev) => !prev)}
         className={[
-          "inline-flex h-9 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 px-0 text-xs font-bold text-white/85 transition hover:border-[#7CFF6A]/30 hover:bg-[#7CFF6A]/10 hover:text-[#c4ffbc] sm:h-10 sm:w-auto sm:gap-2 sm:px-4 sm:text-sm",
+          "inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 px-0 text-xs font-black text-white/85 transition hover:border-blue-400/35 hover:bg-blue-500/10 hover:text-blue-100 sm:h-10 sm:w-auto sm:gap-2 sm:px-4 sm:text-sm",
           fullWidth ? "w-full" : "whitespace-nowrap",
         ].join(" ")}
         aria-expanded={socialOpen}
@@ -293,7 +269,7 @@ function FindUsDropdown({
           ].join(" ")}
         >
           <div className="border-b border-white/10 px-3 py-3">
-            <div className="text-xs uppercase tracking-[0.22em] text-[#c4ffbc]">
+            <div className="text-xs uppercase tracking-[0.22em] text-blue-100">
               KORAX Socials
             </div>
             <div className="mt-1 text-xs leading-relaxed text-white/45">
@@ -312,6 +288,38 @@ function FindUsDropdown({
   );
 }
 
+function WordmarkBrand({
+  centered = false,
+  mobileMenu = false,
+}: {
+  centered?: boolean;
+  mobileMenu?: boolean;
+}) {
+  return (
+    <Link
+      href="/"
+      className={[
+        "topbar-wordmark-link flex min-w-0 items-center justify-center bg-transparent",
+        centered
+          ? "absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 lg:static lg:translate-x-0 lg:translate-y-0"
+          : "",
+      ].join(" ")}
+      aria-label="KORAX Home"
+    >
+      <img
+        src="/korax-wordmark.png"
+        alt="KORAX"
+        className={[
+          "topbar-wordmark-image bg-transparent object-contain",
+          mobileMenu
+            ? "h-8 w-auto max-w-[180px]"
+            : "h-7 w-auto max-w-[132px] sm:h-8 sm:max-w-[170px] lg:h-9 lg:max-w-[210px]",
+        ].join(" ")}
+      />
+    </Link>
+  );
+}
+
 export default function Topbar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -324,9 +332,13 @@ export default function Topbar() {
       { label: "Presale", href: "/presale" },
       { label: "Claim", href: "/claim", sublabel: "After Presale Ends" },
       { label: "Staking", href: "/staking", sublabel: "Available After Claim" },
-      { label: "Token Builder AI", href: "/ai" },
-      { label: "Website Builder AI", href: "/website-builder-ai", soon: true },
-      { label: "Launch", href: "/launch" },
+      { label: "Token Builder AI", href: "/ai", status: "Live" },
+      {
+        label: "Website Builder AI",
+        href: "/website-builder-ai",
+        status: "Live",
+      },
+      { label: "Launch", href: "/launch", status: "Live" },
     ],
     []
   );
@@ -349,23 +361,80 @@ export default function Topbar() {
 
   return (
     <header className="fixed left-0 right-0 top-0 z-50">
-      <div className="mx-auto w-full max-w-[1500px] px-4 pt-4">
-        <div className="flex items-center justify-between gap-2 rounded-2xl border border-white/10 bg-black/35 px-3 py-3 backdrop-blur-md">
-          <Link href="/" className="flex min-w-0 items-center gap-2 sm:gap-3">
-            <img
-              src="/raven-logo.png"
-              alt="KORAX"
-              className="h-8 w-8 shrink-0 rounded-full object-cover sm:h-9 sm:w-9"
-            />
+      <style>{`
+        @keyframes topbarFloat {
+          0%, 100% {
+            transform: translateY(0) rotateX(0deg);
+          }
 
-            <img
-              src="/korax-wordmark.png"
-              alt="KORAX wordmark"
-              className="h-6 w-auto max-w-[110px] shrink-0 object-contain sm:h-7 sm:max-w-[150px] md:h-8 md:max-w-[180px]"
-            />
-          </Link>
+          50% {
+            transform: translateY(-2px) rotateX(2deg);
+          }
+        }
 
-          <nav className="hidden items-center gap-2 lg:flex">
+        @keyframes topbarGlow {
+          0%, 100% {
+            opacity: 0.35;
+          }
+
+          50% {
+            opacity: 0.85;
+          }
+        }
+
+        .topbar-shell {
+          transform-style: preserve-3d;
+          perspective: 1000px;
+        }
+
+        .topbar-wordmark-link {
+          transform-style: preserve-3d;
+        }
+
+        .topbar-wordmark-image {
+          background: transparent !important;
+          border: 0 !important;
+          outline: 0 !important;
+          box-shadow: none !important;
+          filter: drop-shadow(0 0 14px rgba(59, 130, 246, 0.72));
+          animation: topbarFloat 5s ease-in-out infinite;
+          will-change: transform;
+        }
+
+        .topbar-shell::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          border-radius: 1rem;
+          pointer-events: none;
+          background:
+            radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.13), transparent 28%),
+            radial-gradient(circle at 85% 50%, rgba(124, 255, 106, 0.06), transparent 26%);
+          animation: topbarGlow 4s ease-in-out infinite;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .topbar-wordmark-image,
+          .topbar-shell::before {
+            animation: none;
+          }
+        }
+      `}</style>
+
+      <div className="mx-auto w-full max-w-[1500px] px-3 pt-3 sm:px-4 sm:pt-4">
+        <div className="topbar-shell relative flex min-h-[64px] items-center gap-2 rounded-2xl border border-white/10 bg-black/40 px-3 py-3 shadow-[0_18px_70px_rgba(0,0,0,0.45)] backdrop-blur-md">
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="relative z-20 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/90 hover:bg-white/10 lg:hidden"
+            aria-label="Open Menu"
+          >
+            <MenuIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+          </button>
+
+          <WordmarkBrand centered />
+
+          <nav className="relative z-10 hidden flex-1 items-center justify-center gap-2 lg:flex">
             {nav.map((item) => (
               <Link
                 key={item.href}
@@ -380,9 +449,14 @@ export default function Topbar() {
                 <span className="flex flex-col items-center text-center leading-tight">
                   <span className="inline-flex items-center gap-2">
                     {item.label}
-                    {item.soon ? (
-                      <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] text-white/70">
-                        Under Development
+                    {item.status ? (
+                      <span
+                        className={[
+                          "rounded-full border px-2 py-0.5 text-[11px]",
+                          statusClass(item.status),
+                        ].join(" ")}
+                      >
+                        {item.status}
                       </span>
                     ) : null}
                   </span>
@@ -397,7 +471,7 @@ export default function Topbar() {
             ))}
           </nav>
 
-          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+          <div className="relative z-20 ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
             <FindUsDropdown align="right" />
 
             <ConnectButton.Custom>
@@ -421,15 +495,16 @@ export default function Topbar() {
                       <button
                         onClick={openConnectModal}
                         type="button"
-                        className="h-9 shrink-0 whitespace-nowrap rounded-xl bg-[#7CFF6A] px-3 text-sm font-semibold text-black sm:h-10 sm:px-5 sm:text-base"
+                        className="h-9 shrink-0 whitespace-nowrap rounded-xl bg-blue-500 px-3 text-xs font-black text-white shadow-[0_0_25px_rgba(59,130,246,0.25)] transition hover:bg-blue-400 sm:h-10 sm:px-5 sm:text-base"
                       >
-                        Connect Wallet
+                        <span className="sm:hidden">Connect</span>
+                        <span className="hidden sm:inline">Connect Wallet</span>
                       </button>
                     ) : chain?.unsupported ? (
                       <button
                         onClick={openChainModal}
                         type="button"
-                        className="h-9 shrink-0 whitespace-nowrap rounded-xl bg-red-500 px-3 text-sm font-semibold text-white sm:h-10 sm:px-5 sm:text-base"
+                        className="h-9 shrink-0 whitespace-nowrap rounded-xl bg-red-500 px-3 text-xs font-black text-white sm:h-10 sm:px-5 sm:text-base"
                       >
                         Wrong Network
                       </button>
@@ -437,7 +512,7 @@ export default function Topbar() {
                       <button
                         onClick={openAccountModal}
                         type="button"
-                        className="h-9 max-w-[118px] shrink-0 overflow-hidden text-ellipsis whitespace-nowrap rounded-xl bg-[#7CFF6A] px-3 text-sm font-semibold text-black sm:h-10 sm:max-w-none sm:px-5 sm:text-base"
+                        className="h-9 max-w-[98px] shrink-0 overflow-hidden text-ellipsis whitespace-nowrap rounded-xl bg-blue-500 px-3 text-xs font-black text-white shadow-[0_0_25px_rgba(59,130,246,0.25)] transition hover:bg-blue-400 sm:h-10 sm:max-w-none sm:px-5 sm:text-base"
                         title={account.address}
                       >
                         <span className="sm:hidden">
@@ -452,15 +527,6 @@ export default function Topbar() {
                 );
               }}
             </ConnectButton.Custom>
-
-            <button
-              type="button"
-              onClick={() => setOpen(true)}
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/90 hover:bg-white/10 lg:hidden"
-              aria-label="Open Menu"
-            >
-              <MenuIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-            </button>
           </div>
         </div>
       </div>
@@ -474,26 +540,15 @@ export default function Topbar() {
             aria-label="Close Overlay"
           />
 
-          <div className="fixed left-0 right-0 top-0 z-50 mx-auto w-full max-w-[1500px] px-4 pt-4">
-            <div className="rounded-2xl border border-white/10 bg-black/60 backdrop-blur-md">
-              <div className="flex items-center justify-between px-4 py-3">
-                <div className="flex min-w-0 items-center gap-2">
-                  <img
-                    src="/raven-logo.png"
-                    alt="KORAX"
-                    className="h-7 w-7 shrink-0 rounded-full object-cover"
-                  />
-                  <img
-                    src="/korax-wordmark.png"
-                    alt="KORAX wordmark"
-                    className="h-6 w-auto max-w-[120px] object-contain"
-                  />
-                </div>
+          <div className="fixed left-0 right-0 top-0 z-50 mx-auto w-full max-w-[1500px] px-3 pt-3 sm:px-4 sm:pt-4">
+            <div className="rounded-2xl border border-white/10 bg-black/70 shadow-[0_24px_90px_rgba(0,0,0,0.75)] backdrop-blur-md">
+              <div className="relative flex min-h-[64px] items-center justify-center px-4 py-3">
+                <WordmarkBrand mobileMenu />
 
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/90 hover:bg-white/10"
+                  className="absolute right-4 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/90 hover:bg-white/10"
                   aria-label="Close Menu"
                 >
                   <CloseIcon />
@@ -525,7 +580,7 @@ export default function Topbar() {
                             <button
                               onClick={openConnectModal}
                               type="button"
-                              className="h-11 w-full whitespace-nowrap rounded-xl bg-[#7CFF6A] font-semibold text-black"
+                              className="h-11 w-full whitespace-nowrap rounded-xl bg-blue-500 font-black text-white"
                             >
                               Connect Wallet
                             </button>
@@ -533,7 +588,7 @@ export default function Topbar() {
                             <button
                               onClick={openChainModal}
                               type="button"
-                              className="h-11 w-full whitespace-nowrap rounded-xl bg-red-500 font-semibold text-white"
+                              className="h-11 w-full whitespace-nowrap rounded-xl bg-red-500 font-black text-white"
                             >
                               Wrong Network
                             </button>
@@ -541,7 +596,7 @@ export default function Topbar() {
                             <button
                               onClick={openAccountModal}
                               type="button"
-                              className="h-11 w-full whitespace-nowrap rounded-xl bg-[#7CFF6A] font-semibold text-black"
+                              className="h-11 w-full whitespace-nowrap rounded-xl bg-blue-500 font-black text-white"
                               title={account.address}
                             >
                               {account.displayName}
@@ -571,6 +626,7 @@ export default function Topbar() {
                     >
                       <div className="flex flex-col leading-tight">
                         <span>{item.label}</span>
+
                         {item.sublabel ? (
                           <span className="mt-1 text-[11px] text-white/45">
                             {item.sublabel}
@@ -578,9 +634,14 @@ export default function Topbar() {
                         ) : null}
                       </div>
 
-                      {item.soon ? (
-                        <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] text-white/70">
-                          Under Development
+                      {item.status ? (
+                        <span
+                          className={[
+                            "rounded-full border px-2 py-0.5 text-[11px]",
+                            statusClass(item.status),
+                          ].join(" ")}
+                        >
+                          {item.status}
                         </span>
                       ) : null}
                     </Link>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ethers } from "ethers";
 import { useAccount, useSwitchChain, useWalletClient } from "wagmi";
 
@@ -64,6 +64,15 @@ const erc20Abi = [
   "function symbol() view returns (string)",
 ];
 
+const inputClass =
+  "w-full rounded-2xl border border-white/10 bg-[#020617]/75 px-4 py-3 text-white outline-none placeholder:text-white/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition focus:border-blue-400/60 focus:bg-[#020617]/95 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]";
+
+const selectClass =
+  "w-full rounded-2xl border border-white/10 bg-[#020617]/75 px-4 py-3 text-white outline-none shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition focus:border-blue-400/60 focus:bg-[#020617]/95 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]";
+
+const glassButtonClass =
+  "rounded-2xl border border-white/10 bg-white/[0.06] px-5 py-3 font-black text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50";
+
 function shortenAddress(address: string) {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
@@ -89,6 +98,7 @@ function formatDate(unix: bigint | number) {
 
 async function validateContract(provider: ethers.Provider, address: string) {
   const code = await provider.getCode(address);
+
   if (!code || code === "0x") {
     throw new Error(`No contract deployed at ${address}`);
   }
@@ -109,6 +119,260 @@ function makeEip1193Provider(walletClient: any) {
       });
     },
   };
+}
+
+function StatusPill({
+  active,
+  children,
+}: {
+  active?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <span
+      className={[
+        "inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-[0.16em]",
+        active
+          ? "border-blue-300/30 bg-blue-500/10 text-blue-100 shadow-[0_0_22px_rgba(59,130,246,0.16)]"
+          : "border-white/10 bg-white/[0.04] text-white/50",
+      ].join(" ")}
+    >
+      {children}
+    </span>
+  );
+}
+
+function MetricCard({
+  label,
+  value,
+  description,
+  active,
+}: {
+  label: string;
+  value: ReactNode;
+  description: string;
+  active?: boolean;
+}) {
+  return (
+    <div
+      className={[
+        "presale-card-3d relative overflow-hidden rounded-[28px] border p-6 shadow-[0_18px_55px_rgba(0,0,0,0.32)] backdrop-blur-xl",
+        active
+          ? "border-blue-300/30 bg-blue-500/10"
+          : "border-white/10 bg-[#020617]/55",
+      ].join(" ")}
+    >
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.14),transparent_36%),radial-gradient(circle_at_bottom_right,rgba(34,211,238,0.10),transparent_36%)]" />
+
+      <div className="relative">
+        <div className="text-sm text-white/50">{label}</div>
+
+        <div
+          className={[
+            "mt-2 font-black",
+            active ? "text-blue-100" : "text-white",
+          ].join(" ")}
+        >
+          {value}
+        </div>
+
+        <p className="mt-3 text-sm leading-relaxed text-white/60">
+          {description}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function SectionBox({
+  title,
+  eyebrow,
+  children,
+  right,
+}: {
+  title: string;
+  eyebrow?: string;
+  children: ReactNode;
+  right?: ReactNode;
+}) {
+  return (
+    <section className="presale-section-card relative overflow-hidden rounded-[32px] border border-white/10 bg-[#020617]/60 p-5 shadow-[0_24px_95px_rgba(0,0,0,0.48)] backdrop-blur-xl md:p-6">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.13),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(34,211,238,0.10),transparent_36%)]" />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.05] [background-image:linear-gradient(rgba(255,255,255,0.09)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.09)_1px,transparent_1px)] [background-size:42px_42px]" />
+
+      <div className="relative">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div>
+            {eyebrow ? (
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-blue-100/60">
+                {eyebrow}
+              </p>
+            ) : null}
+
+            <h2 className="mt-2 text-2xl font-black text-white">{title}</h2>
+          </div>
+
+          {right}
+        </div>
+
+        {children}
+      </div>
+    </section>
+  );
+}
+
+function PresaleCoreVisual({
+  stage,
+  progress,
+  saleActive,
+}: {
+  stage: number;
+  progress: number;
+  saleActive: boolean;
+}) {
+  return (
+    <div
+      className="home-float relative rounded-[38px] border border-white/10 bg-black/30 p-5 shadow-[0_30px_100px_rgba(0,0,0,0.52)]"
+      aria-label={`KORAX presale visual. Stage ${stage}. Progress ${progress.toFixed(
+        2
+      )} percent. Sale ${saleActive ? "active" : "closed"}.`}
+    >
+      <style>{`
+        @keyframes homeFloat {
+          0%, 100% {
+            transform: translateY(0) rotateX(0deg) rotateY(0deg);
+          }
+          50% {
+            transform: translateY(-12px) rotateX(3deg) rotateY(-3deg);
+          }
+        }
+
+        @keyframes homeLogoSpin {
+          0% {
+            transform: rotateY(0deg) rotateX(0deg) translateY(0) scale(1);
+          }
+          50% {
+            transform: rotateY(180deg) rotateX(7deg) translateY(-5px) scale(1.045);
+          }
+          100% {
+            transform: rotateY(360deg) rotateX(0deg) translateY(0) scale(1);
+          }
+        }
+
+        @keyframes homeWordmarkFloat {
+          0%, 100% {
+            transform: translateY(0) scale(1);
+            opacity: 0.94;
+          }
+          50% {
+            transform: translateY(-7px) scale(1.02);
+            opacity: 1;
+          }
+        }
+
+        @keyframes homeLogoGlow {
+          0%, 100% {
+            opacity: 0.34;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.9;
+            transform: scale(1.16);
+          }
+        }
+
+        @keyframes homeRing {
+          0% {
+            transform: rotate(0deg) scale(1);
+            opacity: 0.22;
+          }
+          50% {
+            transform: rotate(180deg) scale(1.04);
+            opacity: 0.48;
+          }
+          100% {
+            transform: rotate(360deg) scale(1);
+            opacity: 0.22;
+          }
+        }
+
+        .home-float {
+          animation: homeFloat 6.8s ease-in-out infinite;
+          will-change: transform;
+          transform-style: preserve-3d;
+        }
+
+        .home-logo-zone,
+        .home-logo-zone img,
+        .home-wordmark-float {
+          background: transparent !important;
+          border: 0 !important;
+          outline: 0 !important;
+          box-shadow: none !important;
+        }
+
+        .home-logo-spin {
+          transform-style: preserve-3d;
+          animation: homeLogoSpin 9s linear infinite;
+          will-change: transform;
+          background: transparent !important;
+          border: 0 !important;
+          outline: 0 !important;
+          box-shadow: none !important;
+        }
+
+        .home-wordmark-float {
+          animation: homeWordmarkFloat 4s ease-in-out infinite;
+          will-change: transform;
+          background: transparent !important;
+          border: 0 !important;
+          outline: 0 !important;
+          box-shadow: none !important;
+        }
+
+        .home-logo-glow {
+          animation: homeLogoGlow 3.6s ease-in-out infinite;
+        }
+
+        .home-energy-ring {
+          animation: homeRing 12s linear infinite;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .home-float,
+          .home-logo-spin,
+          .home-wordmark-float,
+          .home-logo-glow,
+          .home-energy-ring {
+            animation: none;
+          }
+        }
+      `}</style>
+
+      <div className="absolute -right-8 -top-8 h-40 w-40 rounded-full bg-blue-500/15 blur-3xl" />
+      <div className="absolute -bottom-8 -left-8 h-40 w-40 rounded-full bg-cyan-400/10 blur-3xl" />
+
+      <div className="home-logo-zone relative flex min-h-[330px] flex-col items-center justify-center overflow-visible bg-transparent">
+        <div className="home-logo-glow absolute h-72 w-72 rounded-full bg-blue-500/20 blur-3xl" />
+        <div className="absolute h-44 w-44 rounded-full bg-cyan-400/10 blur-2xl" />
+        <div className="absolute h-28 w-28 rounded-full bg-white/5 blur-2xl" />
+
+        <img
+          src="/Korax-logo.png"
+          alt="KORAX official logo"
+          className="home-logo-spin relative h-48 w-48 bg-transparent object-contain drop-shadow-[0_0_36px_rgba(59,130,246,0.95)] sm:h-56 sm:w-56 lg:h-60 lg:w-60"
+        />
+
+        <img
+          src="/korax-wordmark.png"
+          alt="KORAX wordmark"
+          className="home-wordmark-float relative mt-4 h-14 w-auto max-w-[280px] bg-transparent object-contain drop-shadow-[0_0_24px_rgba(59,130,246,0.95)] sm:h-16 sm:max-w-[360px]"
+        />
+
+        <div className="home-energy-ring pointer-events-none absolute h-72 w-72 rounded-full border border-blue-400/10" />
+      </div>
+    </div>
+  );
 }
 
 export default function PresalePage() {
@@ -172,7 +436,7 @@ export default function PresalePage() {
       try {
         setStatus("Please switch to BNB Chain...");
         await switchChainAsync({ chainId: BSC_CHAIN_ID });
-      } catch (err) {
+      } catch {
         throw new Error("Please switch to BNB Chain and try again.");
       }
     }
@@ -260,6 +524,7 @@ export default function PresalePage() {
       }
 
       const rpcProvider = await getRpcProvider();
+
       const presale = new ethers.Contract(
         PRESALE_ADDRESS,
         presaleAbi,
@@ -273,21 +538,25 @@ export default function PresalePage() {
         out = await presale.previewTokensForBNB(wei);
       } else if (mode === "usdt") {
         await validateContract(rpcProvider, contractUsdtAddress);
+
         const token = new ethers.Contract(
           contractUsdtAddress,
           erc20Abi,
           rpcProvider
         );
+
         const decimals = Number(await token.decimals());
         const amountRaw = ethers.parseUnits(inputAmount, decimals);
         out = await presale.previewTokensForUSDT(amountRaw);
       } else {
         await validateContract(rpcProvider, contractUsdcAddress);
+
         const token = new ethers.Contract(
           contractUsdcAddress,
           erc20Abi,
           rpcProvider
         );
+
         const decimals = Number(await token.decimals());
         const amountRaw = ethers.parseUnits(inputAmount, decimals);
         out = await presale.previewTokensForUSDC(amountRaw);
@@ -409,6 +678,7 @@ export default function PresalePage() {
 
       const tokenAddress =
         mode === "usdt" ? contractUsdtAddress : contractUsdcAddress;
+
       const token = new ethers.Contract(tokenAddress, erc20Abi, signer);
 
       const decimals = Number(await token.decimals());
@@ -423,6 +693,7 @@ export default function PresalePage() {
 
       if (BigInt(allowance.toString()) < amountRaw) {
         setStatus(`Approving ${mode.toUpperCase()}...`);
+
         const approveTx = await token.approve(PRESALE_ADDRESS, amountRaw);
         await approveTx.wait();
       }
@@ -442,11 +713,13 @@ export default function PresalePage() {
       await refreshPresaleData();
     } catch (error: any) {
       console.error(`${mode.toUpperCase()} buy failed:`, error);
+
       const msg =
         error?.shortMessage ||
         error?.reason ||
         error?.message ||
         `${mode.toUpperCase()} purchase failed.`;
+
       setStatus(msg);
       alert(msg);
     } finally {
@@ -458,197 +731,239 @@ export default function PresalePage() {
 
   return (
     <div className="space-y-8">
-      <section className="relative overflow-hidden rounded-[30px] border border-white/10 bg-black/30 p-8 shadow-[0_24px_90px_rgba(0,0,0,0.45)] backdrop-blur-md">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(124,255,106,0.14),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.07),transparent_30%)]" />
+      <style>{`
+        @keyframes presaleCardShimmer {
+          0%,
+          76% {
+            transform: translateX(-120%);
+            opacity: 0;
+          }
 
-        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+          84% {
+            opacity: 1;
+          }
+
+          100% {
+            transform: translateX(120%);
+            opacity: 0;
+          }
+        }
+
+        .presale-card-3d {
+          transform-style: preserve-3d;
+          transition:
+            transform 240ms ease,
+            border-color 240ms ease,
+            background 240ms ease,
+            box-shadow 240ms ease;
+        }
+
+        .presale-card-3d:hover {
+          transform: translateY(-3px) perspective(900px) rotateX(1.4deg);
+          border-color: rgba(96, 165, 250, 0.3);
+          box-shadow: 0 20px 70px rgba(0, 0, 0, 0.42);
+        }
+
+        .presale-section-card {
+          transform-style: preserve-3d;
+        }
+
+        .presale-section-card::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background: linear-gradient(
+            120deg,
+            transparent,
+            rgba(255, 255, 255, 0.035),
+            transparent
+          );
+          transform: translateX(-120%);
+          animation: presaleCardShimmer 8s ease-in-out infinite;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .presale-section-card::after {
+            animation: none;
+          }
+
+          .presale-card-3d:hover {
+            transform: none;
+          }
+        }
+      `}</style>
+
+      <section className="relative overflow-hidden rounded-[38px] border border-white/10 bg-[#020617]/65 p-5 shadow-[0_34px_130px_rgba(0,0,0,0.66)] backdrop-blur-xl md:p-8">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.22),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(34,211,238,0.15),transparent_35%),linear-gradient(135deg,rgba(15,23,42,0.86),rgba(2,6,23,0.96))]" />
+        <div className="pointer-events-none absolute inset-0 opacity-[0.06] [background-image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:52px_52px]" />
+        <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-blue-500/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-28 left-20 h-72 w-72 rounded-full bg-cyan-400/10 blur-3xl" />
+
+        <div className="relative grid gap-8 xl:grid-cols-[1fr_470px] xl:items-center">
           <div>
-            <p className="text-xs uppercase tracking-[0.28em] text-white/45">
-              KORAX Presale
-            </p>
+            <div className="inline-flex rounded-full border border-blue-300/25 bg-blue-500/10 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-blue-100">
+              KORAX Presale / BNB Chain
+            </div>
 
-            <h1 className="mt-2 text-3xl font-extrabold text-white sm:text-4xl">
-              Join the KORAX 5-stage presale
+            <h1 className="mt-6 text-4xl font-black leading-[0.96] tracking-tight text-white sm:text-6xl xl:text-7xl">
+              Join the
+              <span className="block bg-gradient-to-r from-blue-300 via-cyan-200 to-white bg-clip-text text-transparent">
+                KORAX Presale.
+              </span>
             </h1>
 
-            <p className="mt-4 max-w-3xl leading-relaxed text-white/70">
+            <p className="mt-6 max-w-3xl text-base leading-8 text-white/70 sm:text-lg">
               Participate through the verified on-chain presale contract on BNB
               Smart Chain. The sale follows a transparent five-stage structure
               with progressive pricing and live contract-based progress data.
             </p>
 
-            <div className="mt-5 flex flex-wrap gap-3 text-xs">
-              <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-white/60">
-                Sale:{" "}
-                <span
-                  className={
-                    saleActive
-                      ? "font-semibold text-[#c4ffbc]"
-                      : "font-semibold text-white"
-                  }
+            <div className="mt-7 flex flex-wrap gap-3">
+              <StatusPill active={saleActive}>
+                {saleActive ? "Sale Active" : "Sale Closed"}
+              </StatusPill>
+
+              <StatusPill active>Stage {stage} / 5</StatusPill>
+
+              <StatusPill active>BNB Chain</StatusPill>
+
+              <StatusPill active={Boolean(walletAddress)}>
+                {walletAddress ? shortenAddress(walletAddress) : "Wallet Off"}
+              </StatusPill>
+            </div>
+
+            <div className="mt-7 rounded-[28px] border border-white/10 bg-[#020617]/55 p-5 backdrop-blur-xl">
+              <div className="text-xs font-black uppercase tracking-[0.22em] text-white/40">
+                Verified Presale Contract
+              </div>
+
+              <div className="mt-3 break-all rounded-2xl border border-white/10 bg-black/35 p-4 font-mono text-xs text-white/80">
+                {PRESALE_ADDRESS}
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-3">
+                <a
+                  href={PRESALE_BSCSCAN_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={glassButtonClass}
                 >
-                  {saleActive ? "Active" : "Closed"}
-                </span>
-              </div>
+                  Open on BscScan
+                </a>
 
-              <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-white/60">
-                Stage:{" "}
-                <span className="font-semibold text-white">{stage} / 5</span>
-              </div>
-
-              <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-white/60">
-                Network:{" "}
-                <span className="font-semibold text-white">BNB Chain</span>
-              </div>
-
-              <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-white/60">
-                Wallet:{" "}
-                <span className="font-semibold text-white">
-                  {walletAddress ? shortenAddress(walletAddress) : "Not connected"}
-                </span>
+                <button
+                  type="button"
+                  onClick={() => navigator.clipboard.writeText(PRESALE_ADDRESS)}
+                  className={glassButtonClass}
+                >
+                  Copy Address
+                </button>
               </div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-black/35 p-5 text-sm text-white/75 lg:w-[430px]">
-            <div className="text-xs uppercase tracking-[0.22em] text-white/40">
-              Verified Presale Contract
-            </div>
-
-            <div className="mt-3 break-all rounded-xl border border-white/10 bg-black/30 p-3 font-mono text-xs text-white">
-              {PRESALE_ADDRESS}
-            </div>
-
-            <div className="mt-4 flex flex-wrap gap-3">
-              <a
-                href={PRESALE_BSCSCAN_URL}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-white transition hover:bg-white/10"
-              >
-                Open on BscScan
-              </a>
-
-              <button
-                type="button"
-                onClick={() => navigator.clipboard.writeText(PRESALE_ADDRESS)}
-                className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-white transition hover:bg-white/10"
-              >
-                Copy Address
-              </button>
-            </div>
-          </div>
+          <PresaleCoreVisual
+            stage={stage}
+            progress={progress}
+            saleActive={saleActive}
+          />
         </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 p-6 shadow-[0_18px_55px_rgba(0,0,0,0.28)] backdrop-blur-md">
-          <div className="text-sm text-white/60">Current Stage</div>
-          <div className="mt-2 text-3xl font-extrabold text-[#c4ffbc]">
-            {stage} / 5
-          </div>
-          <p className="mt-3 text-sm leading-relaxed text-white/70">
-            Active presale stage based on the live contract state.
-          </p>
-        </div>
+        <MetricCard
+          active
+          label="Current Stage"
+          value={<div className="text-3xl">{stage} / 5</div>}
+          description="Active presale stage based on the live contract state."
+        />
 
-        <div className="rounded-2xl border border-white/10 bg-black/25 p-6 shadow-[0_18px_55px_rgba(0,0,0,0.28)] backdrop-blur-md">
-          <div className="text-sm text-white/50">Stage Price</div>
-          <div className="mt-2 text-3xl font-extrabold text-white">
-            ${stagePrice.toFixed(2)}
-          </div>
-          <p className="mt-3 text-sm leading-relaxed text-white/65">
-            Current token price for this stage.
-          </p>
-        </div>
+        <MetricCard
+          label="Stage Price"
+          value={<div className="text-3xl">${stagePrice.toFixed(2)}</div>}
+          description="Current token price for this stage."
+        />
 
-        <div className="rounded-2xl border border-white/10 bg-black/25 p-6 shadow-[0_18px_55px_rgba(0,0,0,0.28)] backdrop-blur-md">
-          <div className="text-sm text-white/50">Total Sold</div>
-          <div className="mt-2 text-2xl font-extrabold text-white">
-            {totalSold} KORAX
-          </div>
-          <p className="mt-3 text-sm leading-relaxed text-white/65">
-            Total KORAX sold across all presale stages.
-          </p>
-        </div>
+        <MetricCard
+          label="Total Sold"
+          value={<div className="text-2xl">{totalSold} KORAX</div>}
+          description="Total KORAX sold across all presale stages."
+        />
 
-        <div className="rounded-2xl border border-white/10 bg-black/25 p-6 shadow-[0_18px_55px_rgba(0,0,0,0.28)] backdrop-blur-md">
-          <div className="text-sm text-white/50">Stage Remaining</div>
-          <div className="mt-2 text-2xl font-extrabold text-white">
-            {stageRemaining} KORAX
-          </div>
-          <p className="mt-3 text-sm leading-relaxed text-white/65">
-            Remaining allocation in the current stage.
-          </p>
-        </div>
+        <MetricCard
+          label="Stage Remaining"
+          value={<div className="text-2xl">{stageRemaining} KORAX</div>}
+          description="Remaining allocation in the current stage."
+        />
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-black/25 p-6 shadow-[0_20px_70px_rgba(0,0,0,0.32)] backdrop-blur-md">
-        <div className="mb-3 flex items-center justify-between text-sm text-white/60">
-          <span>Presale Progress</span>
-          <span className="font-semibold text-white">{progress.toFixed(2)}%</span>
+      <SectionBox
+        eyebrow="Live Contract Progress"
+        title="Presale Progress"
+        right={
+          <StatusPill active={saleActive}>
+            {saleActive ? "Active" : "Closed"}
+          </StatusPill>
+        }
+      >
+        <div className="mt-6">
+          <div className="mb-3 flex items-center justify-between text-sm text-white/60">
+            <span>Total presale allocation</span>
+            <span className="font-black text-white">{progress.toFixed(2)}%</span>
+          </div>
+
+          <div className="h-4 w-full overflow-hidden rounded-full border border-white/10 bg-black/40">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-blue-600 via-cyan-300 to-white shadow-[0_0_28px_rgba(34,211,238,0.35)] transition-all duration-700"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
         </div>
 
-        <div className="h-4 w-full overflow-hidden rounded-full border border-white/10 bg-black/40">
-          <div
-            className="h-full rounded-full bg-[#7CFF6A] shadow-[0_0_28px_rgba(124,255,106,0.35)] transition-all duration-500"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-
-        <div className="mt-5 grid gap-4 md:grid-cols-4">
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+        <div className="mt-6 grid gap-4 md:grid-cols-4">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
             <div className="text-sm text-white/50">Sale Status</div>
             <div
-              className={`mt-2 font-semibold ${
-                saleActive ? "text-[#c4ffbc]" : "text-white"
+              className={`mt-2 font-black ${
+                saleActive ? "text-blue-100" : "text-white"
               }`}
             >
               {saleActive ? "Active" : "Closed"}
             </div>
           </div>
 
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
             <div className="text-sm text-white/50">Claim Status</div>
-            <div className="mt-2 font-semibold text-white">
+            <div className="mt-2 font-black text-white">
               {claimEnabled ? "Enabled" : "Not Enabled Yet"}
             </div>
           </div>
 
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
             <div className="text-sm text-white/50">Claim Start</div>
-            <div className="mt-2 text-sm font-semibold text-white">
+            <div className="mt-2 text-sm font-black text-white">
               {claimStart}
             </div>
           </div>
 
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <div className="text-sm text-white/50">Anti-Bot Protection</div>
-            <div className="mt-2 font-semibold text-white">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+            <div className="text-sm text-white/50">Anti-Bot</div>
+            <div className="mt-2 font-black text-white">
               {antiBotEnabled ? `Enabled (${buyCooldown}s)` : "Off"}
             </div>
           </div>
         </div>
-      </section>
+      </SectionBox>
 
-      <section className="grid gap-6 xl:grid-cols-[1fr_420px]">
-        <div className="rounded-2xl border border-white/10 bg-black/25 p-6 shadow-[0_20px_70px_rgba(0,0,0,0.32)] backdrop-blur-md">
-          <div className="mb-5">
-            <p className="text-xs uppercase tracking-[0.24em] text-white/40">
-              Purchase Panel
-            </p>
+      <section className="grid gap-6 xl:grid-cols-[1fr_430px]">
+        <SectionBox eyebrow="Purchase Panel" title="Buy KORAX during the presale">
+          <p className="mt-3 text-sm leading-7 text-white/60">
+            Enter the amount you want to spend, preview the estimated KORAX
+            amount, then complete the purchase with BNB, USDT, or USDC.
+          </p>
 
-            <h2 className="mt-2 text-2xl font-bold text-white">
-              Buy KORAX during the presale
-            </h2>
-
-            <p className="mt-2 text-sm leading-relaxed text-white/60">
-              Enter the amount you want to spend, preview the estimated KORAX
-              amount, then complete the purchase with BNB, USDT, or USDC.
-            </p>
-          </div>
-
-          <div className="mb-5 grid gap-4 lg:grid-cols-[1fr_auto]">
+          <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_210px]">
             <input
               type="number"
               step="0.000001"
@@ -656,13 +971,13 @@ export default function PresalePage() {
               placeholder="Enter amount"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none transition placeholder:text-white/35 focus:border-[#7CFF6A]/40"
+              className={inputClass}
             />
 
             <select
               value={previewMode}
               onChange={(e) => setPreviewMode(e.target.value as PayMode)}
-              className="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none transition focus:border-[#7CFF6A]/40"
+              className={selectClass}
             >
               <option value="usdt">Preview with USDT</option>
               <option value="usdc">Preview with USDC</option>
@@ -670,22 +985,29 @@ export default function PresalePage() {
             </select>
           </div>
 
-          <div className="mb-5 rounded-2xl border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 p-5">
+          <div className="mt-5 rounded-[26px] border border-blue-300/20 bg-blue-500/10 p-5">
             <div className="text-sm text-white/60">Estimated Tokens</div>
-            <div className="mt-2 text-2xl font-extrabold text-[#c4ffbc]">
+
+            <div className="mt-2 text-3xl font-black text-blue-100">
               {preview}
             </div>
+
             <p className="mt-2 text-xs leading-relaxed text-white/60">
               Preview is calculated from the presale contract and may change
               depending on stage availability and live contract state.
             </p>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="mt-5 grid gap-3 md:grid-cols-3">
             <button
               onClick={buyWithBNB}
               disabled={!saleActive || busy !== ""}
-              className="rounded-xl bg-[#F0C94B] px-4 py-3 font-semibold text-black transition hover:scale-[1.01] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+              style={{
+                backgroundColor: "#F0C94B",
+                color: "#000000",
+                boxShadow: "0 0 34px rgba(240, 201, 75, 0.35)",
+              }}
+              className="rounded-2xl px-5 py-3 font-black transition hover:scale-[1.01] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-100"
             >
               {busy === "bnb" ? "Processing..." : "Buy with BNB"}
             </button>
@@ -693,7 +1015,12 @@ export default function PresalePage() {
             <button
               onClick={() => approveAndBuyStable("usdt")}
               disabled={!saleActive || busy !== ""}
-              className="rounded-xl bg-[#5EC46B] px-4 py-3 font-semibold text-black transition hover:scale-[1.01] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+              style={{
+                backgroundColor: "#5EC46B",
+                color: "#000000",
+                boxShadow: "0 0 34px rgba(94, 196, 107, 0.35)",
+              }}
+              className="rounded-2xl px-5 py-3 font-black transition hover:scale-[1.01] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-100"
             >
               {busy === "usdt" ? "Processing..." : "Buy with USDT"}
             </button>
@@ -701,133 +1028,156 @@ export default function PresalePage() {
             <button
               onClick={() => approveAndBuyStable("usdc")}
               disabled={!saleActive || busy !== ""}
-              className="rounded-xl bg-[#5A84E8] px-4 py-3 font-semibold text-white transition hover:scale-[1.01] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+              style={{
+                backgroundColor: "#5A84E8",
+                color: "#ffffff",
+                boxShadow: "0 0 34px rgba(90, 132, 232, 0.38)",
+              }}
+              className="rounded-2xl px-5 py-3 font-black transition hover:scale-[1.01] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-100"
             >
               {busy === "usdc" ? "Processing..." : "Buy with USDC"}
             </button>
           </div>
 
           <div className="mt-5 flex flex-wrap gap-3 text-sm">
-            <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-white/60">
-              Presale:{" "}
-              <span className="font-semibold text-white">
-                {saleActive ? "Active" : "Closed"}
-              </span>
-            </div>
+            <StatusPill active={saleActive}>
+              Presale {saleActive ? "Active" : "Closed"}
+            </StatusPill>
 
             {walletAddress ? (
-              <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-white/60">
-                Connected:{" "}
-                <span className="font-semibold text-white">
-                  {shortenAddress(walletAddress)}
-                </span>
-              </div>
+              <StatusPill active>
+                Connected {shortenAddress(walletAddress)}
+              </StatusPill>
             ) : (
-              <div className="rounded-full border border-yellow-400/20 bg-yellow-400/10 px-4 py-2 text-yellow-200">
-                Connect wallet first from the top bar.
-              </div>
+              <span className="inline-flex items-center rounded-full border border-yellow-400/20 bg-yellow-400/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.16em] text-yellow-200">
+                Connect wallet first
+              </span>
             )}
           </div>
 
           {status ? (
-            <div className="mt-5 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80">
+            <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm text-white/80">
               {status}
             </div>
           ) : null}
-        </div>
+        </SectionBox>
 
-        <div className="rounded-2xl border border-white/10 bg-black/25 p-6 shadow-[0_20px_70px_rgba(0,0,0,0.32)] backdrop-blur-md">
-          <p className="text-xs uppercase tracking-[0.24em] text-white/40">
-            Presale Details
-          </p>
-
-          <h3 className="mt-2 text-xl font-bold text-white">
-            Transparent stage-based pricing
-          </h3>
-
+        <SectionBox eyebrow="Presale Details" title="Stage-based pricing">
           <div className="mt-5 space-y-3">
-            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
               <div className="text-sm text-white/50">Current Price</div>
-              <div className="mt-1 text-lg font-semibold text-white">
+              <div className="mt-1 text-lg font-black text-white">
                 ${stagePrice.toFixed(2)}
               </div>
             </div>
 
-            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
               <div className="text-sm text-white/50">Planned Listing Price</div>
-              <div className="mt-1 text-lg font-semibold text-white">$0.15</div>
+              <div className="mt-1 text-lg font-black text-white">$0.15</div>
             </div>
 
-            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
               <div className="text-sm text-white/50">Accepted Payments</div>
-              <div className="mt-1 text-lg font-semibold text-white">
+              <div className="mt-1 text-lg font-black text-white">
                 BNB / USDT / USDC
               </div>
             </div>
 
-            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
               <div className="text-sm text-white/50">Claim</div>
-              <div className="mt-1 text-sm font-semibold text-white">
+              <div className="mt-1 text-sm font-black text-white">
                 Available after presale completion and claim activation.
               </div>
             </div>
+
+            <div className="rounded-2xl border border-blue-300/20 bg-blue-500/10 p-4">
+              <div className="text-sm text-white/50">Contract USDT</div>
+              <div className="mt-1 break-all font-mono text-xs text-blue-100">
+                {contractUsdtAddress}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-cyan-300/20 bg-cyan-400/10 p-4">
+              <div className="text-sm text-white/50">Contract USDC</div>
+              <div className="mt-1 break-all font-mono text-xs text-cyan-100">
+                {contractUsdcAddress}
+              </div>
+            </div>
           </div>
-        </div>
+        </SectionBox>
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-black/25 p-6 shadow-[0_20px_70px_rgba(0,0,0,0.3)] backdrop-blur-md">
-        <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-white/40">
-              KORAX Presale Stages
-            </p>
-
-            <h2 className="mt-2 text-xl font-bold text-white">
-              Five-stage token allocation
-            </h2>
-          </div>
-
+      <SectionBox
+        eyebrow="KORAX Presale Stages"
+        title="Five-stage token allocation"
+        right={
           <div className="text-sm text-white/55">
-            Planned listing price:{" "}
-            <span className="font-semibold text-white">$0.15</span>
+            Listing target:{" "}
+            <span className="font-black text-white">$0.15</span>
           </div>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        }
+      >
+        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           {STAGE_PRICES.map((price, index) => {
             const active = stage === index + 1;
+            const done = stage > index + 1;
 
             return (
               <div
                 key={index}
-                className={`rounded-2xl border p-5 backdrop-blur-md transition ${
+                className={[
+                  "presale-card-3d rounded-[26px] border p-5 backdrop-blur-xl transition",
                   active
-                    ? "border-[#7CFF6A]/40 bg-[#7CFF6A]/10 shadow-[0_0_38px_rgba(124,255,106,0.12)]"
-                    : "border-white/10 bg-black/20"
-                }`}
+                    ? "border-blue-300/40 bg-blue-500/10 shadow-[0_0_38px_rgba(59,130,246,0.16)]"
+                    : done
+                      ? "border-cyan-300/20 bg-cyan-400/10"
+                      : "border-white/10 bg-[#020617]/50",
+                ].join(" ")}
               >
                 <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm text-white/50">Stage {index + 1}</div>
+                  <div className="text-sm text-white/50">
+                    Stage {index + 1}
+                  </div>
 
                   {active ? (
-                    <span className="rounded-full border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 px-2 py-1 text-[11px] font-semibold text-[#c4ffbc]">
+                    <span className="rounded-full border border-blue-300/25 bg-blue-500/10 px-2 py-1 text-[11px] font-black text-blue-100">
                       Current
+                    </span>
+                  ) : done ? (
+                    <span className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-2 py-1 text-[11px] font-black text-cyan-100">
+                      Done
                     </span>
                   ) : null}
                 </div>
 
-                <div className="mt-3 text-2xl font-extrabold text-white">
+                <div className="mt-3 text-2xl font-black text-white">
                   ${price.toFixed(2)}
                 </div>
 
                 <div className="mt-2 text-sm text-white/60">
                   {STAGE_CAPS[index].toLocaleString("en-US")} KORAX
                 </div>
+
+                <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className={[
+                      "h-full rounded-full transition-all duration-700",
+                      active
+                        ? "bg-gradient-to-r from-blue-500 via-cyan-300 to-white"
+                        : done
+                          ? "bg-cyan-300/70"
+                          : "bg-white/15",
+                    ].join(" ")}
+                    style={{
+                      width: active ? "72%" : done ? "100%" : "18%",
+                    }}
+                  />
+                </div>
               </div>
             );
           })}
         </div>
-      </section>
+      </SectionBox>
     </div>
   );
 }

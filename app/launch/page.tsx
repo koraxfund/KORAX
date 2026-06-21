@@ -112,6 +112,24 @@ type LoadedBuilderProject = {
   txHash?: string;
 };
 
+const inputClass =
+  "w-full rounded-2xl border border-white/10 bg-[#020617]/70 px-4 py-3 text-white outline-none placeholder:text-white/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition focus:border-blue-400/60 focus:bg-[#020617]/90 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]";
+
+const selectClass =
+  "w-full rounded-2xl border border-white/10 bg-[#020617]/70 px-4 py-3 text-white outline-none shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition focus:border-blue-400/60 focus:bg-[#020617]/90 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]";
+
+const primaryButtonClass =
+  "rounded-2xl bg-blue-500 px-5 py-3 font-black text-white shadow-[0_0_34px_rgba(59,130,246,0.26)] transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-50";
+
+const ghostButtonClass =
+  "rounded-2xl border border-white/10 bg-white/[0.06] px-5 py-3 font-black text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50";
+
+const cyanButtonClass =
+  "rounded-2xl border border-cyan-300/25 bg-cyan-400/10 px-5 py-3 font-black text-cyan-100 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-50";
+
+const dangerButtonClass =
+  "rounded-2xl border border-red-500/25 bg-red-500/10 px-5 py-3 font-black text-red-100 transition hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-50";
+
 function shortAddress(address?: string) {
   if (!address) return "";
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -172,14 +190,15 @@ function SectionBox({
   right?: ReactNode;
 }) {
   return (
-    <section className="relative overflow-hidden rounded-[30px] border border-white/10 bg-black/25 p-5 shadow-[0_25px_90px_rgba(0,0,0,0.42)] backdrop-blur-md md:p-6">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(124,255,106,0.08),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(30,90,180,0.12),transparent_34%)]" />
+    <section className="launch-section-card relative overflow-hidden rounded-[32px] border border-white/10 bg-[#020617]/60 p-5 shadow-[0_24px_95px_rgba(0,0,0,0.48)] backdrop-blur-xl md:p-6">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.13),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(34,211,238,0.10),transparent_36%)]" />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.05] [background-image:linear-gradient(rgba(255,255,255,0.09)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.09)_1px,transparent_1px)] [background-size:42px_42px]" />
 
       <div className="relative">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
             {eyebrow ? (
-              <p className="text-xs font-black uppercase tracking-[0.25em] text-[#c4ffbc]">
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-blue-100/60">
                 {eyebrow}
               </p>
             ) : null}
@@ -208,8 +227,8 @@ function StatusPill({
       className={[
         "inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-[0.16em]",
         active
-          ? "border-[#7CFF6A]/25 bg-[#7CFF6A]/12 text-[#c4ffbc]"
-          : "border-white/10 bg-white/[0.04] text-white/48",
+          ? "border-blue-300/30 bg-blue-500/10 text-blue-100 shadow-[0_0_22px_rgba(59,130,246,0.16)]"
+          : "border-white/10 bg-white/[0.04] text-white/50",
       ].join(" ")}
     >
       {children}
@@ -225,10 +244,13 @@ function InfoCard({
   value: string | number;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-      <div className="text-xs text-white/45">{label}</div>
-      <div className="mt-2 break-all text-sm font-semibold text-white">
-        {value}
+    <div className="launch-card-3d rounded-2xl border border-white/10 bg-[#020617]/60 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+      <div className="text-[11px] font-black uppercase tracking-[0.2em] text-white/35">
+        {label}
+      </div>
+
+      <div className="mt-2 break-all text-sm font-semibold leading-relaxed text-white/80">
+        {value || "Not available"}
       </div>
     </div>
   );
@@ -241,24 +263,29 @@ function ProjectIconCard({
   project: PublicProject;
   active?: boolean;
 }) {
-  const firstLetter = (project.name || "K").slice(0, 1).toUpperCase();
-
   return (
     <a
       href={project.launchUrl}
       className={[
-        "group relative block overflow-hidden rounded-[34px] border p-5 transition hover:-translate-y-1 hover:shadow-[0_28px_90px_rgba(124,255,106,0.18)]",
+        "launch-card-3d group relative block overflow-hidden rounded-[34px] border p-5 transition hover:-translate-y-1",
         active
-          ? "border-[#7CFF6A]/35 bg-[#7CFF6A]/12"
-          : "border-white/10 bg-black/35",
+          ? "border-blue-300/30 bg-blue-500/10 shadow-[0_28px_95px_rgba(59,130,246,0.18)]"
+          : "border-white/10 bg-[#020617]/60",
       ].join(" ")}
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(124,255,106,0.16),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(30,90,180,0.22),transparent_35%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.18),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(34,211,238,0.16),transparent_35%)]" />
+      <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-blue-500/15 blur-3xl" />
 
       <div className="relative">
         <div className="flex items-start justify-between gap-4">
-          <div className="flex h-24 w-24 items-center justify-center rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(15,24,46,0.98),rgba(4,8,18,0.99))] text-5xl font-black text-white shadow-[0_0_42px_rgba(124,255,106,0.13)] transition group-hover:scale-[1.03]">
-            {firstLetter}
+          <div className="relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-[30px] border border-blue-300/20 bg-[linear-gradient(180deg,rgba(15,23,42,0.98),rgba(2,6,23,0.99))] shadow-[0_0_42px_rgba(59,130,246,0.18)] transition group-hover:scale-[1.03]">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.22),transparent_60%)]" />
+
+            <img
+              src="/Korax-logo.png"
+              alt="KORAX"
+              className="launch-logo-float relative h-16 w-16 object-contain drop-shadow-[0_0_22px_rgba(59,130,246,0.75)]"
+            />
           </div>
 
           <StatusPill active={project.active}>
@@ -266,15 +293,15 @@ function ProjectIconCard({
           </StatusPill>
         </div>
 
-        <h3 className="mt-5 line-clamp-2 text-2xl font-black text-white">
+        <h3 className="mt-5 text-2xl font-black leading-tight text-white">
           {project.name}
         </h3>
 
-        <div className="mt-2 text-sm font-black uppercase tracking-[0.22em] text-[#c4ffbc]">
+        <div className="mt-2 text-sm font-black uppercase tracking-[0.22em] text-cyan-200">
           {project.symbol}
         </div>
 
-        <p className="mt-4 line-clamp-3 text-sm leading-7 text-white/60">
+        <p className="mt-4 text-sm leading-7 text-white/60">
           Registered on KORAX Project Registry and ready to be connected with
           Launchpad sale setup.
         </p>
@@ -287,11 +314,608 @@ function ProjectIconCard({
           />
         </div>
 
-        <div className="mt-5 rounded-2xl border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 px-4 py-3 text-center text-sm font-black text-[#c4ffbc]">
+        <div className="mt-5 rounded-2xl border border-blue-300/25 bg-blue-500/10 px-4 py-3 text-center text-sm font-black text-blue-100">
           Open Project Launch Page
         </div>
       </div>
     </a>
+  );
+}
+
+function LaunchHeroVisual() {
+  return (
+    <div className="realistic-launch-hero">
+      <div className="realistic-stars" />
+      <div className="realistic-grid" />
+      <div className="realistic-orbit realistic-orbit-one" />
+      <div className="realistic-orbit realistic-orbit-two" />
+      <div className="realistic-cloud realistic-cloud-left" />
+      <div className="realistic-cloud realistic-cloud-right" />
+
+      <div className="realistic-rocket-stack">
+        <div className="realistic-speed-lines" />
+
+        <svg
+          viewBox="0 0 300 640"
+          className="realistic-rocket-svg"
+          fill="none"
+          aria-hidden="true"
+        >
+          <defs>
+            <linearGradient id="metalBody" x1="60" y1="0" x2="240" y2="0">
+              <stop offset="0%" stopColor="#111827" />
+              <stop offset="10%" stopColor="#64748B" />
+              <stop offset="24%" stopColor="#F8FAFC" />
+              <stop offset="45%" stopColor="#94A3B8" />
+              <stop offset="63%" stopColor="#FFFFFF" />
+              <stop offset="82%" stopColor="#64748B" />
+              <stop offset="100%" stopColor="#0F172A" />
+            </linearGradient>
+
+            <linearGradient id="noseBlue" x1="75" y1="0" x2="225" y2="0">
+              <stop offset="0%" stopColor="#0F172A" />
+              <stop offset="35%" stopColor="#60A5FA" />
+              <stop offset="62%" stopColor="#E0F2FE" />
+              <stop offset="100%" stopColor="#1E3A8A" />
+            </linearGradient>
+
+            <linearGradient id="boosterMetal" x1="0" y1="0" x2="60" y2="0">
+              <stop offset="0%" stopColor="#0F172A" />
+              <stop offset="20%" stopColor="#64748B" />
+              <stop offset="45%" stopColor="#E2E8F0" />
+              <stop offset="72%" stopColor="#94A3B8" />
+              <stop offset="100%" stopColor="#1E293B" />
+            </linearGradient>
+
+            <linearGradient id="flameReal" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#FFFFFF" />
+              <stop offset="16%" stopColor="#DBEAFE" />
+              <stop offset="32%" stopColor="#60A5FA" />
+              <stop offset="55%" stopColor="#22D3EE" />
+              <stop offset="72%" stopColor="#F97316" />
+              <stop offset="100%" stopColor="transparent" />
+            </linearGradient>
+
+            <filter id="flameBlur">
+              <feGaussianBlur stdDeviation="5" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+
+          {/* Side boosters */}
+          <path
+            d="M62 170C42 220 36 345 45 465C49 512 66 548 91 558C79 414 80 282 103 170H62Z"
+            fill="url(#boosterMetal)"
+            stroke="rgba(255,255,255,0.35)"
+            strokeWidth="2"
+          />
+          <path
+            d="M238 170C258 220 264 345 255 465C251 512 234 548 209 558C221 414 220 282 197 170H238Z"
+            fill="url(#boosterMetal)"
+            stroke="rgba(255,255,255,0.35)"
+            strokeWidth="2"
+          />
+
+          {/* Main body */}
+          <path
+            d="M150 20C112 62 92 118 92 190V452C92 501 116 535 150 535C184 535 208 501 208 452V190C208 118 188 62 150 20Z"
+            fill="url(#metalBody)"
+            stroke="rgba(255,255,255,0.55)"
+            strokeWidth="2.5"
+          />
+
+          {/* Nose */}
+          <path
+            d="M150 20C118 56 101 96 94 146H206C199 96 182 56 150 20Z"
+            fill="url(#noseBlue)"
+            stroke="rgba(191,219,254,0.85)"
+            strokeWidth="2.5"
+          />
+
+          {/* Horizontal rings */}
+          <path d="M98 172H202" stroke="#1D4ED8" strokeWidth="6" strokeLinecap="round" />
+          <path d="M96 382H204" stroke="#1D4ED8" strokeWidth="6" strokeLinecap="round" />
+
+          {/* Window */}
+          <ellipse
+            cx="150"
+            cy="174"
+            rx="32"
+            ry="32"
+            fill="#020617"
+            stroke="#93C5FD"
+            strokeWidth="6"
+          />
+          <ellipse cx="150" cy="174" rx="17" ry="17" fill="#38BDF8" />
+          <ellipse cx="140" cy="162" rx="7" ry="5" fill="white" opacity="0.9" />
+
+          {/* Logo panel */}
+          <path
+            d="M112 260C132 275 168 275 188 260V342C166 358 134 358 112 342V260Z"
+            fill="rgba(2,6,23,0.48)"
+            stroke="rgba(96,165,250,0.45)"
+            strokeWidth="2"
+          />
+          <rect x="124" y="283" width="52" height="52" rx="16" fill="rgba(15,23,42,0.78)" />
+          <image href="/Korax-logo.png" x="130" y="289" width="40" height="40" />
+
+          {/* Fins */}
+          <path
+            d="M93 408C61 438 48 493 43 545C75 531 96 505 108 462L112 418L93 408Z"
+            fill="#1D4ED8"
+            stroke="#93C5FD"
+            strokeWidth="2"
+          />
+          <path
+            d="M207 408C239 438 252 493 257 545C225 531 204 505 192 462L188 418L207 408Z"
+            fill="#1D4ED8"
+            stroke="#93C5FD"
+            strokeWidth="2"
+          />
+
+          {/* Engines */}
+          <path
+            d="M110 520H190L176 568H124L110 520Z"
+            fill="#020617"
+            stroke="#94A3B8"
+            strokeWidth="2"
+          />
+          <path d="M128 560H172L162 600H138L128 560Z" fill="#020617" />
+
+          {/* Flames */}
+          <path
+            className="realistic-flame-side"
+            d="M72 555C93 578 95 625 76 640C55 606 48 575 72 555Z"
+            fill="url(#flameReal)"
+            filter="url(#flameBlur)"
+          />
+          <path
+            className="realistic-flame-side"
+            d="M228 555C207 578 205 625 224 640C245 606 252 575 228 555Z"
+            fill="url(#flameReal)"
+            filter="url(#flameBlur)"
+          />
+          <path
+            className="realistic-flame-main"
+            d="M150 558C184 596 180 630 150 640C120 630 116 596 150 558Z"
+            fill="url(#flameReal)"
+            filter="url(#flameBlur)"
+          />
+        </svg>
+
+        <img
+          src="/korax-wordmark.png"
+          alt="KORAX"
+          className="realistic-wordmark"
+        />
+      </div>
+
+      <div className="realistic-launch-bars">
+        <div className="realistic-bar-card">
+          <span>Access</span>
+          <div className="realistic-track">
+            <div className="realistic-fill realistic-fill-access" />
+          </div>
+        </div>
+
+        <div className="realistic-bar-card">
+          <span>Buy</span>
+          <div className="realistic-track">
+            <div className="realistic-fill realistic-fill-buy" />
+          </div>
+        </div>
+
+        <div className="realistic-bar-card">
+          <span>Release</span>
+          <div className="realistic-track">
+            <div className="realistic-fill realistic-fill-release" />
+          </div>
+        </div>
+      </div>
+
+      <style jsx>{`
+        .realistic-launch-hero {
+          position: relative;
+          min-height: 560px;
+          overflow: hidden;
+          border-radius: 34px;
+          background:
+            radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.24), transparent 34%),
+            radial-gradient(circle at 20% 75%, rgba(34, 211, 238, 0.12), transparent 30%),
+            linear-gradient(180deg, #061020 0%, #020617 58%, #01030a 100%);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          box-shadow: 0 34px 120px rgba(0, 0, 0, 0.68);
+          isolation: isolate;
+        }
+
+        .realistic-grid {
+          position: absolute;
+          inset: 0;
+          opacity: 0.055;
+          background-image:
+            linear-gradient(rgba(255, 255, 255, 0.09) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.09) 1px, transparent 1px);
+          background-size: 36px 36px;
+        }
+
+        .realistic-stars {
+          position: absolute;
+          inset: 0;
+          opacity: 0.75;
+          background-image:
+            radial-gradient(1.4px 1.4px at 9% 18%, #fff, transparent),
+            radial-gradient(1px 1px at 23% 43%, #dbeafe, transparent),
+            radial-gradient(1.5px 1.5px at 54% 12%, #fff, transparent),
+            radial-gradient(1px 1px at 74% 28%, #dbeafe, transparent),
+            radial-gradient(1.3px 1.3px at 88% 14%, #fff, transparent),
+            radial-gradient(1px 1px at 92% 64%, #fff, transparent),
+            radial-gradient(1.2px 1.2px at 40% 78%, #fff, transparent),
+            radial-gradient(1px 1px at 16% 82%, #dbeafe, transparent);
+          background-repeat: no-repeat;
+          animation: realisticStars 5.5s ease-in-out infinite;
+        }
+
+        .realistic-orbit {
+          position: absolute;
+          left: 50%;
+          top: 42%;
+          border-radius: 999px;
+          border: 1px solid rgba(56, 189, 248, 0.13);
+          transform: translate(-50%, -50%);
+        }
+
+        .realistic-orbit-one {
+          width: 420px;
+          height: 420px;
+          animation: realisticOrbit 22s linear infinite;
+        }
+
+        .realistic-orbit-two {
+          width: 560px;
+          height: 560px;
+          border-color: rgba(96, 165, 250, 0.08);
+          animation: realisticOrbit 34s linear infinite reverse;
+        }
+
+        .realistic-cloud {
+          position: absolute;
+          bottom: 72px;
+          width: 210px;
+          height: 95px;
+          border-radius: 999px;
+          background: radial-gradient(circle, rgba(255,255,255,0.14), rgba(148,163,184,0.08) 50%, transparent 75%);
+          filter: blur(12px);
+          opacity: 0.7;
+        }
+
+        .realistic-cloud-left {
+          left: -55px;
+        }
+
+        .realistic-cloud-right {
+          right: -55px;
+        }
+
+        .realistic-rocket-stack {
+          position: absolute;
+          left: 50%;
+          top: 48%;
+          width: 300px;
+          height: 640px;
+          transform: translate(-50%, -50%);
+          z-index: 5;
+          animation: realisticRocketToSky 6.8s cubic-bezier(0.18, 0.9, 0.22, 1) infinite;
+          will-change: transform, opacity;
+          transform-style: preserve-3d;
+        }
+
+        .realistic-rocket-svg {
+          width: 300px;
+          height: 640px;
+          display: block;
+          filter: drop-shadow(0 28px 46px rgba(0, 0, 0, 0.5));
+          transform: perspective(950px) rotateX(7deg) rotateY(-9deg);
+        }
+
+        .realistic-speed-lines {
+          position: absolute;
+          left: 50%;
+          top: 0;
+          width: 160px;
+          height: 560px;
+          transform: translateX(-50%);
+          background:
+            linear-gradient(180deg, transparent, rgba(96,165,250,0.38), transparent),
+            linear-gradient(90deg, transparent 20%, rgba(34,211,238,0.35), transparent 80%);
+          opacity: 0;
+          filter: blur(4px);
+          animation: realisticSpeedLines 6.8s ease-in-out infinite;
+        }
+
+        .realistic-wordmark {
+          position: absolute;
+          left: 50%;
+          top: 390px;
+          width: 136px;
+          height: auto;
+          transform: translateX(-50%);
+          object-fit: contain;
+          filter: drop-shadow(0 0 14px rgba(59, 130, 246, 0.6));
+        }
+
+        .realistic-flame-main {
+          animation: realisticFlameMain 0.55s ease-in-out infinite alternate;
+          transform-origin: center top;
+        }
+
+        .realistic-flame-side {
+          animation: realisticFlameSide 0.7s ease-in-out infinite alternate;
+          transform-origin: center top;
+        }
+
+        .realistic-launch-bars {
+          position: absolute;
+          left: 16px;
+          right: 16px;
+          bottom: 16px;
+          z-index: 10;
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 12px;
+        }
+
+        .realistic-bar-card {
+          border-radius: 18px;
+          border: 1px solid rgba(255, 255, 255, 0.09);
+          background: rgba(2, 6, 23, 0.72);
+          padding: 14px;
+          backdrop-filter: blur(16px);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+        }
+
+        .realistic-bar-card span {
+          display: block;
+          margin-bottom: 12px;
+          color: #ffffff;
+          font-size: 13px;
+          font-weight: 900;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+
+        .realistic-track {
+          height: 8px;
+          overflow: hidden;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.09);
+        }
+
+        .realistic-fill {
+          width: 0;
+          height: 100%;
+          border-radius: 999px;
+          animation-duration: 6.8s;
+          animation-fill-mode: both;
+          animation-timing-function: cubic-bezier(0.18, 0.9, 0.28, 1);
+          animation-iteration-count: infinite;
+        }
+
+        .realistic-fill-access {
+          background: linear-gradient(90deg, #1d4ed8, #60a5fa, #dbeafe);
+          animation-name: realisticFillAccess;
+        }
+
+        .realistic-fill-buy {
+          background: linear-gradient(90deg, #0891b2, #22d3ee, #cffafe);
+          animation-name: realisticFillBuy;
+          animation-delay: 0.08s;
+        }
+
+        .realistic-fill-release {
+          background: linear-gradient(90deg, #b45309, #f59e0b, #fde68a);
+          animation-name: realisticFillRelease;
+          animation-delay: 0.16s;
+        }
+
+        @keyframes realisticRocketToSky {
+          0% {
+            transform: translate(-50%, -34%) scale(0.82) rotate(-0.7deg);
+            opacity: 1;
+          }
+
+          10% {
+            transform: translate(-51%, -36%) scale(0.86) rotate(0.8deg);
+            opacity: 1;
+          }
+
+          22% {
+            transform: translate(-50%, -48%) scale(0.92) rotate(-0.3deg);
+            opacity: 1;
+          }
+
+          42% {
+            transform: translate(-50%, -105%) scale(0.86) rotate(0deg);
+            opacity: 1;
+          }
+
+          58% {
+            transform: translate(-50%, -205%) scale(0.62) rotate(0deg);
+            opacity: 0;
+          }
+
+          74% {
+            transform: translate(-50%, -205%) scale(0.62) rotate(0deg);
+            opacity: 0;
+          }
+
+          75% {
+            transform: translate(-50%, 16%) scale(0.78) rotate(-0.7deg);
+            opacity: 0;
+          }
+
+          86% {
+            transform: translate(-50%, -34%) scale(0.82) rotate(-0.7deg);
+            opacity: 1;
+          }
+
+          100% {
+            transform: translate(-50%, -34%) scale(0.82) rotate(-0.7deg);
+            opacity: 1;
+          }
+        }
+
+        @keyframes realisticSpeedLines {
+          0%,
+          12% {
+            opacity: 0;
+            transform: translateX(-50%) translateY(40px) scaleY(0.7);
+          }
+
+          24% {
+            opacity: 0.45;
+          }
+
+          44% {
+            opacity: 0.85;
+            transform: translateX(-50%) translateY(-90px) scaleY(1.12);
+          }
+
+          60%,
+          100% {
+            opacity: 0;
+            transform: translateX(-50%) translateY(-210px) scaleY(1.2);
+          }
+        }
+
+        @keyframes realisticFillAccess {
+          0% {
+            width: 0;
+          }
+          44% {
+            width: 84%;
+          }
+          74% {
+            width: 84%;
+          }
+          100% {
+            width: 0;
+          }
+        }
+
+        @keyframes realisticFillBuy {
+          0% {
+            width: 0;
+          }
+          44% {
+            width: 68%;
+          }
+          74% {
+            width: 68%;
+          }
+          100% {
+            width: 0;
+          }
+        }
+
+        @keyframes realisticFillRelease {
+          0% {
+            width: 0;
+          }
+          44% {
+            width: 92%;
+          }
+          74% {
+            width: 92%;
+          }
+          100% {
+            width: 0;
+          }
+        }
+
+        @keyframes realisticStars {
+          0%,
+          100% {
+            opacity: 0.45;
+          }
+          50% {
+            opacity: 0.85;
+          }
+        }
+
+        @keyframes realisticOrbit {
+          from {
+            transform: translate(-50%, -50%) rotate(0deg);
+          }
+          to {
+            transform: translate(-50%, -50%) rotate(360deg);
+          }
+        }
+
+        @keyframes realisticFlameMain {
+          from {
+            transform: scaleY(0.9);
+            opacity: 0.82;
+          }
+          to {
+            transform: scaleY(1.16);
+            opacity: 1;
+          }
+        }
+
+        @keyframes realisticFlameSide {
+          from {
+            transform: scaleY(0.85);
+            opacity: 0.72;
+          }
+          to {
+            transform: scaleY(1.06);
+            opacity: 0.96;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .realistic-launch-hero {
+            min-height: 640px;
+          }
+
+          .realistic-rocket-stack {
+            top: 43%;
+            transform: translate(-50%, -50%) scale(0.78);
+          }
+
+          .realistic-launch-bars {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .realistic-stars,
+          .realistic-orbit,
+          .realistic-rocket-stack,
+          .realistic-speed-lines,
+          .realistic-flame-main,
+          .realistic-flame-side,
+          .realistic-fill {
+            animation: none !important;
+          }
+
+          .realistic-fill-access {
+            width: 84%;
+          }
+
+          .realistic-fill-buy {
+            width: 68%;
+          }
+
+          .realistic-fill-release {
+            width: 92%;
+          }
+        }
+      `}</style>
+    </div>
   );
 }
 
@@ -582,6 +1206,7 @@ export default function LaunchPage() {
     loadAccess(address);
     loadLaunchpadPermissions(address);
   }, [address, isConnected]);
+
   async function createSale() {
     setCreatingSale(true);
     setCreatorStatus("");
@@ -609,16 +1234,23 @@ export default function LaunchPage() {
       const prices = parseLines(creatorForm.stagePricesUsd);
 
       if (caps.length === 0) throw new Error("At least one stage is required.");
+
       if (caps.length !== prices.length) {
         throw new Error("Stage caps and prices count must match.");
       }
-      if (caps.length > 10) throw new Error("Maximum 10 stages allowed.");
+
+      if (caps.length > 10) {
+        throw new Error("Maximum 10 stages allowed.");
+      }
 
       const stageCaps = caps.map((x) => ethers.parseUnits(x, saleDecimals));
       const stagePricesUsd18 = prices.map((x) => ethers.parseUnits(x, 18));
 
       const totalForSale = stageCaps.reduce((a, b) => a + b, 0n);
-      if (totalForSale <= 0n) throw new Error("Total for sale must be > 0.");
+
+      if (totalForSale <= 0n) {
+        throw new Error("Total for sale must be > 0.");
+      }
 
       const saleToken = new ethers.Contract(saleTokenAddress, erc20Abi, signer);
       const allowanceRaw = await saleToken.allowance(owner, LAUNCHPAD_ADDRESS);
@@ -626,10 +1258,12 @@ export default function LaunchPage() {
 
       if (allowance < totalForSale) {
         setCreatorStatus("Approving sale tokens...");
+
         const approveTx = await saleToken.approve(
           LAUNCHPAD_ADDRESS,
           totalForSale
         );
+
         await approveTx.wait();
       }
 
@@ -678,6 +1312,7 @@ export default function LaunchPage() {
       }
 
       const provider = new ethers.JsonRpcProvider(RPC_URL);
+
       const launchpad = new ethers.Contract(
         LAUNCHPAD_ADDRESS,
         launchpadAbi,
@@ -693,6 +1328,7 @@ export default function LaunchPage() {
 
       for (let i = 0; i < count; i++) {
         const st = await launchpad.getStage(saleId, i);
+
         stages.push({
           cap: BigInt(st.cap.toString()),
           priceUsd18: BigInt(st.priceUsd18.toString()),
@@ -739,6 +1375,7 @@ export default function LaunchPage() {
       setBuyerStatus("Sale loaded.");
     } catch (err: any) {
       setLoadedSale(null);
+
       setBuyerStatus(
         err?.shortMessage ||
           err?.reason ||
@@ -763,6 +1400,7 @@ export default function LaunchPage() {
       }
 
       const provider = new ethers.JsonRpcProvider(RPC_URL);
+
       const launchpad = new ethers.Contract(
         LAUNCHPAD_ADDRESS,
         launchpadAbi,
@@ -795,9 +1433,15 @@ export default function LaunchPage() {
       const signer = await getBrowserSigner();
       const buyer = await signer.getAddress();
       const saleId = BigInt(buyerForm.saleId || "0");
-      const paymentAmount = ethers.parseUnits(buyerForm.paymentAmount || "0", 18);
 
-      if (paymentAmount <= 0n) throw new Error("Payment amount must be > 0.");
+      const paymentAmount = ethers.parseUnits(
+        buyerForm.paymentAmount || "0",
+        18
+      );
+
+      if (paymentAmount <= 0n) {
+        throw new Error("Payment amount must be > 0.");
+      }
 
       const paymentAddress =
         buyerForm.payToken === "USDC" ? USDC_ADDRESS : USDT_ADDRESS;
@@ -808,10 +1452,12 @@ export default function LaunchPage() {
 
       if (allowance < paymentAmount) {
         setBuyerStatus(`Approving ${buyerForm.payToken}...`);
+
         const approveTx = await paymentToken.approve(
           LAUNCHPAD_ADDRESS,
           paymentAmount
         );
+
         await approveTx.wait();
       }
 
@@ -844,9 +1490,12 @@ export default function LaunchPage() {
     setBuyerStatus("");
 
     try {
-      if (!LAUNCHPAD_ADDRESS) throw new Error("Launchpad address is missing.");
+      if (!LAUNCHPAD_ADDRESS) {
+        throw new Error("Launchpad address is missing.");
+      }
 
       const signer = await getBrowserSigner();
+
       const launchpad = new ethers.Contract(
         LAUNCHPAD_ADDRESS,
         launchpadAbi,
@@ -875,9 +1524,12 @@ export default function LaunchPage() {
     setAdminStatus("");
 
     try {
-      if (!LAUNCHPAD_ADDRESS) throw new Error("Launchpad address is missing.");
+      if (!LAUNCHPAD_ADDRESS) {
+        throw new Error("Launchpad address is missing.");
+      }
 
       const signer = await getBrowserSigner();
+
       const launchpad = new ethers.Contract(
         LAUNCHPAD_ADDRESS,
         launchpadAbi,
@@ -931,9 +1583,12 @@ export default function LaunchPage() {
         );
       }
 
-      if (!tx) throw new Error("Unknown admin action.");
+      if (!tx) {
+        throw new Error("Unknown admin action.");
+      }
 
       const receipt = await tx.wait();
+
       setAdminStatus(`Admin action successful. Transaction: ${receipt.hash}`);
       await loadSale();
     } catch (err: any) {
@@ -955,17 +1610,17 @@ export default function LaunchPage() {
       <div
         key={level.name}
         className={[
-          "rounded-[28px] border p-6 transition",
+          "launch-card-3d rounded-[28px] border p-6 transition",
           active
-            ? "border-[#7CFF6A]/30 bg-[#7CFF6A]/10"
-            : "border-white/10 bg-black/25",
+            ? "border-blue-300/30 bg-blue-500/10"
+            : "border-white/10 bg-[#020617]/45",
         ].join(" ")}
       >
         <div className="text-sm uppercase tracking-[0.25em] text-white/45">
           {level.name}
         </div>
 
-        <div className="mt-2 text-2xl font-extrabold text-white">
+        <div className="mt-2 text-2xl font-black text-white">
           {level.label}
         </div>
 
@@ -982,9 +1637,9 @@ export default function LaunchPage() {
           {level.desc}
         </p>
 
-        <div className="mt-5 text-sm font-semibold">
+        <div className="mt-5 text-sm font-black">
           {active ? (
-            <span className="text-[#c4ffbc]">Unlocked</span>
+            <span className="text-blue-100">Unlocked</span>
           ) : (
             <span className="text-white/45">Locked</span>
           )}
@@ -992,61 +1647,209 @@ export default function LaunchPage() {
       </div>
     );
   }
-
   return (
     <div className="space-y-8">
-      <section className="relative overflow-hidden rounded-[30px] border border-white/10 bg-black/30 p-8 shadow-[0_25px_80px_rgba(0,0,0,.45)] backdrop-blur-md">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(124,255,106,0.16),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.07),transparent_32%)]" />
+      <style jsx global>{`
+        @keyframes launchCardShimmer {
+          0%,
+          76% {
+            transform: translateX(-120%);
+            opacity: 0;
+          }
 
-        <div className="relative grid gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
+          84% {
+            opacity: 1;
+          }
+
+          100% {
+            transform: translateX(120%);
+            opacity: 0;
+          }
+        }
+
+        @keyframes launchLogoFloat {
+          0%,
+          100% {
+            transform: translateY(0) scale(1);
+          }
+
+          50% {
+            transform: translateY(-4px) scale(1.03);
+          }
+        }
+
+        .launch-logo-float {
+          animation: launchLogoFloat 4.8s ease-in-out infinite;
+          will-change: transform;
+        }
+
+        .launch-card-3d {
+          transform-style: preserve-3d;
+          transition:
+            transform 240ms ease,
+            border-color 240ms ease,
+            background 240ms ease,
+            box-shadow 240ms ease;
+        }
+
+        .launch-card-3d:hover {
+          transform: translateY(-3px) perspective(900px) rotateX(1.4deg);
+          border-color: rgba(96, 165, 250, 0.3);
+          box-shadow: 0 20px 70px rgba(0, 0, 0, 0.42);
+        }
+
+        .launch-section-card {
+          transform-style: preserve-3d;
+        }
+
+        .launch-section-card::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background: linear-gradient(
+            120deg,
+            transparent,
+            rgba(255, 255, 255, 0.035),
+            transparent
+          );
+          transform: translateX(-120%);
+          animation: launchCardShimmer 8s ease-in-out infinite;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .launch-logo-float,
+          .launch-section-card::after {
+            animation: none;
+          }
+
+          .launch-card-3d:hover {
+            transform: none;
+          }
+        }
+      `}</style>
+
+      <section className="relative overflow-hidden rounded-[38px] border border-white/10 bg-[#020617]/65 p-5 shadow-[0_34px_130px_rgba(0,0,0,0.66)] backdrop-blur-xl md:p-8">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.22),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(34,211,238,0.15),transparent_35%),linear-gradient(135deg,rgba(15,23,42,0.86),rgba(2,6,23,0.96))]" />
+        <div className="pointer-events-none absolute inset-0 opacity-[0.06] [background-image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:52px_52px]" />
+        <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-blue-500/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-28 left-20 h-72 w-72 rounded-full bg-cyan-400/10 blur-3xl" />
+
+        <div className="relative grid gap-8 xl:grid-cols-[1fr_470px] xl:items-center">
           <div>
-            <p className="text-xs uppercase tracking-[0.28em] text-[#c4ffbc]">
-              KORAX Launchpad
-            </p>
+            <div className="inline-flex rounded-full border border-blue-300/25 bg-blue-500/10 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-blue-100">
+              KORAX Launchpad / Command Center
+            </div>
 
-            <h1 className="mt-3 text-3xl font-extrabold text-white sm:text-5xl">
-              Launch, join, and claim Web3 projects through KORAX
+            <h1 className="mt-6 text-4xl font-black leading-[0.96] tracking-tight text-white sm:text-6xl xl:text-7xl">
+              Launch. Join.
+              <span className="block bg-gradient-to-r from-blue-300 via-cyan-200 to-white bg-clip-text text-transparent">
+                Claim through KORAX.
+              </span>
             </h1>
 
-            <p className="mt-4 max-w-3xl leading-relaxed text-white/70">
+            <p className="mt-6 max-w-3xl text-base leading-8 text-white/70 sm:text-lg">
               A flexible launch system for AI-created projects and external
               projects. Sales use USDT / USDC, staged pricing, access levels,
               and controlled claim activation.
             </p>
+
+            <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <StatusPill active={Boolean(currentLevel)}>
+                {currentLevel ? currentLevel.label : "Access Locked"}
+              </StatusPill>
+
+              <StatusPill active={Boolean(publicProjects.length)}>
+                Project Registry
+              </StatusPill>
+
+              <StatusPill active={Boolean(loadedSale?.active)}>
+                Sale Console
+              </StatusPill>
+
+              <StatusPill active={Boolean(loadedSale?.claimOpen)}>
+                Claim Layer
+              </StatusPill>
+            </div>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-black/35 p-5 text-white/80">
-            <div className="text-sm text-white/50">Your Launch Access</div>
-
-            <div className="mt-2 text-2xl font-bold text-white">
-              {currentLevel ? currentLevel.label : "Locked"}
-            </div>
-
-            <div className="mt-3 grid gap-2 text-sm text-white/60">
-              <div>Eligible Staking: {access.eligibleAmount} KRX</div>
-              <div>Launch Level: {access.launchLevel}</div>
-              <div>Project Slots: {access.totalProjectSlots}</div>
-            </div>
-
-            {access.loading ? (
-              <div className="mt-4 rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/70">
-                Loading access...
-              </div>
-            ) : !access.connected ? (
-              <div className="mt-4 rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/70">
-                Connect wallet from the top bar.
-              </div>
-            ) : access.error ? (
-              <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-                {access.error}
-              </div>
-            ) : (
-              <div className="mt-4 rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/70">
-                Wallet: {shortAddress(access.wallet)}
-              </div>
-            )}
-          </div>
+          <LaunchHeroVisual />
         </div>
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[1fr_430px]">
+        <SectionBox
+          eyebrow="Your Launch Access"
+          title={currentLevel ? currentLevel.label : "Launch Access Locked"}
+          right={
+            <StatusPill active={access.hasLaunchAccess}>
+              {access.loading
+                ? "Checking"
+                : access.hasLaunchAccess
+                  ? "Unlocked"
+                  : "Locked"}
+            </StatusPill>
+          }
+        >
+          <p className="mt-3 text-sm leading-7 text-white/64">
+            Your launch participation level is calculated from eligible KRX
+            staking. Higher levels unlock stronger participation limits.
+          </p>
+
+          <div className="mt-5 grid gap-3 md:grid-cols-2">
+            <InfoCard
+              label="Eligible Staking"
+              value={`${access.eligibleAmount} KRX`}
+            />
+            <InfoCard label="Launch Level" value={access.launchLevel} />
+            <InfoCard label="Project Slots" value={access.totalProjectSlots} />
+            <InfoCard
+              label="Required Plan"
+              value={`${access.requiredRewardBps / 100}% reward plan`}
+            />
+          </div>
+
+          {access.loading ? (
+            <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
+              Loading access...
+            </div>
+          ) : !access.connected ? (
+            <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
+              Connect wallet from the top bar.
+            </div>
+          ) : access.error ? (
+            <div className="mt-5 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+              {access.error}
+            </div>
+          ) : (
+            <div className="mt-5 rounded-2xl border border-blue-300/20 bg-blue-500/10 px-4 py-3 text-sm text-blue-100">
+              Wallet: {shortAddress(access.wallet)}
+            </div>
+          )}
+        </SectionBox>
+
+        <SectionBox eyebrow="Launch Status" title="Live Operations">
+          <div className="mt-5 grid gap-3">
+            <InfoCard
+              label="Launchpad Role"
+              value={
+                isLaunchpadOwner
+                  ? "Owner"
+                  : isApprovedCreator
+                    ? "Approved Creator"
+                    : "Visitor / Buyer"
+              }
+            />
+
+            <InfoCard label="Selected Sale" value={buyerForm.saleId || "0"} />
+            <InfoCard label="Selected Payment" value={buyerForm.payToken} />
+
+            <InfoCard
+              label="Claim Status"
+              value={loadedSale?.claimOpen ? "Open" : "Closed / Not loaded"}
+            />
+          </div>
+        </SectionBox>
       </section>
 
       <SectionBox
@@ -1057,7 +1860,7 @@ export default function LaunchPage() {
             type="button"
             onClick={loadPublicProjects}
             disabled={projectsLoading}
-            className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10 disabled:opacity-50"
+            className={ghostButtonClass}
           >
             {projectsLoading ? "Refreshing..." : "Refresh"}
           </button>
@@ -1075,7 +1878,7 @@ export default function LaunchPage() {
         ) : null}
 
         {projectsLoading ? (
-          <div className="mt-6 rounded-2xl border border-white/10 bg-black/25 p-5 text-sm text-white/60">
+          <div className="mt-6 rounded-2xl border border-white/10 bg-[#020617]/45 p-5 text-sm text-white/60">
             Loading public projects from Project Registry...
           </div>
         ) : publicProjects.length > 0 ? (
@@ -1089,10 +1892,11 @@ export default function LaunchPage() {
             ))}
           </div>
         ) : (
-          <div className="mt-6 rounded-[26px] border border-white/10 bg-black/25 p-6">
+          <div className="mt-6 rounded-[28px] border border-white/10 bg-[#020617]/45 p-6">
             <div className="text-lg font-black text-white">
               No public launches yet
             </div>
+
             <p className="mt-3 text-sm leading-7 text-white/60">
               After the first project is registered in the KORAX Project
               Registry, it will appear here for everyone.
@@ -1121,7 +1925,7 @@ export default function LaunchPage() {
             />
           </div>
 
-          <div className="mt-5 rounded-2xl border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 p-4 text-sm leading-7 text-white/75">
+          <div className="mt-5 rounded-2xl border border-blue-300/20 bg-blue-500/10 p-4 text-sm leading-7 text-white/75">
             This project token is automatically selected for launch sale setup
             if your wallet is the Launchpad owner or an approved sale creator.
           </div>
@@ -1129,7 +1933,10 @@ export default function LaunchPage() {
       ) : null}
 
       {loadedBuilderProject ? (
-        <SectionBox eyebrow="Local Builder Data" title="Last project from your builder flow">
+        <SectionBox
+          eyebrow="Local Builder Data"
+          title="Last project from your builder flow"
+        >
           <p className="mt-3 max-w-3xl text-sm leading-7 text-white/60">
             This section is only loaded from your current browser to help you
             continue your own builder flow. Public projects above come from the
@@ -1174,9 +1981,7 @@ export default function LaunchPage() {
       </SectionBox>
 
       <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-        <div className="rounded-[30px] border border-white/10 bg-black/20 p-6 backdrop-blur-md">
-          <h2 className="text-xl font-bold text-white">Join Launch</h2>
-
+        <SectionBox eyebrow="Buyer Console" title="Join Launch">
           <p className="mt-2 text-sm leading-relaxed text-white/60">
             Load a sale by ID, buy with USDT or USDC, then claim after the sale
             closes and claim opens.
@@ -1190,21 +1995,21 @@ export default function LaunchPage() {
                   setBuyerForm((prev) => ({ ...prev, saleId: e.target.value }))
                 }
                 placeholder="Sale ID"
-                className="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none"
+                className={inputClass}
               />
 
               <button
                 type="button"
                 onClick={loadSale}
                 disabled={loadingSale}
-                className="rounded-xl border border-white/10 bg-white/5 px-5 py-3 font-semibold text-white transition hover:bg-white/10 disabled:opacity-50"
+                className={ghostButtonClass}
               >
                 {loadingSale ? "Loading..." : "Load Sale"}
               </button>
             </div>
 
             {loadedSale ? (
-              <div className="rounded-3xl border border-white/10 bg-black/25 p-5">
+              <div className="rounded-[28px] border border-white/10 bg-[#020617]/45 p-5">
                 <div className="grid gap-3 text-sm text-white/75">
                   <div>
                     <span className="text-white/45">Owner:</span>{" "}
@@ -1265,18 +2070,21 @@ export default function LaunchPage() {
                 </div>
 
                 <div className="mt-5 grid gap-3">
-                  <div className="font-semibold text-white">Stages</div>
+                  <div className="font-black text-white">Stages</div>
+
                   {loadedSale.stages.map((st, idx) => (
                     <div
                       key={idx}
-                      className="rounded-2xl border border-white/10 bg-black/25 p-4 text-sm text-white/70"
+                      className="launch-card-3d rounded-2xl border border-white/10 bg-[#020617]/45 p-4 text-sm text-white/70"
                     >
-                      <div className="font-semibold text-white">
+                      <div className="font-black text-white">
                         Stage {idx + 1}
                       </div>
+
                       <div className="mt-1">
                         Price: ${formatUnitsSafe(st.priceUsd18, 18, 6)}
                       </div>
+
                       <div className="mt-1">
                         Sold:{" "}
                         {formatUnitsSafe(st.sold, loadedSale.saleTokenDecimals)} /{" "}
@@ -1298,7 +2106,7 @@ export default function LaunchPage() {
                   }))
                 }
                 placeholder="Payment Amount"
-                className="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none"
+                className={inputClass}
               />
 
               <select
@@ -1309,16 +2117,16 @@ export default function LaunchPage() {
                     payToken: e.target.value,
                   }))
                 }
-                className="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none"
+                className={selectClass}
               >
                 <option value="USDT">USDT</option>
                 <option value="USDC">USDC</option>
               </select>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/70">
+            <div className="rounded-2xl border border-blue-300/20 bg-blue-500/10 p-4 text-sm text-white/75">
               Estimated tokens:{" "}
-              <span className="font-semibold text-white">
+              <span className="font-black text-blue-100">
                 {loadedSale
                   ? formatUnitsSafe(previewTokens, loadedSale.saleTokenDecimals)
                   : "0"}
@@ -1329,24 +2137,20 @@ export default function LaunchPage() {
               type="button"
               onClick={buy}
               disabled={buying || !loadedSale || !loadedSale.active}
-              className="rounded-xl bg-[#7CFF6A] px-5 py-3 font-semibold text-black transition hover:opacity-90 disabled:opacity-50"
+              className={primaryButtonClass}
             >
               {buying ? "Buying..." : "Buy"}
             </button>
 
             {buyerStatus ? (
-              <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80">
+              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80">
                 {buyerStatus}
               </div>
             ) : null}
           </div>
-        </div>
+        </SectionBox>
 
-        <div className="rounded-[30px] border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 p-6 backdrop-blur-md">
-          <h2 className="text-xl font-bold text-white">
-            Claim Purchased Tokens
-          </h2>
-
+        <SectionBox eyebrow="Claim Console" title="Claim Purchased Tokens">
           <p className="mt-2 text-sm leading-relaxed text-white/70">
             After the project owner closes the sale and opens claim, buyers can
             withdraw their purchased tokens here.
@@ -1359,13 +2163,13 @@ export default function LaunchPage() {
                 setBuyerForm((prev) => ({ ...prev, saleId: e.target.value }))
               }
               placeholder="Sale ID"
-              className="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none"
+              className={inputClass}
             />
 
-            <div className="rounded-2xl border border-white/10 bg-black/25 p-5 text-sm text-white/70">
+            <div className="rounded-2xl border border-white/10 bg-[#020617]/45 p-5 text-sm text-white/70">
               <div>
                 Purchased:{" "}
-                <span className="font-semibold text-white">
+                <span className="font-black text-white">
                   {loadedSale
                     ? formatUnitsSafe(
                         buyerPurchased,
@@ -1377,14 +2181,14 @@ export default function LaunchPage() {
 
               <div className="mt-2">
                 Claim status:{" "}
-                <span className="font-semibold text-white">
+                <span className="font-black text-white">
                   {loadedSale?.claimOpen ? "Open" : "Closed"}
                 </span>
               </div>
 
               <div className="mt-2">
                 Already claimed:{" "}
-                <span className="font-semibold text-white">
+                <span className="font-black text-white">
                   {buyerClaimed ? "Yes" : "No"}
                 </span>
               </div>
@@ -1395,7 +2199,7 @@ export default function LaunchPage() {
                 type="button"
                 onClick={loadSale}
                 disabled={loadingSale}
-                className="rounded-xl border border-white/10 bg-white/5 px-5 py-3 font-semibold text-white transition hover:bg-white/10 disabled:opacity-50"
+                className={ghostButtonClass}
               >
                 Refresh Sale
               </button>
@@ -1404,19 +2208,21 @@ export default function LaunchPage() {
                 type="button"
                 onClick={claim}
                 disabled={claiming || !loadedSale || !loadedSale.claimOpen}
-                className="rounded-xl bg-[#7CFF6A] px-5 py-3 font-semibold text-black transition hover:opacity-90 disabled:opacity-50"
+                className={cyanButtonClass}
               >
                 {claiming ? "Claiming..." : "Claim Tokens"}
               </button>
             </div>
           </div>
-        </div>
+        </SectionBox>
       </section>
 
       {canCreateSale ? (
-        <section className="rounded-[30px] border border-white/10 bg-black/20 p-6 backdrop-blur-md">
-          <h2 className="text-xl font-bold text-white">Create Launch Sale</h2>
-
+        <SectionBox
+          eyebrow="Creator Console"
+          title="Create Launch Sale"
+          right={<StatusPill active>Creator Access</StatusPill>}
+        >
           <p className="mt-2 text-sm leading-relaxed text-white/60">
             Visible only for Launchpad owner or approved sale creators.
           </p>
@@ -1431,7 +2237,7 @@ export default function LaunchPage() {
                 }))
               }
               placeholder="Sale Token Address"
-              className="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none"
+              className={inputClass}
             />
 
             <input
@@ -1443,7 +2249,7 @@ export default function LaunchPage() {
                 }))
               }
               placeholder="Fund Receiver Wallet / leave empty for your wallet"
-              className="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none"
+              className={inputClass}
             />
 
             <div className="grid gap-4 md:grid-cols-2">
@@ -1457,7 +2263,7 @@ export default function LaunchPage() {
                 }
                 rows={5}
                 placeholder={"Stage caps\n1000000\n1000000\n1000000"}
-                className="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none"
+                className={inputClass}
               />
 
               <textarea
@@ -1470,11 +2276,11 @@ export default function LaunchPage() {
                 }
                 rows={5}
                 placeholder={"Stage prices USD\n0.01\n0.015\n0.02"}
-                className="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none"
+                className={inputClass}
               />
             </div>
 
-            <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white/80">
+            <label className="flex items-center gap-2 rounded-2xl border border-white/10 bg-[#020617]/45 px-4 py-3 text-sm text-white/80">
               <input
                 type="checkbox"
                 checked={creatorForm.requireKoraxAccess}
@@ -1492,26 +2298,26 @@ export default function LaunchPage() {
               type="button"
               onClick={createSale}
               disabled={creatingSale}
-              className="rounded-xl bg-[#7CFF6A] px-5 py-3 font-semibold text-black transition hover:opacity-90 disabled:opacity-50"
+              className={primaryButtonClass}
             >
               {creatingSale ? "Creating Sale..." : "Create Launch Sale"}
             </button>
 
             {creatorStatus ? (
-              <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80">
+              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80">
                 {creatorStatus}
               </div>
             ) : null}
           </div>
-        </section>
+        </SectionBox>
       ) : null}
 
       {isLaunchpadOwner ? (
-        <section className="rounded-[30px] border border-white/10 bg-black/20 p-6 backdrop-blur-md">
-          <h2 className="text-xl font-bold text-white">
-            Admin / Launch Manager
-          </h2>
-
+        <SectionBox
+          eyebrow="Admin Control"
+          title="Admin / Launch Manager"
+          right={<StatusPill active>Owner Only</StatusPill>}
+        >
           <p className="mt-2 text-sm leading-relaxed text-white/60">
             Visible only for Launchpad owner.
           </p>
@@ -1523,10 +2329,10 @@ export default function LaunchPage() {
                 setAdminForm((prev) => ({ ...prev, saleId: e.target.value }))
               }
               placeholder="Sale ID"
-              className="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none"
+              className={inputClass}
             />
 
-            <div className="grid gap-4 md:grid-cols-[1fr_130px]">
+            <div className="grid gap-4 md:grid-cols-[1fr_160px]">
               <input
                 value={adminForm.creatorAddress}
                 onChange={(e) =>
@@ -1536,7 +2342,7 @@ export default function LaunchPage() {
                   }))
                 }
                 placeholder="Creator address"
-                className="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none"
+                className={inputClass}
               />
 
               <select
@@ -1547,7 +2353,7 @@ export default function LaunchPage() {
                     approved: e.target.value === "true",
                   }))
                 }
-                className="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none"
+                className={selectClass}
               >
                 <option value="true">Approve</option>
                 <option value="false">Remove</option>
@@ -1558,7 +2364,7 @@ export default function LaunchPage() {
               type="button"
               onClick={() => adminAction("approve")}
               disabled={adminBusy}
-              className="rounded-xl border border-white/10 bg-white/5 px-5 py-3 font-semibold text-white transition hover:bg-white/10 disabled:opacity-50"
+              className={ghostButtonClass}
             >
               Set Creator Approval
             </button>
@@ -1568,7 +2374,7 @@ export default function LaunchPage() {
                 type="button"
                 onClick={() => adminAction("close")}
                 disabled={adminBusy}
-                className="rounded-xl border border-red-500/20 bg-red-500/10 px-5 py-3 font-semibold text-red-100 disabled:opacity-50"
+                className={dangerButtonClass}
               >
                 Close Sale
               </button>
@@ -1577,7 +2383,7 @@ export default function LaunchPage() {
                 type="button"
                 onClick={() => adminAction("claim")}
                 disabled={adminBusy}
-                className="rounded-xl border border-[#7CFF6A]/20 bg-[#7CFF6A]/10 px-5 py-3 font-semibold text-[#c4ffbc] disabled:opacity-50"
+                className={cyanButtonClass}
               >
                 {adminForm.claimOpen ? "Open Claim" : "Close Claim"}
               </button>
@@ -1590,7 +2396,7 @@ export default function LaunchPage() {
                     claimOpen: e.target.value === "true",
                   }))
                 }
-                className="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none"
+                className={selectClass}
               >
                 <option value="true">Claim Open</option>
                 <option value="false">Claim Closed</option>
@@ -1606,14 +2412,14 @@ export default function LaunchPage() {
                 }))
               }
               placeholder="Unsold receiver / leave empty for your wallet"
-              className="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none"
+              className={inputClass}
             />
 
             <button
               type="button"
               onClick={() => adminAction("unsold")}
               disabled={adminBusy}
-              className="rounded-xl border border-white/10 bg-white/5 px-5 py-3 font-semibold text-white transition hover:bg-white/10 disabled:opacity-50"
+              className={ghostButtonClass}
             >
               Withdraw Unsold Tokens
             </button>
@@ -1628,7 +2434,7 @@ export default function LaunchPage() {
                   }))
                 }
                 placeholder="Level 1 USD"
-                className="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none"
+                className={inputClass}
               />
 
               <input
@@ -1640,7 +2446,7 @@ export default function LaunchPage() {
                   }))
                 }
                 placeholder="Level 2 USD"
-                className="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none"
+                className={inputClass}
               />
 
               <input
@@ -1652,7 +2458,7 @@ export default function LaunchPage() {
                   }))
                 }
                 placeholder="Level 3 USD"
-                className="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none"
+                className={inputClass}
               />
             </div>
 
@@ -1660,7 +2466,7 @@ export default function LaunchPage() {
               type="button"
               onClick={() => adminAction("limits")}
               disabled={adminBusy}
-              className="rounded-xl border border-white/10 bg-white/5 px-5 py-3 font-semibold text-white transition hover:bg-white/10 disabled:opacity-50"
+              className={ghostButtonClass}
             >
               Update Contribution Limits
             </button>
@@ -1674,7 +2480,7 @@ export default function LaunchPage() {
                     antiBotEnabled: e.target.value === "true",
                   }))
                 }
-                className="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none"
+                className={selectClass}
               >
                 <option value="true">Anti-Bot On</option>
                 <option value="false">Anti-Bot Off</option>
@@ -1689,7 +2495,7 @@ export default function LaunchPage() {
                   }))
                 }
                 placeholder="Cooldown"
-                className="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none"
+                className={inputClass}
               />
             </div>
 
@@ -1697,18 +2503,18 @@ export default function LaunchPage() {
               type="button"
               onClick={() => adminAction("antibot")}
               disabled={adminBusy}
-              className="rounded-xl border border-white/10 bg-white/5 px-5 py-3 font-semibold text-white transition hover:bg-white/10 disabled:opacity-50"
+              className={ghostButtonClass}
             >
               Update Anti-Bot
             </button>
 
             {adminStatus ? (
-              <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80">
+              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80">
                 {adminStatus}
               </div>
             ) : null}
           </div>
-        </section>
+        </SectionBox>
       ) : null}
     </div>
   );
