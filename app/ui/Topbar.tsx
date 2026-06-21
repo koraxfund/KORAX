@@ -241,8 +241,8 @@ function FindUsDropdown({
     align === "left"
       ? "left-0"
       : align === "center"
-      ? "left-1/2 -translate-x-1/2"
-      : "right-0";
+        ? "left-1/2 -translate-x-1/2"
+        : "right-0";
 
   return (
     <div className={fullWidth ? "relative w-full" : "relative"}>
@@ -250,15 +250,14 @@ function FindUsDropdown({
         type="button"
         onClick={() => setSocialOpen((prev) => !prev)}
         className={[
-          "inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 px-0 text-xs font-black text-white/85 transition hover:border-blue-400/35 hover:bg-blue-500/10 hover:text-blue-100 sm:h-10 sm:w-auto sm:gap-2 sm:px-4 sm:text-sm",
+          "inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-black text-white/85 transition hover:border-blue-400/35 hover:bg-blue-500/10 hover:text-blue-100",
           fullWidth ? "w-full" : "whitespace-nowrap",
         ].join(" ")}
         aria-expanded={socialOpen}
         aria-label="Find KORAX social links"
       >
-        <span className="hidden sm:inline">Find us here</span>
-        <span className="sm:hidden">SM</span>
-        <span className="text-white/45">{socialOpen ? "−" : "+"}</span>
+        <span>{fullWidth ? "Find us here" : "SM"}</span>
+        <span className="ml-1 text-white/45">{socialOpen ? "−" : "+"}</span>
       </button>
 
       {socialOpen ? (
@@ -272,6 +271,7 @@ function FindUsDropdown({
             <div className="text-xs uppercase tracking-[0.22em] text-blue-100">
               KORAX Socials
             </div>
+
             <div className="mt-1 text-xs leading-relaxed text-white/45">
               Official channels and community links.
             </div>
@@ -288,22 +288,11 @@ function FindUsDropdown({
   );
 }
 
-function WordmarkBrand({
-  centered = false,
-  mobileMenu = false,
-}: {
-  centered?: boolean;
-  mobileMenu?: boolean;
-}) {
+function WordmarkBrand({ mobileMenu = false }: { mobileMenu?: boolean }) {
   return (
     <Link
       href="/"
-      className={[
-        "topbar-wordmark-link flex min-w-0 items-center justify-center bg-transparent",
-        centered
-          ? "absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 lg:static lg:translate-x-0 lg:translate-y-0"
-          : "",
-      ].join(" ")}
+      className="topbar-wordmark-link flex min-w-0 shrink-0 items-center bg-transparent"
       aria-label="KORAX Home"
     >
       <img
@@ -313,7 +302,7 @@ function WordmarkBrand({
           "topbar-wordmark-image bg-transparent object-contain",
           mobileMenu
             ? "h-8 w-auto max-w-[180px]"
-            : "h-7 w-auto max-w-[132px] sm:h-8 sm:max-w-[170px] lg:h-9 lg:max-w-[210px]",
+            : "h-7 w-auto max-w-[112px] sm:h-8 sm:max-w-[170px] lg:h-9 lg:max-w-[210px]",
         ].join(" ")}
       />
     </Link>
@@ -409,7 +398,7 @@ export default function Topbar() {
           pointer-events: none;
           background:
             radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.13), transparent 28%),
-            radial-gradient(circle at 85% 50%, rgba(124, 255, 106, 0.06), transparent 26%);
+            radial-gradient(circle at 85% 50%, rgba(14, 165, 233, 0.08), transparent 26%);
           animation: topbarGlow 4s ease-in-out infinite;
         }
 
@@ -426,13 +415,13 @@ export default function Topbar() {
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="relative z-20 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/90 hover:bg-white/10 lg:hidden"
+            className="relative z-20 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/90 hover:bg-white/10 lg:hidden"
             aria-label="Open Menu"
           >
-            <MenuIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+            <MenuIcon className="h-5 w-5" />
           </button>
 
-          <WordmarkBrand centered />
+          <WordmarkBrand />
 
           <nav className="relative z-10 hidden flex-1 items-center justify-center gap-2 lg:flex">
             {nav.map((item) => (
@@ -471,8 +460,10 @@ export default function Topbar() {
             ))}
           </nav>
 
-          <div className="relative z-20 ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
-            <FindUsDropdown align="right" />
+          <div className="relative z-20 ml-auto flex shrink-0 items-center gap-2">
+            <div className="hidden md:block">
+              <FindUsDropdown align="right" />
+            </div>
 
             <ConnectButton.Custom>
               {({
@@ -495,16 +486,15 @@ export default function Topbar() {
                       <button
                         onClick={openConnectModal}
                         type="button"
-                        className="h-9 shrink-0 whitespace-nowrap rounded-xl bg-blue-500 px-3 text-xs font-black text-white shadow-[0_0_25px_rgba(59,130,246,0.25)] transition hover:bg-blue-400 sm:h-10 sm:px-5 sm:text-base"
+                        className="h-10 shrink-0 whitespace-nowrap rounded-xl bg-blue-500 px-4 text-xs font-black text-white shadow-[0_0_25px_rgba(59,130,246,0.25)] transition hover:bg-blue-400 sm:px-5 sm:text-sm"
                       >
-                        <span className="sm:hidden">Connect</span>
-                        <span className="hidden sm:inline">Connect Wallet</span>
+                        Connect Wallet
                       </button>
                     ) : chain?.unsupported ? (
                       <button
                         onClick={openChainModal}
                         type="button"
-                        className="h-9 shrink-0 whitespace-nowrap rounded-xl bg-red-500 px-3 text-xs font-black text-white sm:h-10 sm:px-5 sm:text-base"
+                        className="h-10 shrink-0 whitespace-nowrap rounded-xl bg-red-500 px-4 text-xs font-black text-white sm:px-5 sm:text-sm"
                       >
                         Wrong Network
                       </button>
@@ -512,7 +502,7 @@ export default function Topbar() {
                       <button
                         onClick={openAccountModal}
                         type="button"
-                        className="h-9 max-w-[98px] shrink-0 overflow-hidden text-ellipsis whitespace-nowrap rounded-xl bg-blue-500 px-3 text-xs font-black text-white shadow-[0_0_25px_rgba(59,130,246,0.25)] transition hover:bg-blue-400 sm:h-10 sm:max-w-none sm:px-5 sm:text-base"
+                        className="h-10 max-w-[120px] shrink-0 overflow-hidden text-ellipsis whitespace-nowrap rounded-xl bg-blue-500 px-4 text-xs font-black text-white shadow-[0_0_25px_rgba(59,130,246,0.25)] transition hover:bg-blue-400 sm:max-w-none sm:px-5 sm:text-sm"
                         title={account.address}
                       >
                         <span className="sm:hidden">
@@ -541,14 +531,14 @@ export default function Topbar() {
           />
 
           <div className="fixed left-0 right-0 top-0 z-50 mx-auto w-full max-w-[1500px] px-3 pt-3 sm:px-4 sm:pt-4">
-            <div className="rounded-2xl border border-white/10 bg-black/70 shadow-[0_24px_90px_rgba(0,0,0,0.75)] backdrop-blur-md">
-              <div className="relative flex min-h-[64px] items-center justify-center px-4 py-3">
+            <div className="max-h-[calc(100vh-24px)] overflow-y-auto rounded-2xl border border-white/10 bg-black/80 shadow-[0_24px_90px_rgba(0,0,0,0.75)] backdrop-blur-md">
+              <div className="relative flex min-h-[64px] items-center justify-between px-4 py-3">
                 <WordmarkBrand mobileMenu />
 
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="absolute right-4 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/90 hover:bg-white/10"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/90 hover:bg-white/10"
                   aria-label="Close Menu"
                 >
                   <CloseIcon />
