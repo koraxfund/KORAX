@@ -250,8 +250,8 @@ function FindUsDropdown({
         type="button"
         onClick={() => setSocialOpen((prev) => !prev)}
         className={[
-          "inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-black text-white/85 transition hover:border-blue-400/35 hover:bg-blue-500/10 hover:text-blue-100",
-          fullWidth ? "w-full" : "whitespace-nowrap",
+          "inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-sm font-black text-white/85 transition hover:border-blue-400/35 hover:bg-blue-500/10 hover:text-blue-100",
+          fullWidth ? "w-full px-4" : "w-12 px-0 sm:w-auto sm:px-4",
         ].join(" ")}
         aria-expanded={socialOpen}
         aria-label="Find KORAX social links"
@@ -302,7 +302,7 @@ function WordmarkBrand({ mobileMenu = false }: { mobileMenu?: boolean }) {
           "topbar-wordmark-image bg-transparent object-contain",
           mobileMenu
             ? "h-8 w-auto max-w-[180px]"
-            : "h-7 w-auto max-w-[112px] sm:h-8 sm:max-w-[170px] lg:h-9 lg:max-w-[210px]",
+            : "h-7 w-auto max-w-[92px] sm:h-8 sm:max-w-[170px] lg:h-9 lg:max-w-[210px]",
         ].join(" ")}
       />
     </Link>
@@ -342,6 +342,7 @@ export default function Topbar() {
     };
 
     window.addEventListener("keydown", onKey);
+
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
@@ -460,10 +461,8 @@ export default function Topbar() {
             ))}
           </nav>
 
-          <div className="relative z-20 ml-auto flex shrink-0 items-center gap-2">
-            <div className="hidden md:block">
-              <FindUsDropdown align="right" />
-            </div>
+          <div className="relative z-20 ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+            <FindUsDropdown align="right" />
 
             <ConnectButton.Custom>
               {({
@@ -486,7 +485,7 @@ export default function Topbar() {
                       <button
                         onClick={openConnectModal}
                         type="button"
-                        className="h-10 shrink-0 whitespace-nowrap rounded-xl bg-blue-500 px-4 text-xs font-black text-white shadow-[0_0_25px_rgba(59,130,246,0.25)] transition hover:bg-blue-400 sm:px-5 sm:text-sm"
+                        className="h-10 shrink-0 whitespace-nowrap rounded-xl bg-blue-500 px-3 text-[11px] font-black text-white shadow-[0_0_25px_rgba(59,130,246,0.25)] transition hover:bg-blue-400 sm:px-5 sm:text-sm"
                       >
                         Connect Wallet
                       </button>
@@ -494,7 +493,7 @@ export default function Topbar() {
                       <button
                         onClick={openChainModal}
                         type="button"
-                        className="h-10 shrink-0 whitespace-nowrap rounded-xl bg-red-500 px-4 text-xs font-black text-white sm:px-5 sm:text-sm"
+                        className="h-10 shrink-0 whitespace-nowrap rounded-xl bg-red-500 px-3 text-[11px] font-black text-white sm:px-5 sm:text-sm"
                       >
                         Wrong Network
                       </button>
@@ -502,12 +501,13 @@ export default function Topbar() {
                       <button
                         onClick={openAccountModal}
                         type="button"
-                        className="h-10 max-w-[120px] shrink-0 overflow-hidden text-ellipsis whitespace-nowrap rounded-xl bg-blue-500 px-4 text-xs font-black text-white shadow-[0_0_25px_rgba(59,130,246,0.25)] transition hover:bg-blue-400 sm:max-w-none sm:px-5 sm:text-sm"
+                        className="h-10 max-w-[112px] shrink-0 overflow-hidden text-ellipsis whitespace-nowrap rounded-xl bg-blue-500 px-3 text-[11px] font-black text-white shadow-[0_0_25px_rgba(59,130,246,0.25)] transition hover:bg-blue-400 sm:max-w-none sm:px-5 sm:text-sm"
                         title={account.address}
                       >
                         <span className="sm:hidden">
                           {shortAddress(account.address)}
                         </span>
+
                         <span className="hidden sm:inline">
                           {account.displayName}
                         </span>
