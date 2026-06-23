@@ -15,11 +15,11 @@ const TelegramIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
   </svg>
 );
 
-const YouTubeIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
+const FacebookIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
   <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
     <path
       fill="currentColor"
-      d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2 31.5 31.5 0 0 0 0 12a31.5 31.5 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31.5 31.5 0 0 0 24 12a31.5 31.5 0 0 0-.5-5.8ZM9.6 15.6V8.4L15.8 12l-6.2 3.6Z"
+      d="M14 8.5h2.2V5.2c-.38-.05-1.7-.16-3.22-.16-3.18 0-5.36 1.94-5.36 5.5v3.1H4v3.7h3.62V24h4.42v-6.66h3.46l.55-3.7h-4.01v-2.74c0-1.07.3-2.4 1.96-2.4Z"
     />
   </svg>
 );
@@ -33,11 +33,20 @@ const TikTokIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
   </svg>
 );
 
-const FacebookIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
+const YouTubeIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
   <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
     <path
       fill="currentColor"
-      d="M14 8.5h2.2V5.2c-.38-.05-1.7-.16-3.22-.16-3.18 0-5.36 1.94-5.36 5.5v3.1H4v3.7h3.62V24h4.42v-6.66h3.46l.55-3.7h-4.01v-2.74c0-1.07.3-2.4 1.96-2.4Z"
+      d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2 31.5 31.5 0 0 0 0 12a31.5 31.5 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31.5 31.5 0 0 0 24 12a31.5 31.5 0 0 0-.5-5.8ZM9.6 15.6V8.4L15.8 12l-6.2 3.6Z"
+    />
+  </svg>
+);
+
+const InstagramIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+    <path
+      fill="currentColor"
+      d="M7.75 2h8.5A5.76 5.76 0 0 1 22 7.75v8.5A5.76 5.76 0 0 1 16.25 22h-8.5A5.76 5.76 0 0 1 2 16.25v-8.5A5.76 5.76 0 0 1 7.75 2Zm0 2A3.75 3.75 0 0 0 4 7.75v8.5A3.75 3.75 0 0 0 7.75 20h8.5A3.75 3.75 0 0 0 20 16.25v-8.5A3.75 3.75 0 0 0 16.25 4h-8.5ZM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm5.25-2.25a1.25 1.25 0 1 1 0 2.5 1.25 1.25 0 0 1 0-2.5Z"
     />
   </svg>
 );
@@ -118,6 +127,48 @@ function statusClass(status: NavItem["status"]) {
 
 const socialLinks: SocialItem[] = [
   {
+    label: "Email",
+    href: "mailto:contact@korax.fund",
+    note: "contact@korax.fund",
+    icon: <MailIcon className="h-5 w-5" />,
+    iconBg: "from-[#2563eb] to-[#020617]",
+  },
+  {
+    label: "Facebook",
+    href: "https://www.facebook.com/share/1Kv3xhJbmd/",
+    note: "Official Facebook page",
+    icon: <FacebookIcon className="h-5 w-5" />,
+    iconBg: "from-[#1877F2] to-[#0A3D91]",
+  },
+  {
+    label: "TikTok",
+    href: "https://www.tiktok.com/@koraxfund",
+    note: "Short-form updates",
+    icon: <TikTokIcon className="h-5 w-5" />,
+    iconBg: "from-[#25F4EE] via-[#111111] to-[#FE2C55]",
+  },
+  {
+    label: "YouTube",
+    href: "https://www.youtube.com/@koraxfund",
+    note: "Official videos",
+    icon: <YouTubeIcon className="h-5 w-5" />,
+    iconBg: "from-[#FF0000] to-[#7F0000]",
+  },
+  {
+    label: "Instagram",
+    href: "https://www.instagram.com/korax_fund/",
+    note: "@korax_fund",
+    icon: <InstagramIcon className="h-5 w-5" />,
+    iconBg: "from-[#833AB4] via-[#FD1D1D] to-[#FCAF45]",
+  },
+  {
+    label: "LinkedIn",
+    href: "https://www.linkedin.com/company/koraxfund",
+    note: "Professional updates",
+    icon: <LinkedInIcon className="h-5 w-5" />,
+    iconBg: "from-[#0A66C2] to-[#003B73]",
+  },
+  {
     label: "Telegram Channel",
     href: "https://t.me/koraxfund",
     note: "Official updates",
@@ -130,41 +181,6 @@ const socialLinks: SocialItem[] = [
     note: "Community discussion",
     icon: <TelegramIcon className="h-5 w-5" />,
     iconBg: "from-[#229ED9] to-[#075985]",
-  },
-  {
-    label: "YouTube",
-    href: "https://www.youtube.com/@koraxfund",
-    note: "Official videos",
-    icon: <YouTubeIcon className="h-5 w-5" />,
-    iconBg: "from-[#FF0000] to-[#7F0000]",
-  },
-  {
-    label: "TikTok",
-    href: "https://www.tiktok.com/@koraxfund",
-    note: "Short-form updates",
-    icon: <TikTokIcon className="h-5 w-5" />,
-    iconBg: "from-[#25F4EE] via-[#111111] to-[#FE2C55]",
-  },
-  {
-    label: "Facebook",
-    href: "https://www.facebook.com/share/1Kv3xhJbmd/",
-    note: "Official Facebook page",
-    icon: <FacebookIcon className="h-5 w-5" />,
-    iconBg: "from-[#1877F2] to-[#0A3D91]",
-  },
-  {
-    label: "LinkedIn",
-    href: "https://www.linkedin.com/company/koraxfund",
-    note: "Professional updates",
-    icon: <LinkedInIcon className="h-5 w-5" />,
-    iconBg: "from-[#0A66C2] to-[#003B73]",
-  },
-  {
-    label: "Email",
-    href: "mailto:contact@korax.fund",
-    note: "contact@korax.fund",
-    icon: <MailIcon className="h-5 w-5" />,
-    iconBg: "from-[#2563eb] to-[#020617]",
   },
 ];
 

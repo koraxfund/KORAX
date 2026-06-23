@@ -45,7 +45,7 @@ export const metadata: Metadata = {
       "Explore KORAX (KRX), a BNB Chain ecosystem built around presale, claim, staking, Token Builder AI, Website Builder AI, Launchpad access, and Web3 launch infrastructure.",
     images: [
       {
-        url: "/raven-logo.png",
+        url: "/Korax-logo.png",
         width: 1200,
         height: 630,
         alt: "KORAX",
@@ -57,7 +57,7 @@ export const metadata: Metadata = {
     title: "KORAX (KRX) | Presale, Claim, Staking & Web3 Builder Tools",
     description:
       "A BNB Chain ecosystem with presale, claim, staking, AI project tools, Website Builder AI, Token Builder AI, and launch infrastructure.",
-    images: ["/raven-logo.png"],
+    images: ["/Korax-logo.png"],
   },
   icons: {
     icon: "/favicon.png",
@@ -70,7 +70,7 @@ function EmailIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
-      className="h-5 w-5 text-[#7CFF6A]"
+      className="h-5 w-5 text-blue-100"
       fill="none"
       stroke="currentColor"
       strokeWidth="2"
@@ -95,6 +95,19 @@ function FacebookIcon() {
   );
 }
 
+function TikTokIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-5 w-5 text-white"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M16.7 2c.3 2.3 1.6 3.8 4 4v4.1a8.5 8.5 0 0 1-4-1.1v6.5c0 4.2-2.8 6.5-6.4 6.5-3.2 0-6-2.2-6-5.6 0-3.8 3-5.9 6.7-5.6v4.2c-1.6-.4-2.8.3-2.8 1.5 0 1.1.9 1.8 2 1.8 1.3 0 2.1-.7 2.1-2.5V2h4.4Z" />
+    </svg>
+  );
+}
+
 function YouTubeIcon() {
   return (
     <svg
@@ -108,15 +121,15 @@ function YouTubeIcon() {
   );
 }
 
-function TikTokIcon() {
+function InstagramIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
-      className="h-5 w-5 text-white"
+      className="h-5 w-5 text-[#E4405F]"
       fill="currentColor"
       aria-hidden="true"
     >
-      <path d="M16.7 2c.3 2.3 1.6 3.8 4 4v4.1a8.5 8.5 0 0 1-4-1.1v6.5c0 4.2-2.8 6.5-6.4 6.5-3.2 0-6-2.2-6-5.6 0-3.8 3-5.9 6.7-5.6v4.2c-1.6-.4-2.8.3-2.8 1.5 0 1.1.9 1.8 2 1.8 1.3 0 2.1-.7 2.1-2.5V2h4.4Z" />
+      <path d="M7.75 2h8.5A5.76 5.76 0 0 1 22 7.75v8.5A5.76 5.76 0 0 1 16.25 22h-8.5A5.76 5.76 0 0 1 2 16.25v-8.5A5.76 5.76 0 0 1 7.75 2Zm0 2A3.75 3.75 0 0 0 4 7.75v8.5A3.75 3.75 0 0 0 7.75 20h8.5A3.75 3.75 0 0 0 20 16.25v-8.5A3.75 3.75 0 0 0 16.25 4h-8.5ZM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm5.25-2.25a1.25 1.25 0 1 1 0 2.5 1.25 1.25 0 0 1 0-2.5Z" />
     </svg>
   );
 }
@@ -158,7 +171,7 @@ function SocialIcons() {
           href="mailto:contact@korax.fund"
           aria-label="Email KORAX"
           title="contact@korax.fund"
-          className={`${socialButtonClass} hover:border-[#7CFF6A]/50`}
+          className={`${socialButtonClass} hover:border-blue-400/60 hover:bg-blue-500/10`}
         >
           <EmailIcon />
         </a>
@@ -174,6 +187,16 @@ function SocialIcons() {
         </a>
 
         <a
+          href="https://www.tiktok.com/@koraxfund"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="KORAX on TikTok"
+          className={`${socialButtonClass} hover:border-white/50 hover:bg-white/10`}
+        >
+          <TikTokIcon />
+        </a>
+
+        <a
           href="https://youtube.com/@koraxfund"
           target="_blank"
           rel="noopener noreferrer"
@@ -184,13 +207,14 @@ function SocialIcons() {
         </a>
 
         <a
-          href="https://www.tiktok.com/@koraxfund"
+          href="https://www.instagram.com/korax_fund/"
           target="_blank"
           rel="noopener noreferrer"
-          aria-label="KORAX on TikTok"
-          className={`${socialButtonClass} hover:border-white/50 hover:bg-white/10`}
+          aria-label="KORAX on Instagram"
+          title="Instagram: @korax_fund"
+          className={`${socialButtonClass} hover:border-[#E4405F]/60 hover:bg-[#E4405F]/10`}
         >
-          <TikTokIcon />
+          <InstagramIcon />
         </a>
 
         <a
@@ -248,14 +272,15 @@ export default function RootLayout({
     name: "KORAX",
     alternateName: "KRX",
     url: "https://korax.fund",
-    logo: "https://korax.fund/raven-logo.png",
+    logo: "https://korax.fund/Korax-logo.png",
     sameAs: [
+      "https://www.facebook.com/share/1Kv3xhJbmd/",
+      "https://www.tiktok.com/@koraxfund",
+      "https://youtube.com/@koraxfund",
+      "https://www.instagram.com/korax_fund/",
+      "https://www.linkedin.com/company/koraxfund",
       "https://t.me/koraxfund",
       "https://t.me/koraxgroub",
-      "https://www.facebook.com/share/1Kv3xhJbmd/",
-      "https://youtube.com/@koraxfund",
-      "https://www.tiktok.com/@koraxfund",
-      "https://www.linkedin.com/company/koraxfund",
     ],
     contactPoint: [
       {
@@ -291,12 +316,15 @@ export default function RootLayout({
                 <a className="hover:text-white" href="/about">
                   About
                 </a>
+
                 <a className="hover:text-white" href="/terms">
                   Terms of service
                 </a>
+
                 <a className="hover:text-white" href="/privacy">
                   Privacy Policy
                 </a>
+
                 <a className="hover:text-white" href="/docs">
                   Docs
                 </a>
