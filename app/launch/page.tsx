@@ -304,6 +304,20 @@ function makeEip1193Provider(walletClient: any) {
   };
 }
 
+async function waitForReceipt(
+  transaction: ethers.ContractTransactionResponse
+): Promise<ethers.TransactionReceipt> {
+  const receipt = await transaction.wait();
+
+  if (!receipt) {
+    throw new Error(
+      "The transaction was submitted, but no confirmation receipt was returned."
+    );
+  }
+
+  return receipt;
+}
+
 async function validateContract(
   provider: ethers.Provider,
   address: string,
@@ -1366,8 +1380,7 @@ export default function LaunchPage() {
   async function getReadProvider() {
     return new ethers.JsonRpcProvider(RPC_URL);
   }
-
-  async function getBrowserSigner() {
+async function getBrowserSigner() {
     if (!isConnected || !address || !walletClient) {
       throw new Error("Connect your wallet from the top bar first.");
     }
@@ -1881,7 +1894,7 @@ export default function LaunchPage() {
 
       setCreatorStatus("Launch sale submitted. Waiting for confirmation...");
 
-      const receipt = await transaction.wait();
+      const receipt = await waitForReceipt(transaction);
       let createdSaleId = "";
 
       for (const log of receipt.logs) {
@@ -2044,7 +2057,7 @@ export default function LaunchPage() {
 
       setBuyerStatus("Purchase submitted. Waiting for blockchain confirmation...");
 
-      const receipt = await transaction.wait();
+      const receipt = await waitForReceipt(transaction);
 
       setBuyerTxHash(receipt.hash);
       setBuyerStatus("Purchase completed successfully.");
@@ -2094,7 +2107,7 @@ export default function LaunchPage() {
 
       setBuyerStatus("Claim submitted. Waiting for blockchain confirmation...");
 
-      const receipt = await transaction.wait();
+      const receipt = await waitForReceipt(transaction);
 
       setBuyerTxHash(receipt.hash);
       setBuyerStatus("Claim completed successfully.");
@@ -2193,7 +2206,7 @@ export default function LaunchPage() {
 
       setAdminStatus("Admin transaction submitted. Waiting for confirmation...");
 
-      const receipt = await transaction.wait();
+      const receipt = await waitForReceipt(transaction);
 
       setAdminTxHash(receipt.hash);
       setAdminStatus("Admin action completed successfully.");
@@ -2704,7 +2717,6 @@ export default function LaunchPage() {
           </div>
         </SectionBox>
       ) : null}
-
       <SectionBox title="Launch Access Levels" eyebrow="Staking-Based Participation">
         <p className="mt-2 text-sm leading-relaxed text-white/60">
           KRX requirements below are read from the Access Manager. The displayed

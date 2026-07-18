@@ -675,7 +675,7 @@ export default function PresalePage() {
 
   const [copiedTarget, setCopiedTarget] = useState("");
 
-  const previewDebounceRef =
+ const previewDebounceRef = useRef<number | null>(null);
     useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const previewRequestIdRef = useRef(0);
