@@ -53,6 +53,7 @@ type SavedBuilderProject = {
   shortDescription?: string;
   description?: string;
   targetAudience?: string;
+  websiteLanguage?: string;
   network?: string;
   tokenAddress?: string;
   token?: string;
@@ -92,8 +93,75 @@ type BuilderAccessState = {
   error: string;
 };
 
+
+type BuilderForm = {
+  projectName: string;
+  symbol: string;
+  category: string;
+  shortDescription: string;
+  targetAudience: string;
+  websiteLanguage: string;
+  websiteStyle: string;
+  themeMode: string;
+  colorPreset: string;
+  primaryColor: string;
+  secondaryColor: string;
+  backgroundPreset: string;
+  backgroundStyle: string;
+  network: string;
+  tokenAddress: string;
+  stakingAddress: string;
+  vaultAddress: string;
+  launchpadAddress: string;
+  xLink: string;
+  telegramLink: string;
+  youtubeLink: string;
+  tiktokLink: string;
+  instagramLink: string;
+  facebookLink: string;
+  discordLink: string;
+  websiteSections: string;
+  specialInstructions: string;
+};
+
+type ValidationIssue = {
+  field: string;
+  message: string;
+};
+
+type GenerationStage =
+  | "idle"
+  | "validating"
+  | "analyzing"
+  | "generating"
+  | "checking"
+  | "ready"
+  | "failed";
+
+type PackageHealth = {
+  score: number;
+  fileCount: number;
+  totalBytes: number;
+  hasPackageJson: boolean;
+  hasPage: boolean;
+  hasLayout: boolean;
+  hasStyles: boolean;
+  hasReadme: boolean;
+  hasEnvExample: boolean;
+  suspiciousSecrets: string[];
+  warnings: string[];
+};
+
 const SAVED_WEBSITE_RESULT_KEY = "korax_website_builder_saved_result";
 const SAVED_GITHUB_REPO_URL_KEY = "korax_website_builder_github_repo_url";
+
+const WEBSITE_RESULT_DB_NAME = "korax-website-builder";
+const WEBSITE_RESULT_STORE_NAME = "generated-websites";
+const WEBSITE_RESULT_RECORD_KEY = "latest";
+const MAX_GENERATED_FILES = 220;
+const MAX_GENERATED_BYTES = 8 * 1024 * 1024;
+const MAX_EDIT_HISTORY = 5;
+const ZERO_ADDRESS = ethers.ZeroAddress.toLowerCase();
 
 const WEBSITE_STYLE_OPTIONS = [
   "KORAX Beast v4",
@@ -157,8 +225,12 @@ const smallPrimaryButtonClass =
 const glassButtonClass =
   "rounded-2xl border border-blue-300/25 bg-blue-500/10 px-5 py-3 font-black text-blue-100 transition hover:bg-blue-500/20";
 
-function copyToClipboard(text: string) {
-  navigator.clipboard.writeText(text);
+async function copyToClipboard(text: string) {
+  if (!text) {
+    throw new Error("Nothing is available to copy.");
+  }
+
+  await navigator.clipboard.writeText(text);
 }
 
 function cleanDownloadName(value: string) {
@@ -171,10 +243,28 @@ function cleanDownloadName(value: string) {
   );
 }
 
+function cleanRepositoryName(value: string) {
+  return cleanDownloadName(value).replace(/^-+|-+$/g, "").slice(0, 80);
+}
+
 function formatTokenAmount(raw: bigint) {
-  return Number(ethers.formatUnits(raw, 18)).toLocaleString("en-US", {
+  const value = Number(ethers.formatUnits(raw, 18));
+
+  if (!Number.isFinite(value)) {
+    return "0";
+  }
+
+  return value.toLocaleString("en-US", {
     maximumFractionDigits: 4,
   });
+}
+
+function formatBytes(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return "0 B";
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+
+  return `${(value / (1024 * 1024)).toFixed(2)} MB`;
 }
 
 function readSavedBuilderProject(): SavedBuilderProject | null {
@@ -205,30 +295,139 @@ function readSavedBuilderProject(): SavedBuilderProject | null {
   return null;
 }
 
-function readSavedWebsiteResult(): WebsiteResult | null {
-  if (typeof window === "undefined") return null;
-
-  const raw = window.localStorage.getItem(SAVED_WEBSITE_RESULT_KEY);
-  if (!raw) return null;
-
-  try {
-    const parsed = JSON.parse(raw);
-
-    if (parsed?.files && Array.isArray(parsed.files)) {
-      return parsed as WebsiteResult;
+function openWebsiteResultDatabase() {
+  return new Promise<IDBDatabase>((resolve, reject) => {
+    if (typeof window === "undefined" || !("indexedDB" in window)) {
+      reject(new Error("IndexedDB is unavailable."));
+      return;
     }
 
-    return null;
+    const request = window.indexedDB.open(WEBSITE_RESULT_DB_NAME, 1);
+
+    request.onupgradeneeded = () => {
+      const database = request.result;
+
+      if (!database.objectStoreNames.contains(WEBSITE_RESULT_STORE_NAME)) {
+        database.createObjectStore(WEBSITE_RESULT_STORE_NAME);
+      }
+    };
+
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () =>
+      reject(request.error || new Error("Failed to open website storage."));
+  });
+}
+
+async function readSavedWebsiteResult(): Promise<WebsiteResult | null> {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const database = await openWebsiteResultDatabase();
+
+    const result = await new Promise<unknown>((resolve, reject) => {
+      const transaction = database.transaction(
+        WEBSITE_RESULT_STORE_NAME,
+        "readonly"
+      );
+
+      const request = transaction
+        .objectStore(WEBSITE_RESULT_STORE_NAME)
+        .get(WEBSITE_RESULT_RECORD_KEY);
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () =>
+        reject(request.error || new Error("Failed to read saved website."));
+    });
+
+    database.close();
+
+    if (result && typeof result === "object") {
+      return normalizeWebsiteResult(result);
+    }
+  } catch {
+    // Fall back to the legacy localStorage record below.
+  }
+
+  const legacyRaw = window.localStorage.getItem(SAVED_WEBSITE_RESULT_KEY);
+  if (!legacyRaw) return null;
+
+  try {
+    return normalizeWebsiteResult(JSON.parse(legacyRaw));
   } catch {
     return null;
   }
 }
 
-function saveWebsiteResult(result: WebsiteResult | null) {
-  if (typeof window === "undefined") return;
-  if (!result?.files?.length) return;
+async function saveWebsiteResult(result: WebsiteResult | null) {
+  if (
+    typeof window === "undefined" ||
+    !result?.files?.length
+  ) {
+    return;
+  }
 
-  window.localStorage.setItem(SAVED_WEBSITE_RESULT_KEY, JSON.stringify(result));
+  try {
+    const database = await openWebsiteResultDatabase();
+
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction(
+        WEBSITE_RESULT_STORE_NAME,
+        "readwrite"
+      );
+
+      transaction
+        .objectStore(WEBSITE_RESULT_STORE_NAME)
+        .put(result, WEBSITE_RESULT_RECORD_KEY);
+
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () =>
+        reject(transaction.error || new Error("Failed to save website."));
+      transaction.onabort = () =>
+        reject(transaction.error || new Error("Website save was aborted."));
+    });
+
+    database.close();
+    window.localStorage.removeItem(SAVED_WEBSITE_RESULT_KEY);
+  } catch {
+    try {
+      window.localStorage.setItem(
+        SAVED_WEBSITE_RESULT_KEY,
+        JSON.stringify(result)
+      );
+    } catch {
+      // Large generated packages can exceed localStorage. IndexedDB remains
+      // the preferred storage path and generation should still stay usable.
+    }
+  }
+}
+
+async function clearSavedWebsiteResult() {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.removeItem(SAVED_WEBSITE_RESULT_KEY);
+
+  try {
+    const database = await openWebsiteResultDatabase();
+
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction(
+        WEBSITE_RESULT_STORE_NAME,
+        "readwrite"
+      );
+
+      transaction
+        .objectStore(WEBSITE_RESULT_STORE_NAME)
+        .delete(WEBSITE_RESULT_RECORD_KEY);
+
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () =>
+        reject(transaction.error || new Error("Failed to clear website."));
+    });
+
+    database.close();
+  } catch {
+    // Nothing else is required when IndexedDB is unavailable.
+  }
 }
 
 function saveGitHubRepoUrl(url: string) {
@@ -245,6 +444,398 @@ function saveGitHubRepoUrl(url: string) {
 function readSavedGitHubRepoUrl() {
   if (typeof window === "undefined") return "";
   return window.localStorage.getItem(SAVED_GITHUB_REPO_URL_KEY) || "";
+}
+
+function normalizeWebsiteFiles(input: unknown): WebsiteFile[] {
+  if (!Array.isArray(input)) {
+    throw new Error("The generated response does not contain website files.");
+  }
+
+  const uniqueFiles = new Map<string, string>();
+  let totalBytes = 0;
+
+  for (const rawFile of input) {
+    if (!rawFile || typeof rawFile !== "object") continue;
+
+    const rawPath = String(
+      (rawFile as { path?: unknown }).path || ""
+    )
+      .replace(/\\/g, "/")
+      .replace(/^\.\/+/, "")
+      .trim();
+
+    const content = String(
+      (rawFile as { content?: unknown }).content ?? ""
+    );
+
+    if (
+      !rawPath ||
+      rawPath.startsWith("/") ||
+      rawPath.includes("../") ||
+      rawPath.includes("..\\") ||
+      rawPath.includes("\0")
+    ) {
+      throw new Error(`Unsafe generated file path: ${rawPath || "empty path"}`);
+    }
+
+    if (uniqueFiles.has(rawPath)) {
+      throw new Error(`Duplicate generated file path: ${rawPath}`);
+    }
+
+    totalBytes += new TextEncoder().encode(content).length;
+
+    if (totalBytes > MAX_GENERATED_BYTES) {
+      throw new Error(
+        `Generated package is larger than ${formatBytes(
+          MAX_GENERATED_BYTES
+        )}. Reduce the requested scope and generate again.`
+      );
+    }
+
+    uniqueFiles.set(rawPath, content);
+  }
+
+  const files = Array.from(uniqueFiles, ([path, content]) => ({
+    path,
+    content,
+  }));
+
+  if (!files.length) {
+    throw new Error("The generated package contains no usable files.");
+  }
+
+  if (files.length > MAX_GENERATED_FILES) {
+    throw new Error(
+      `Generated package contains ${files.length} files. The current limit is ${MAX_GENERATED_FILES}.`
+    );
+  }
+
+  return files.sort((first, second) =>
+    first.path.localeCompare(second.path)
+  );
+}
+
+function normalizeWebsiteResult(input: unknown): WebsiteResult {
+  if (!input || typeof input !== "object") {
+    throw new Error("Website Builder AI returned an invalid result.");
+  }
+
+  const raw = input as Partial<WebsiteResult>;
+  const files = normalizeWebsiteFiles(raw.files);
+
+  const brandDirection = raw.brandDirection || {
+    positioning: "",
+    tone: "",
+    visualIdentity: "",
+    trustAngle: "",
+  };
+
+  const styleGuide = raw.styleGuide || {
+    theme: "",
+    primaryColor: "",
+    secondaryColor: "",
+    background: "",
+    cardStyle: "",
+    fontMood: "",
+    buttonStyle: "",
+  };
+
+  const sections = Array.isArray(raw.sections)
+    ? raw.sections.map((section, index) => ({
+        name: String(section?.name || `Section ${index + 1}`),
+        purpose: String(section?.purpose || ""),
+        headline: String(section?.headline || ""),
+        description: String(section?.description || ""),
+      }))
+    : [];
+
+  return {
+    websiteName: String(raw.websiteName || "KORAX Generated Website"),
+    summary: String(raw.summary || ""),
+    brandDirection: {
+      positioning: String(brandDirection.positioning || ""),
+      tone: String(brandDirection.tone || ""),
+      visualIdentity: String(brandDirection.visualIdentity || ""),
+      trustAngle: String(brandDirection.trustAngle || ""),
+    },
+    styleGuide: {
+      theme: String(styleGuide.theme || ""),
+      primaryColor: String(styleGuide.primaryColor || ""),
+      secondaryColor: String(styleGuide.secondaryColor || ""),
+      background: String(styleGuide.background || ""),
+      cardStyle: String(styleGuide.cardStyle || ""),
+      fontMood: String(styleGuide.fontMood || ""),
+      buttonStyle: String(styleGuide.buttonStyle || ""),
+    },
+    sections,
+    files,
+    deploymentNotes: Array.isArray(raw.deploymentNotes)
+      ? raw.deploymentNotes.map((item) => String(item))
+      : [],
+    koraxPublishingNote: String(raw.koraxPublishingNote || ""),
+  };
+}
+
+function calculatePackageHealth(result: WebsiteResult | null): PackageHealth {
+  if (!result?.files?.length) {
+    return {
+      score: 0,
+      fileCount: 0,
+      totalBytes: 0,
+      hasPackageJson: false,
+      hasPage: false,
+      hasLayout: false,
+      hasStyles: false,
+      hasReadme: false,
+      hasEnvExample: false,
+      suspiciousSecrets: [],
+      warnings: [],
+    };
+  }
+
+  const paths = result.files.map((file) => file.path.toLowerCase());
+  const totalBytes = result.files.reduce(
+    (sum, file) => sum + new TextEncoder().encode(file.content).length,
+    0
+  );
+
+  const hasPackageJson = paths.includes("package.json");
+  const hasPage = paths.some((path) =>
+    [
+      "app/page.tsx",
+      "app/page.jsx",
+      "src/app/page.tsx",
+      "src/app/page.jsx",
+      "pages/index.tsx",
+      "pages/index.jsx",
+    ].includes(path)
+  );
+
+  const hasLayout = paths.some((path) =>
+    [
+      "app/layout.tsx",
+      "app/layout.jsx",
+      "src/app/layout.tsx",
+      "src/app/layout.jsx",
+    ].includes(path)
+  );
+
+  const hasStyles = paths.some(
+    (path) =>
+      path.endsWith(".css") ||
+      path.endsWith(".scss") ||
+      path === "tailwind.config.ts" ||
+      path === "tailwind.config.js"
+  );
+
+  const hasReadme = paths.some((path) => path.startsWith("readme"));
+  const hasEnvExample = paths.some(
+    (path) => path === ".env.example" || path === ".env.local.example"
+  );
+
+  const suspiciousSecrets: string[] = [];
+
+  for (const file of result.files) {
+    const matches = file.content.match(
+      /(?:sk-[a-z0-9_-]{16,}|ghp_[a-z0-9]{20,}|github_pat_[a-z0-9_]{20,}|vercel_[a-z0-9_-]{20,})/gi
+    );
+
+    if (matches?.length) {
+      suspiciousSecrets.push(file.path);
+    }
+  }
+
+  const warnings: string[] = [];
+
+  if (!hasPackageJson) warnings.push("package.json is missing.");
+  if (!hasPage) warnings.push("A main page entry file is missing.");
+  if (!hasLayout) warnings.push("An App Router layout file is missing.");
+  if (!hasStyles) warnings.push("No stylesheet or Tailwind config was found.");
+  if (!hasReadme) warnings.push("README deployment instructions are missing.");
+  if (!hasEnvExample) warnings.push(".env.example is missing.");
+  if (suspiciousSecrets.length) {
+    warnings.push("Possible secret values were detected in generated files.");
+  }
+
+  const checks = [
+    hasPackageJson,
+    hasPage,
+    hasLayout,
+    hasStyles,
+    hasReadme,
+    hasEnvExample,
+    suspiciousSecrets.length === 0,
+  ];
+
+  return {
+    score: Math.round(
+      (checks.filter(Boolean).length / checks.length) * 100
+    ),
+    fileCount: result.files.length,
+    totalBytes,
+    hasPackageJson,
+    hasPage,
+    hasLayout,
+    hasStyles,
+    hasReadme,
+    hasEnvExample,
+    suspiciousSecrets,
+    warnings,
+  };
+}
+
+function isValidHexColor(value: string) {
+  return /^#[0-9a-f]{6}$/i.test(value.trim());
+}
+
+function isValidOptionalUrl(value: string) {
+  const normalized = value.trim();
+  if (!normalized) return true;
+
+  try {
+    const url = new URL(normalized);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
+function validateBuilderForm(form: BuilderForm): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  if (form.projectName.trim().length < 2) {
+    issues.push({
+      field: "Project Name",
+      message: "Enter a project name with at least 2 characters.",
+    });
+  }
+
+  if (!/^[A-Za-z0-9]{2,12}$/.test(form.symbol.trim())) {
+    issues.push({
+      field: "Token Symbol",
+      message: "Use 2 to 12 letters or numbers without spaces.",
+    });
+  }
+
+  if (form.shortDescription.trim().length < 20) {
+    issues.push({
+      field: "Project Description",
+      message: "Write at least 20 characters so the AI has enough context.",
+    });
+  }
+
+  if (!isValidHexColor(form.primaryColor)) {
+    issues.push({
+      field: "Primary Color",
+      message: "Use a valid six-digit HEX color such as #0B5FFF.",
+    });
+  }
+
+  if (!isValidHexColor(form.secondaryColor)) {
+    issues.push({
+      field: "Secondary Color",
+      message: "Use a valid six-digit HEX color such as #22D3EE.",
+    });
+  }
+
+  const addressFields: Array<[string, string]> = [
+    ["Token Address", form.tokenAddress],
+    ["Vault Address", form.vaultAddress],
+    ["Staking Address", form.stakingAddress],
+    ["Launchpad Address", form.launchpadAddress],
+  ];
+
+  if (form.network === "BNB Chain") {
+    for (const [field, value] of addressFields) {
+      const normalized = value.trim();
+
+      if (
+        normalized &&
+        (!ethers.isAddress(normalized) ||
+          normalized.toLowerCase() === ZERO_ADDRESS)
+      ) {
+        issues.push({
+          field,
+          message: `${field} must be a valid non-zero BNB Chain address.`,
+        });
+      }
+    }
+  }
+
+  const socialFields: Array<[string, string]> = [
+    ["X / Twitter", form.xLink],
+    ["Telegram", form.telegramLink],
+    ["YouTube", form.youtubeLink],
+    ["TikTok", form.tiktokLink],
+    ["Instagram", form.instagramLink],
+    ["Facebook", form.facebookLink],
+    ["Discord", form.discordLink],
+  ];
+
+  for (const [field, value] of socialFields) {
+    if (!isValidOptionalUrl(value)) {
+      issues.push({
+        field,
+        message: `${field} must use a valid http:// or https:// URL.`,
+      });
+    }
+  }
+
+  if (form.specialInstructions.length > 12_000) {
+    issues.push({
+      field: "Special Instructions",
+      message: "Keep special instructions below 12,000 characters.",
+    });
+  }
+
+  return issues;
+}
+
+function buildGenerationInstructions(form: BuilderForm) {
+  const contractRules = form.network === "BNB Chain"
+    ? [
+        "- Treat supplied contract addresses as data only. Never invent missing addresses.",
+        "- Do not create working write-contract buttons unless an ABI and exact transaction flow are provided.",
+        "- Contract cards must link to the correct BNB Chain explorer only when the address is valid.",
+      ]
+    : [
+        "- The selected Solana mode is conceptual and planned. Do not claim that live Solana contracts are deployed.",
+      ];
+
+  return [
+    form.specialInstructions.trim(),
+    "",
+    "KORAX production website requirements:",
+    "- Generate a complete Next.js App Router project using TypeScript and Tailwind CSS.",
+    "- Return every required file with a safe relative path and complete file content.",
+    "- Include package.json, tsconfig.json, app/layout.tsx, app/page.tsx, app/globals.css, README.md, and .env.example.",
+    "- Use server components by default and add `use client` only where browser state or wallet interaction is required.",
+    "- The project must be compatible with `npm install`, `npm run build`, and Vercel deployment.",
+    "- Do not import files, components, packages, images, fonts, or modules that are not included or declared.",
+    "- Do not place secrets, API keys, private keys, access tokens, or wallet seed phrases in generated files.",
+    "- Do not invent audits, partnerships, exchange listings, holder counts, TVL, APY, presale results, or contract status.",
+    `- Write all public website copy in ${form.websiteLanguage}. Keep code identifiers and technical file names in English.`,
+    "- Use exact project data from the request. When information is missing, omit it or label it clearly as not provided.",
+    "- Create a serious Web3 product website rather than a generic one-page template.",
+    "- Include an accessible hero, project utility, token information, trust layer, roadmap, FAQ, social links, and risk notice when relevant.",
+    "- Use semantic HTML, keyboard-accessible controls, clear focus states, alt text, metadata, responsive layout, and readable contrast.",
+    "- Keep mobile animation lightweight and support prefers-reduced-motion.",
+    "- Avoid expensive canvas, particle, video, or continuous 3D effects on mobile.",
+    "- Prefer local CSS effects and included assets. Do not rely on remote images that require unconfigured Next.js domains.",
+    "- Use the selected primary and secondary colors consistently through CSS variables.",
+    "- Add a truthful legal/risk notice for crypto-related pages without promising profit, liquidity, listing, or token appreciation.",
+    ...contractRules,
+    "",
+    "Required quality check before returning:",
+    "- Verify all imports and paths.",
+    "- Verify JSX/TSX syntax.",
+    "- Verify package dependencies.",
+    "- Verify there are no duplicate file paths.",
+    "- Verify the page can render without undefined data.",
+    "- Return the complete package, not partial snippets.",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 async function downloadWebsiteZip(files: WebsiteFile[], websiteName: string) {
@@ -433,6 +1024,7 @@ function AccessGateCard({
   tokensPerProject,
   eligibleAmount,
   totalSlots,
+  requiredRewardBps,
   error,
 }: {
   loading: boolean;
@@ -442,6 +1034,7 @@ function AccessGateCard({
   tokensPerProject: string;
   eligibleAmount: string;
   totalSlots: number;
+  requiredRewardBps: number;
   error: string;
 }) {
   return (
@@ -485,7 +1078,7 @@ function AccessGateCard({
           </StatusPill>
         </div>
 
-        <div className="mt-5 grid gap-3 md:grid-cols-3">
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <SmallCard
             label="Eligible Stake"
             value={
@@ -499,6 +1092,14 @@ function AccessGateCard({
           <SmallCard
             label="Required Package"
             value={`${tokensPerProject} KRX`}
+          />
+          <SmallCard
+            label="Required Plan"
+            value={`12 Months / ${(
+              requiredRewardBps / 100
+            ).toLocaleString("en-US", {
+              maximumFractionDigits: 2,
+            })}%`}
           />
           <SmallCard
             label="Project Slots"
@@ -1005,35 +1606,36 @@ export default function WebsiteBuilderAIPage() {
   const isAdminWallet =
     !!address && !!adminWallet && address.toLowerCase() === adminWallet;
 
-  const [form, setForm] = useState({
-  projectName: "",
-  symbol: "",
-  category: "Web3",
-  shortDescription: "",
-  targetAudience: "",
-  websiteStyle: "KORAX Beast v4",
-  themeMode: "Dark",
-  colorPreset: "Blue Night",
-  primaryColor: "#0B5FFF",
-  secondaryColor: "#22D3EE",
-  backgroundPreset: "Dark blue / black gradient",
-  backgroundStyle:
-    "Deep dark blue-black futuristic command center with premium Web3 glow",
-  network: "BNB Chain",
-  tokenAddress: "",
-  stakingAddress: "",
-  vaultAddress: "",
-  launchpadAddress: "",
-  xLink: "",
-  telegramLink: "",
-  youtubeLink: "",
-  tiktokLink: "",
-  instagramLink: "",
-  facebookLink: "",
-  discordLink: "",
-  websiteSections: "",
-  specialInstructions: "",
-});
+  const [form, setForm] = useState<BuilderForm>({
+    projectName: "",
+    symbol: "",
+    category: "Web3",
+    shortDescription: "",
+    targetAudience: "",
+    websiteLanguage: "English",
+    websiteStyle: "KORAX Beast v4",
+    themeMode: "Dark",
+    colorPreset: "Blue Night",
+    primaryColor: "#0B5FFF",
+    secondaryColor: "#22D3EE",
+    backgroundPreset: "Dark blue / black gradient",
+    backgroundStyle:
+      "Deep dark blue-black futuristic command center with premium Web3 glow",
+    network: "BNB Chain",
+    tokenAddress: "",
+    stakingAddress: "",
+    vaultAddress: "",
+    launchpadAddress: "",
+    xLink: "",
+    telegramLink: "",
+    youtubeLink: "",
+    tiktokLink: "",
+    instagramLink: "",
+    facebookLink: "",
+    discordLink: "",
+    websiteSections: "",
+    specialInstructions: "",
+  });
   const [builderAccess, setBuilderAccess] = useState<BuilderAccessState>({
     loading: false,
     connected: false,
@@ -1050,12 +1652,21 @@ export default function WebsiteBuilderAIPage() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>(
+    []
+  );
+  const [generationStage, setGenerationStage] =
+    useState<GenerationStage>("idle");
 
   const [result, setResult] = useState<WebsiteResult | null>(null);
+  const [editHistory, setEditHistory] = useState<WebsiteResult[]>([]);
   const [selectedFile, setSelectedFile] = useState("");
+  const [copyStatus, setCopyStatus] = useState("");
 
   const [loadedProjectFromBuilder, setLoadedProjectFromBuilder] =
     useState(false);
+  const [linkedProjectId, setLinkedProjectId] = useState("");
+  const [linkedDeploymentTx, setLinkedDeploymentTx] = useState("");
 
   const [downloadingZip, setDownloadingZip] = useState(false);
   const [downloadError, setDownloadError] = useState("");
@@ -1086,26 +1697,60 @@ export default function WebsiteBuilderAIPage() {
     );
   }, [result, selectedFile]);
 
+  const packageHealth = useMemo(
+    () => calculatePackageHealth(result),
+    [result]
+  );
+
+  const generationStageLabel: Record<GenerationStage, string> = {
+    idle: "Ready for project data",
+    validating: "Validating project data",
+    analyzing: "Analyzing brand and website requirements",
+    generating: "Generating the complete website package",
+    checking: "Checking files, paths, and package safety",
+    ready: "Website package ready",
+    failed: "Generation needs attention",
+  };
+
   useEffect(() => {
-    const savedWebsite = readSavedWebsiteResult();
-    const savedRepoUrl = readSavedGitHubRepoUrl();
+    let active = true;
 
-    if (savedWebsite?.files?.length) {
-      setResult(savedWebsite);
-      setSelectedFile(savedWebsite.files[0]?.path || "");
-      setGithubRepoName(cleanDownloadName(savedWebsite.websiteName || ""));
-    }
+    void (async () => {
+      const [savedWebsite, savedRepoUrl] = await Promise.all([
+        readSavedWebsiteResult(),
+        Promise.resolve(readSavedGitHubRepoUrl()),
+      ]);
 
-    if (savedRepoUrl) {
-      setGithubRepoUrl(savedRepoUrl);
-      setGithubStatus(`Published successfully: ${savedRepoUrl}`);
-    }
+      if (!active) return;
+
+      if (savedWebsite?.files?.length) {
+        setResult(savedWebsite);
+        setSelectedFile(savedWebsite.files[0]?.path || "");
+        setGithubRepoName(
+          cleanRepositoryName(savedWebsite.websiteName || "")
+        );
+        setGenerationStage("ready");
+      }
+
+      if (savedRepoUrl) {
+        setGithubRepoUrl(savedRepoUrl);
+        setGithubStatus(`Published successfully: ${savedRepoUrl}`);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
-    if (result?.files?.length) {
-      saveWebsiteResult(result);
-    }
+    if (!result?.files?.length) return;
+
+    const timeout = window.setTimeout(() => {
+      void saveWebsiteResult(result);
+    }, 250);
+
+    return () => window.clearTimeout(timeout);
   }, [result]);
 
   useEffect(() => {
@@ -1175,6 +1820,8 @@ export default function WebsiteBuilderAIPage() {
         category: savedProject.category || prev.category,
         shortDescription,
         targetAudience: savedProject.targetAudience || prev.targetAudience,
+        websiteLanguage:
+          savedProject.websiteLanguage || prev.websiteLanguage,
         network: savedProject.network || prev.network,
 
         tokenAddress,
@@ -1204,20 +1851,28 @@ export default function WebsiteBuilderAIPage() {
       };
     });
 
+    setLinkedProjectId(savedProject.projectId || "");
+    setLinkedDeploymentTx(savedProject.txHash || "");
     setLoadedProjectFromBuilder(true);
   }, []);
 
   useEffect(() => {
     if (!address || !isConnected) {
-      loadBuilderAccess(undefined);
+      void loadBuilderAccess(undefined);
       return;
     }
 
-    loadBuilderAccess(address);
+    void loadBuilderAccess(address);
+
+    const interval = window.setInterval(() => {
+      void loadBuilderAccess(address);
+    }, 20_000);
+
+    return () => window.clearInterval(interval);
   }, [address, isConnected]);
 
   useEffect(() => {
-    checkGithubStatus();
+    void checkGithubStatus();
 
     const params = new URLSearchParams(window.location.search);
     const github = params.get("github");
@@ -1225,7 +1880,7 @@ export default function WebsiteBuilderAIPage() {
     if (github === "connected") {
       setGithubStatus("GitHub connected successfully. You can publish now.");
 
-      setTimeout(() => {
+      window.setTimeout(() => {
         document
           .getElementById("github-publish")
           ?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1239,10 +1894,32 @@ export default function WebsiteBuilderAIPage() {
     if (github === "failed_token") {
       setGithubStatus("GitHub connection failed: token was not received.");
     }
+
+    if (github) {
+      params.delete("github");
+      const query = params.toString();
+      const cleanUrl = `${window.location.pathname}${
+        query ? `?${query}` : ""
+      }${window.location.hash}`;
+
+      window.history.replaceState({}, "", cleanUrl);
+    }
   }, []);
 
-  function update(key: string, value: string) {
+  function update<K extends keyof BuilderForm>(
+    key: K,
+    value: BuilderForm[K]
+  ) {
     setForm((prev) => ({ ...prev, [key]: value }));
+    setValidationIssues([]);
+  }
+
+  function requireBuilderAccess(action: string) {
+    if (hasBuilderAccess) return true;
+
+    const message = `Website Builder AI requires the Builder Package before ${action}. Stake ${builderAccess.tokensPerProject} KRX on the qualifying 12-month plan.`;
+    setError(message);
+    return false;
   }
 
   async function checkGithubStatus() {
@@ -1416,59 +2093,98 @@ export default function WebsiteBuilderAIPage() {
   async function generateWebsite() {
     if (loading) return;
 
-    if (!hasBuilderAccess) {
-      setError(
-        `Website Builder AI requires the Builder Package: stake ${builderAccess.tokensPerProject} KRX on the 12-month staking plan.`
-      );
+    setGenerationStage("validating");
+    setError("");
+    setValidationIssues([]);
+
+    if (!requireBuilderAccess("generating a website")) {
+      setGenerationStage("failed");
+      return;
+    }
+
+    const issues = validateBuilderForm(form);
+
+    if (issues.length) {
+      setValidationIssues(issues);
+      setError("Correct the highlighted project data before generation.");
+      setGenerationStage("failed");
       return;
     }
 
     setLoading(true);
-    setError("");
-    setResult(null);
-    setSelectedFile("");
+    setGenerationStage("analyzing");
     setEditError("");
     setEditInstruction("");
-    setGithubStatus("");
-    setGithubRepoUrl("");
     setDownloadError("");
-    setVercelStatus("");
-    saveGitHubRepoUrl("");
+    setCopyStatus("");
 
     try {
-      const res = await fetch("/api/website-builder", {
+      setGenerationStage("generating");
+
+      const response = await fetch("/api/website-builder", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           ...form,
-          specialInstructions: [
-            form.specialInstructions,
-            "",
-            "Visual upgrade requirements:",
-            "- Use premium KORAX dark blue / black identity.",
-            "- Avoid cheap neon-green dominance unless the user selected it.",
-            "- Prefer deep blue, cyan, indigo, glassmorphism, premium shadows, 3D cards, command-center layout.",
-            "- Use strong Web3 sections: hero, trust layer, token utility, contract console, staking, launch roadmap, FAQ.",
-            "- Make the website look like a serious million-dollar Web3 product, not a simple landing page.",
-            "- Make generated code clean, deployment-ready, and compatible with Vercel.",
-          ].join("\n"),
+          symbol: form.symbol.trim().toUpperCase(),
+          walletAddress: address || "",
+          linkedProjectId,
+          linkedDeploymentTx,
+          builderAccess: {
+            tokensPerProject: builderAccess.tokensPerProject,
+            requiredRewardBps: builderAccess.requiredRewardBps,
+            totalSlots: builderAccess.totalSlots,
+          },
+          specialInstructions: buildGenerationInstructions(form),
         }),
       });
 
-      const data = await res.json();
+      const data = await response.json().catch(() => null);
 
-      if (!res.ok) {
-        throw new Error(data?.error || "Failed to generate website.");
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            `Website generation failed with status ${response.status}.`
+        );
       }
 
-      setResult(data.result);
-      setSelectedFile(data.result?.files?.[0]?.path || "");
-      setGithubRepoName(cleanDownloadName(data.result?.websiteName || ""));
-      saveWebsiteResult(data.result);
-    } catch (err: any) {
-      setError(err?.message || "Something went wrong.");
+      setGenerationStage("checking");
+
+      const normalizedResult = normalizeWebsiteResult(data?.result);
+      const health = calculatePackageHealth(normalizedResult);
+
+      if (health.suspiciousSecrets.length) {
+        throw new Error(
+          `Generation stopped because possible secret values were detected in: ${health.suspiciousSecrets.join(
+            ", "
+          )}`
+        );
+      }
+
+      setResult(normalizedResult);
+      setEditHistory([]);
+      setSelectedFile(normalizedResult.files[0]?.path || "");
+      setGithubRepoName(
+        cleanRepositoryName(normalizedResult.websiteName || form.projectName)
+      );
+      setGithubRepoUrl("");
+      setGithubStatus(
+        "A new website package was generated. Publish it to GitHub when ready."
+      );
+      setVercelStatus("");
+      saveGitHubRepoUrl("");
+      setGenerationStage("ready");
+
+      await saveWebsiteResult(normalizedResult);
+    } catch (err: unknown) {
+      setGenerationStage("failed");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong while generating the website."
+      );
     } finally {
       setLoading(false);
     }
@@ -1477,32 +2193,63 @@ export default function WebsiteBuilderAIPage() {
   async function handleDownloadWebsiteZip() {
     if (downloadingZip) return;
 
-    setDownloadingZip(true);
     setDownloadError("");
+
+    if (!requireBuilderAccess("downloading the generated package")) {
+      setDownloadError(
+        `Stake ${builderAccess.tokensPerProject} KRX on the qualifying 12-month plan first.`
+      );
+      return;
+    }
+
+    setDownloadingZip(true);
 
     try {
       if (!result?.files?.length) {
         throw new Error("Generate a website first.");
       }
 
+      if (packageHealth.suspiciousSecrets.length) {
+        throw new Error(
+          "Possible secret values were detected. Remove them before download."
+        );
+      }
+
+      const safeFiles = normalizeWebsiteFiles(result.files);
+
       await downloadWebsiteZip(
-        result.files,
+        safeFiles,
         result.websiteName || form.projectName
       );
-    } catch (err: any) {
-      setDownloadError(err?.message || "ZIP download failed.");
+    } catch (err: unknown) {
+      setDownloadError(
+        err instanceof Error ? err.message : "ZIP download failed."
+      );
     } finally {
       setDownloadingZip(false);
     }
   }
 
   function continueToLaunching() {
+    if (!requireBuilderAccess("continuing to project launch")) {
+      return;
+    }
+
+    if (!result?.files?.length) {
+      setError("Generate the project website before continuing to Launch.");
+      return;
+    }
+
+    const existingProject = readSavedBuilderProject() || {};
+
     const latestProject = {
+      ...existingProject,
       projectName: form.projectName,
-      symbol: form.symbol,
+      symbol: form.symbol.trim().toUpperCase(),
       category: form.category,
       shortDescription: form.shortDescription,
       targetAudience: form.targetAudience,
+      websiteLanguage: form.websiteLanguage,
       network: form.network,
 
       tokenAddress: form.tokenAddress,
@@ -1510,11 +2257,23 @@ export default function WebsiteBuilderAIPage() {
       stakingAddress: form.stakingAddress,
       launchpadAddress: form.launchpadAddress,
 
-      websiteName: result?.websiteName || form.projectName,
-      websiteSummary: result?.summary || "",
-      websiteGenerated: Boolean(result?.files?.length),
+      xLink: form.xLink,
+      telegramLink: form.telegramLink,
+      youtubeLink: form.youtubeLink,
+      tiktokLink: form.tiktokLink,
+      instagramLink: form.instagramLink,
+      facebookLink: form.facebookLink,
+      discordLink: form.discordLink,
+
+      websiteName: result.websiteName || form.projectName,
+      websiteSummary: result.summary || "",
+      websiteGenerated: true,
+      websiteFilesCount: result.files.length,
+      websitePackageScore: packageHealth.score,
+      githubRepoUrl,
 
       websiteStyle: form.websiteStyle,
+      themeMode: form.themeMode,
       primaryColor: form.primaryColor,
       secondaryColor: form.secondaryColor,
       backgroundStyle: form.backgroundStyle,
@@ -1531,72 +2290,218 @@ export default function WebsiteBuilderAIPage() {
   async function editWebsite() {
     if (editing) return;
 
-    setEditing(true);
     setEditError("");
+
+    if (!requireBuilderAccess("editing the generated website")) {
+      setEditError(
+        `Stake ${builderAccess.tokensPerProject} KRX on the qualifying 12-month plan first.`
+      );
+      return;
+    }
+
+    setEditing(true);
 
     try {
       if (!result) {
         throw new Error("Generate a website first.");
       }
 
-      if (!editInstruction.trim()) {
+      const instruction = editInstruction.trim();
+
+      if (!instruction) {
         throw new Error("Write what you want KORAX AI to change.");
       }
 
-      const res = await fetch("/api/website-editor", {
+      if (instruction.length > 5_000) {
+        throw new Error("Keep the edit instruction below 5,000 characters.");
+      }
+
+      if (
+        editTargetFile !== "Entire website" &&
+        !result.files.some((file) => file.path === editTargetFile)
+      ) {
+        throw new Error("The selected target file no longer exists.");
+      }
+
+      const response = await fetch("/api/website-editor", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           currentWebsite: result,
+          walletAddress: address || "",
           editInstruction: [
-            editInstruction,
+            instruction,
             "",
-            "Keep the design aligned with KORAX premium dark blue identity.",
-            "Do not downgrade the website design. Keep it luxury, Web3, 3D, glass, and deployment-ready.",
+            "KORAX editor safety and quality rules:",
+            "- Preserve every untouched file and return the complete website package.",
+            "- Keep all existing working functionality unless the user explicitly asks to remove it.",
+            "- Do not invent contract addresses, audits, partnerships, listings, statistics, or live blockchain status.",
+            "- Keep TypeScript, JSX, imports, package dependencies, and file paths consistent.",
+            "- Keep the project compatible with npm run build and Vercel.",
+            "- Do not add secrets, API keys, private keys, access tokens, or seed phrases.",
+            "- Use server components by default and `use client` only where needed.",
+            "- Keep mobile performance lightweight and preserve prefers-reduced-motion.",
+            "- Do not downgrade the visual quality or remove the chosen brand identity.",
+            "- When editing one file, update any dependent files required for a valid build.",
           ].join("\n"),
           targetFile: editTargetFile,
         }),
       });
 
-      const data = await res.json();
+      const data = await response.json().catch(() => null);
 
-      if (!res.ok) {
-        throw new Error(data?.error || "Failed to edit website.");
+      if (!response.ok) {
+        throw new Error(
+          data?.error || `Website edit failed with status ${response.status}.`
+        );
       }
 
-      setResult(data.result);
-      setSelectedFile(data.result?.files?.[0]?.path || "");
+      const editedResult = normalizeWebsiteResult(data?.result);
+      const editedHealth = calculatePackageHealth(editedResult);
+
+      if (editedHealth.suspiciousSecrets.length) {
+        throw new Error(
+          `Edit rejected because possible secret values were detected in: ${editedHealth.suspiciousSecrets.join(
+            ", "
+          )}`
+        );
+      }
+
+      setEditHistory((current) =>
+        [result, ...current].slice(0, MAX_EDIT_HISTORY)
+      );
+      setResult(editedResult);
+      setSelectedFile(
+        editedResult.files.some((file) => file.path === editTargetFile)
+          ? editTargetFile
+          : editedResult.files[0]?.path || ""
+      );
       setEditInstruction("");
-      saveWebsiteResult(data.result);
-    } catch (err: any) {
-      setEditError(err?.message || "Website edit failed.");
+      setGithubRepoUrl("");
+      setGithubStatus(
+        "Website changed. Publish again to update or create the GitHub repository."
+      );
+      setVercelStatus("");
+      saveGitHubRepoUrl("");
+
+      await saveWebsiteResult(editedResult);
+    } catch (err: unknown) {
+      setEditError(
+        err instanceof Error ? err.message : "Website edit failed."
+      );
     } finally {
       setEditing(false);
     }
   }
 
-  function connectGitHub() {
+  async function undoLastEdit() {
+    const previous = editHistory[0];
+
+    if (!previous) {
+      setEditError("There is no earlier edit available.");
+      return;
+    }
+
+    setEditHistory((current) => current.slice(1));
+    setResult(previous);
+    setSelectedFile(previous.files[0]?.path || "");
+    setEditError("");
+    setGithubRepoUrl("");
+    setGithubStatus(
+      "The previous website version was restored. Publish again when ready."
+    );
+    setVercelStatus("");
+    saveGitHubRepoUrl("");
+
+    await saveWebsiteResult(previous);
+  }
+
+  async function clearGeneratedWebsite() {
+    setResult(null);
+    setEditHistory([]);
+    setSelectedFile("");
+    setEditInstruction("");
+    setEditError("");
+    setError("");
+    setDownloadError("");
+    setGithubRepoUrl("");
+    setGithubStatus("");
+    setVercelStatus("");
+    setGenerationStage("idle");
+    saveGitHubRepoUrl("");
+
+    await clearSavedWebsiteResult();
+  }
+
+  async function handleCopySelectedFile() {
+    if (!selectedFileData) return;
+
+    try {
+      await copyToClipboard(selectedFileData.content);
+      setCopyStatus("File copied");
+
+      window.setTimeout(() => {
+        setCopyStatus("");
+      }, 1_800);
+    } catch (err: unknown) {
+      setCopyStatus(
+        err instanceof Error ? err.message : "Copy failed"
+      );
+    }
+  }
+
+  async function connectGitHub() {
+    if (!requireBuilderAccess("connecting GitHub publishing")) {
+      return;
+    }
+
     if (result?.files?.length) {
-      saveWebsiteResult(result);
+      await saveWebsiteResult(result);
     }
 
     window.location.href = "/api/github/oauth/start";
   }
 
   function openVercelImport() {
+    setVercelStatus("");
+
+    if (!requireBuilderAccess("opening Vercel deployment")) {
+      setVercelStatus(
+        `Stake ${builderAccess.tokensPerProject} KRX on the qualifying 12-month plan first.`
+      );
+      return;
+    }
+
     if (!githubRepoUrl) {
       setVercelStatus("Publish the generated website to GitHub first.");
       return;
     }
 
+    let repositoryUrl: URL;
+
+    try {
+      repositoryUrl = new URL(githubRepoUrl);
+    } catch {
+      setVercelStatus("The saved GitHub repository URL is invalid.");
+      return;
+    }
+
+    if (
+      repositoryUrl.protocol !== "https:" ||
+      repositoryUrl.hostname.toLowerCase() !== "github.com"
+    ) {
+      setVercelStatus("Only a valid HTTPS GitHub repository can be imported.");
+      return;
+    }
+
     const vercelCloneUrl = `https://vercel.com/new/clone?repository-url=${encodeURIComponent(
-      githubRepoUrl
+      repositoryUrl.toString()
     )}`;
 
     setVercelStatus(
-      "Opening Vercel import. The deployment will be created inside the user's own Vercel account."
+      "Opening Vercel import. The deployment will be created inside the connected user's Vercel account."
     );
 
     window.open(vercelCloneUrl, "_blank", "noopener,noreferrer");
@@ -1605,8 +2510,16 @@ export default function WebsiteBuilderAIPage() {
   async function publishToGitHub() {
     if (publishingGithub) return;
 
-    setPublishingGithub(true);
     setGithubStatus("");
+
+    if (!requireBuilderAccess("publishing to GitHub")) {
+      setGithubStatus(
+        `Stake ${builderAccess.tokensPerProject} KRX on the qualifying 12-month plan first.`
+      );
+      return;
+    }
+
+    setPublishingGithub(true);
     setGithubRepoUrl("");
     setVercelStatus("");
     saveGitHubRepoUrl("");
@@ -1620,15 +2533,27 @@ export default function WebsiteBuilderAIPage() {
         throw new Error("Connect GitHub first, then publish.");
       }
 
-      const repoName =
-        githubRepoName.trim() ||
-        result.websiteName
-          ?.toLowerCase()
-          .replace(/[^a-z0-9-_]+/g, "-")
-          .replace(/^-+|-+$/g, "") ||
-        "korax-generated-site";
+      if (packageHealth.suspiciousSecrets.length) {
+        throw new Error(
+          "Possible secret values were detected. Remove them before publishing."
+        );
+      }
 
-      const res = await fetch("/api/github/publish", {
+      const repoName = cleanRepositoryName(
+        githubRepoName.trim() ||
+          result.websiteName ||
+          "korax-generated-site"
+      );
+
+      if (!repoName || !/^[a-z0-9._-]+$/i.test(repoName)) {
+        throw new Error(
+          "Repository name may contain only letters, numbers, dots, hyphens, and underscores."
+        );
+      }
+
+      const safeFiles = normalizeWebsiteFiles(result.files);
+
+      const response = await fetch("/api/github/publish", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1636,23 +2561,37 @@ export default function WebsiteBuilderAIPage() {
         body: JSON.stringify({
           repoName,
           privateRepo: githubPrivateRepo,
-          files: result.files,
+          files: safeFiles,
+          walletAddress: address || "",
           description: `Generated by KORAX Website Builder AI for ${result.websiteName}`,
         }),
       });
 
-      const data = await res.json();
+      const data = await response.json().catch(() => null);
 
-      if (!res.ok) {
-        throw new Error(data?.error || "GitHub publish failed.");
+      if (!response.ok) {
+        throw new Error(
+          data?.error || `GitHub publish failed with status ${response.status}.`
+        );
       }
 
-      setGithubRepoUrl(data.repoUrl);
-      saveGitHubRepoUrl(data.repoUrl);
-      setGithubStatus(`Published successfully: ${data.repoUrl}`);
-      checkGithubStatus();
-    } catch (err: any) {
-      setGithubStatus(err?.message || "GitHub publish failed.");
+      const repoUrl = String(data?.repoUrl || "");
+
+      if (!isValidOptionalUrl(repoUrl) || !repoUrl) {
+        throw new Error(
+          "GitHub publishing completed without a valid repository URL."
+        );
+      }
+
+      setGithubRepoName(repoName);
+      setGithubRepoUrl(repoUrl);
+      saveGitHubRepoUrl(repoUrl);
+      setGithubStatus(`Published successfully: ${repoUrl}`);
+      await checkGithubStatus();
+    } catch (err: unknown) {
+      setGithubStatus(
+        err instanceof Error ? err.message : "GitHub publish failed."
+      );
     } finally {
       setPublishingGithub(false);
     }
@@ -1691,7 +2630,7 @@ export default function WebsiteBuilderAIPage() {
             </p>
 
             <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <StatusPill active>1500 KRX Gate</StatusPill>
+              <StatusPill active>{builderAccess.tokensPerProject} KRX Gate</StatusPill>
               <StatusPill active={Boolean(result?.files?.length)}>
                 Website Package
               </StatusPill>
@@ -1714,6 +2653,7 @@ export default function WebsiteBuilderAIPage() {
         tokensPerProject={builderAccess.tokensPerProject}
         eligibleAmount={builderAccess.eligibleAmount}
         totalSlots={builderAccess.totalSlots}
+        requiredRewardBps={builderAccess.requiredRewardBps}
         error={builderAccess.error}
       />
 
@@ -1756,7 +2696,7 @@ export default function WebsiteBuilderAIPage() {
               </Field>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-3">
               <Field label="Category">
                 <select
                   value={form.category}
@@ -1777,6 +2717,22 @@ export default function WebsiteBuilderAIPage() {
                 >
                   <option>BNB Chain</option>
                   <option>Solana — Planned for Future</option>
+                </select>
+              </Field>
+
+              <Field label="Website Language">
+                <select
+                  value={form.websiteLanguage}
+                  onChange={(e) => update("websiteLanguage", e.target.value)}
+                  className={selectClass}
+                >
+                  <option>English</option>
+                  <option>German</option>
+                  <option>Arabic</option>
+                  <option>French</option>
+                  <option>Spanish</option>
+                  <option>Turkish</option>
+                  <option>Russian</option>
                 </select>
               </Field>
             </div>
@@ -1800,7 +2756,7 @@ export default function WebsiteBuilderAIPage() {
               />
             </Field>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-3">
               <Field label="Website Style">
                 <select
                   value={form.websiteStyle}
@@ -1810,6 +2766,19 @@ export default function WebsiteBuilderAIPage() {
                   {WEBSITE_STYLE_OPTIONS.map((item) => (
                     <option key={item}>{item}</option>
                   ))}
+                </select>
+              </Field>
+
+              <Field label="Theme Mode">
+                <select
+                  value={form.themeMode}
+                  onChange={(e) => update("themeMode", e.target.value)}
+                  className={selectClass}
+                >
+                  <option>Dark</option>
+                  <option>Light</option>
+                  <option>Dark with Light Sections</option>
+                  <option>System Adaptive</option>
                 </select>
               </Field>
 
@@ -1994,13 +2963,51 @@ export default function WebsiteBuilderAIPage() {
               className={primaryButtonClass}
             >
               {loading
-                ? "Generating Website... please wait"
+                ? generationStageLabel[generationStage]
                 : builderAccess.loading
                 ? "Checking Builder Access..."
                 : hasBuilderAccess
-                ? "Generate Beast Website"
-                : "Stake 1500 KRX to Unlock"}
+                ? "Generate Production Website"
+                : `Stake ${builderAccess.tokensPerProject} KRX to Unlock`}
             </button>
+
+            {generationStage !== "idle" ? (
+              <div
+                className={[
+                  "rounded-2xl border px-4 py-3 text-sm leading-7",
+                  generationStage === "failed"
+                    ? "border-red-500/20 bg-red-500/10 text-red-200"
+                    : generationStage === "ready"
+                    ? "border-cyan-300/20 bg-cyan-400/10 text-cyan-100"
+                    : "border-blue-400/20 bg-blue-500/10 text-blue-100",
+                ].join(" ")}
+              >
+                <div className="font-black">
+                  {generationStageLabel[generationStage]}
+                </div>
+
+                <div className="mt-1 text-white/60">
+                  KORAX validates the project input, generates the full package,
+                  checks file paths and required files, then stores the result
+                  safely in the browser.
+                </div>
+              </div>
+            ) : null}
+
+            {validationIssues.length ? (
+              <div className="rounded-2xl border border-amber-300/20 bg-amber-300/[0.07] p-4 text-sm text-amber-100">
+                <div className="font-black">Project data needs correction</div>
+
+                <div className="mt-3 space-y-2">
+                  {validationIssues.map((issue) => (
+                    <div key={`${issue.field}-${issue.message}`}>
+                      <span className="font-black">{issue.field}:</span>{" "}
+                      {issue.message}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
 
             {error ? (
               <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
@@ -2028,6 +3035,14 @@ export default function WebsiteBuilderAIPage() {
                 value={form.symbol || "Not loaded yet"}
               />
               <SmallCard label="Network" value={form.network} />
+              <SmallCard
+                label="Project ID"
+                value={linkedProjectId || "Manual website mode"}
+              />
+              <SmallCard
+                label="Deployment Transaction"
+                value={linkedDeploymentTx || "Not loaded"}
+              />
               <SmallCard
                 label="Token"
                 value={form.tokenAddress || "Not loaded yet"}
@@ -2083,13 +3098,38 @@ export default function WebsiteBuilderAIPage() {
                 <SmallCard label="Theme" value={result.styleGuide.theme} />
                 <SmallCard
                   label="Files Generated"
-                  value={String(result.files.length)}
+                  value={String(packageHealth.fileCount)}
+                />
+                <SmallCard
+                  label="Package Size"
+                  value={formatBytes(packageHealth.totalBytes)}
+                />
+                <SmallCard
+                  label="Readiness Score"
+                  value={`${packageHealth.score}%`}
                 />
                 <SmallCard
                   label="Primary / Secondary"
                   value={`${result.styleGuide.primaryColor} / ${result.styleGuide.secondaryColor}`}
                 />
               </div>
+
+              {packageHealth.warnings.length ? (
+                <div className="mt-4 rounded-2xl border border-amber-300/20 bg-amber-300/[0.07] p-4 text-xs leading-6 text-amber-100">
+                  <div className="font-black">Package checks</div>
+
+                  <div className="mt-2 space-y-1">
+                    {packageHealth.warnings.map((warning) => (
+                      <div key={warning}>• {warning}</div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-4 rounded-2xl border border-cyan-300/20 bg-cyan-400/10 p-4 text-xs leading-6 text-cyan-100">
+                  Core package files were found and no obvious secret patterns
+                  were detected.
+                </div>
+              )}
             </SectionBox>
           ) : null}
         </div>
@@ -2115,11 +3155,40 @@ export default function WebsiteBuilderAIPage() {
             </div>
           </SectionBox>
 
+          <SectionBox eyebrow="Design System" title="Production Style Guide">
+            <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <SmallCard
+                label="Theme"
+                value={result.styleGuide.theme}
+              />
+              <SmallCard
+                label="Background"
+                value={result.styleGuide.background}
+              />
+              <SmallCard
+                label="Card Style"
+                value={result.styleGuide.cardStyle}
+              />
+              <SmallCard
+                label="Font Mood"
+                value={result.styleGuide.fontMood}
+              />
+              <SmallCard
+                label="Button Style"
+                value={result.styleGuide.buttonStyle}
+              />
+              <SmallCard
+                label="Colors"
+                value={`${result.styleGuide.primaryColor} / ${result.styleGuide.secondaryColor}`}
+              />
+            </div>
+          </SectionBox>
+
           <SectionBox eyebrow="Generated Structure" title="Website Sections">
             <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {result.sections.map((section) => (
+              {result.sections.map((section, index) => (
                 <div
-                  key={section.name}
+                  key={`${section.name}-${index}`}
                   className="website-card-3d rounded-[24px] border border-white/10 bg-[#020617]/45 p-5"
                 >
                   <div className="text-xs font-black uppercase tracking-[0.22em] text-blue-100/50">
@@ -2170,14 +3239,42 @@ export default function WebsiteBuilderAIPage() {
                 className={inputClass}
               />
 
-              <button
-                type="button"
-                onClick={editWebsite}
-                disabled={editing}
-                className={smallPrimaryButtonClass}
-              >
-                {editing ? "Editing Website... please wait" : "Apply AI Edit"}
-              </button>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={editWebsite}
+                  disabled={editing || !hasBuilderAccess}
+                  className={smallPrimaryButtonClass}
+                >
+                  {editing
+                    ? "Editing Website... please wait"
+                    : "Apply AI Edit"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={undoLastEdit}
+                  disabled={editing || editHistory.length === 0}
+                  className={glassButtonClass}
+                >
+                  Undo Last Edit
+                </button>
+
+                <button
+                  type="button"
+                  onClick={clearGeneratedWebsite}
+                  disabled={editing}
+                  className="rounded-2xl border border-red-400/20 bg-red-500/10 px-5 py-3 font-black text-red-100 transition hover:bg-red-500/15 disabled:opacity-50"
+                >
+                  Clear Generated Website
+                </button>
+              </div>
+
+              <div className="text-xs leading-6 text-white/42">
+                Edit history keeps the latest {MAX_EDIT_HISTORY} versions in the
+                current browser session. Publishing must be repeated after an
+                edit or undo.
+              </div>
 
               {editError ? (
                 <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
@@ -2210,7 +3307,7 @@ export default function WebsiteBuilderAIPage() {
                 <button
                   type="button"
                   onClick={handleDownloadWebsiteZip}
-                  disabled={downloadingZip}
+                  disabled={downloadingZip || !hasBuilderAccess}
                   className={smallPrimaryButtonClass}
                 >
                   {downloadingZip
@@ -2221,6 +3318,7 @@ export default function WebsiteBuilderAIPage() {
                 <button
                   type="button"
                   onClick={continueToLaunching}
+                  disabled={!hasBuilderAccess}
                   className={glassButtonClass}
                 >
                   Continue to Launch
@@ -2241,13 +3339,21 @@ export default function WebsiteBuilderAIPage() {
                     {selectedFileData.path}
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => copyToClipboard(selectedFileData.content)}
-                    className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
-                  >
-                    Copy File
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {copyStatus ? (
+                      <span className="text-xs font-semibold text-cyan-100">
+                        {copyStatus}
+                      </span>
+                    ) : null}
+
+                    <button
+                      type="button"
+                      onClick={handleCopySelectedFile}
+                      className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
+                    >
+                      Copy File
+                    </button>
+                  </div>
                 </div>
 
                 <pre className="max-h-[360px] overflow-auto p-4 text-xs leading-relaxed text-white/75 md:max-h-[560px]">
@@ -2293,6 +3399,7 @@ export default function WebsiteBuilderAIPage() {
                 <button
                   type="button"
                   onClick={connectGitHub}
+                  disabled={!hasBuilderAccess}
                   className={glassButtonClass}
                 >
                   {githubConnected ? "Reconnect GitHub" : "Connect GitHub"}
@@ -2356,7 +3463,9 @@ export default function WebsiteBuilderAIPage() {
               <button
                 type="button"
                 onClick={publishToGitHub}
-                disabled={publishingGithub || !githubConnected}
+                disabled={
+                  publishingGithub || !githubConnected || !hasBuilderAccess
+                }
                 className={smallPrimaryButtonClass}
               >
                 {publishingGithub
@@ -2440,7 +3549,7 @@ export default function WebsiteBuilderAIPage() {
               <button
                 type="button"
                 onClick={openVercelImport}
-                disabled={!githubRepoUrl}
+                disabled={!githubRepoUrl || !hasBuilderAccess}
                 className={primaryButtonClass}
               >
                 Deploy to Vercel
@@ -2456,12 +3565,18 @@ export default function WebsiteBuilderAIPage() {
                   Open GitHub Repository
                 </a>
 
-                <a
-                  href="/api/vercel/connect"
-                  className="rounded-2xl border border-blue-300/20 bg-blue-400/10 px-5 py-3 text-center font-black text-blue-100 transition hover:bg-blue-400/15"
-                >
-                  Connect Vercel Integration
-                </a>
+                {hasBuilderAccess ? (
+                  <a
+                    href="/api/vercel/connect"
+                    className="rounded-2xl border border-blue-300/20 bg-blue-400/10 px-5 py-3 text-center font-black text-blue-100 transition hover:bg-blue-400/15"
+                  >
+                    Connect Vercel Integration
+                  </a>
+                ) : (
+                  <span className="rounded-2xl border border-white/10 bg-white/[0.035] px-5 py-3 text-center font-black text-white/35">
+                    Builder Access Required
+                  </span>
+                )}
               </div>
 
               {vercelStatus ? (
@@ -2480,6 +3595,28 @@ export default function WebsiteBuilderAIPage() {
             </div>
           </SectionBox>
 
+          {result.deploymentNotes.length ? (
+            <SectionBox
+              eyebrow="Deployment Notes"
+              title="Generated production instructions"
+            >
+              <div className="mt-5 grid gap-3">
+                {result.deploymentNotes.map((note, index) => (
+                  <div
+                    key={`${note}-${index}`}
+                    className="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/25 p-4 text-sm leading-7 text-white/62"
+                  >
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-blue-400/20 bg-blue-500/10 text-[10px] font-black text-blue-100">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+
+                    {note}
+                  </div>
+                ))}
+              </div>
+            </SectionBox>
+          ) : null}
+
           <section className="relative overflow-hidden rounded-[32px] border border-blue-300/25 bg-blue-500/10 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.4)] md:p-6">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_36%),radial-gradient(circle_at_bottom_right,rgba(34,211,238,0.10),transparent_36%)]" />
 
@@ -2493,10 +3630,11 @@ export default function WebsiteBuilderAIPage() {
               </p>
 
               <div className="mt-5 rounded-2xl border border-white/10 bg-[#020617]/45 p-4 text-sm leading-7 text-white/65">
-                Current flow: KORAX generates the website, publishes it to the
-                user&apos;s GitHub, then opens Vercel import for user-owned
-                deployment. Next phase: native Vercel Integration deployment and
-                1500 KRX Builder Package automation.
+                Current flow: KORAX generates and validates the website package,
+                publishes it to the connected user&apos;s GitHub account, then opens
+                Vercel import for user-owned deployment. The Builder Package gate
+                is checked before generation, editing, download, publishing, and
+                deployment actions.
               </div>
             </div>
           </section>

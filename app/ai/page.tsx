@@ -80,6 +80,7 @@ type StakingPlanForm = {
 };
 
 const WEBSITE_BUILDER_ROUTE = "/website-builder-ai";
+const DEFAULT_TOKENS_PER_PROJECT = "1,500";
 
 const projectFields = [
   ["goal", "Main Goal of the Project"],
@@ -89,7 +90,10 @@ const projectFields = [
   ["tokenUtilityReason", "How does the token create real utility?"],
   ["holdReason", "Why would people hold the token instead of selling it?"],
   ["growthLogic", "What is the long-term growth logic?"],
-  ["revenueLogic", "How does the project make money or create ecosystem value?"],
+  [
+    "revenueLogic",
+    "How does the project make money or create ecosystem value?",
+  ],
   ["failureRisk", "What is the strongest reason this project could fail?"],
 ] as const;
 
@@ -237,6 +241,7 @@ function SectionCard({
   return (
     <section className="ai-section-card relative overflow-hidden rounded-[34px] border border-white/10 bg-black/30 p-5 shadow-[0_24px_95px_rgba(0,0,0,0.44)] backdrop-blur-xl md:p-6">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.12),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.10),transparent_36%)]" />
+
       <div className="pointer-events-none absolute inset-0 opacity-[0.045] [background-image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:42px_42px]" />
 
       <div className="relative">
@@ -329,12 +334,14 @@ function KoraxMiniBrand() {
 function AIEngineVisual() {
   return (
     <div className="ai-engine-shell relative min-h-[390px] overflow-hidden rounded-[38px] border border-white/10 bg-[#020816] shadow-[0_35px_130px_rgba(0,0,0,0.68)] md:min-h-[520px]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.24),transparent_30%),radial-gradient(circle_at_top_right,rgba(14,165,233,0.22),transparent_38%),radial-gradient(circle_at_bottom_left,rgba(96,165,250,0.14),transparent_36%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.25),transparent_30%),radial-gradient(circle_at_top_right,rgba(14,165,233,0.22),transparent_38%),radial-gradient(circle_at_bottom_left,rgba(96,165,250,0.14),transparent_36%)]" />
 
       <div className="pointer-events-none absolute inset-0 opacity-[0.08] [background-image:linear-gradient(rgba(255,255,255,0.07)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.07)_1px,transparent_1px)] [background-size:28px_28px]" />
 
       <div className="ai-processor-orbit absolute left-1/2 top-1/2 h-[360px] w-[360px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-blue-400/10 shadow-[0_0_100px_rgba(59,130,246,0.16)]" />
+
       <div className="ai-processor-orbit ai-processor-orbit-two absolute left-1/2 top-1/2 h-[285px] w-[285px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan-300/10" />
+
       <div className="ai-processor-orbit ai-processor-orbit-three absolute left-1/2 top-1/2 h-[215px] w-[215px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10" />
 
       <div className="edge-pulse edge-left" />
@@ -346,10 +353,12 @@ function AIEngineVisual() {
         className="absolute inset-0 h-full w-full opacity-80"
         viewBox="0 0 100 100"
         preserveAspectRatio="none"
+        aria-hidden="true"
       >
         <defs>
           <filter id="aiLightPathGlow">
             <feGaussianBlur stdDeviation="0.45" result="blur" />
+
             <feMerge>
               <feMergeNode in="blur" />
               <feMergeNode in="SourceGraphic" />
@@ -366,9 +375,9 @@ function AIEngineVisual() {
           "M 50 96 C 51 75, 51 62, 50 50",
           "M 14 50 C 27 48, 38 48, 50 50",
           "M 86 50 C 73 48, 62 48, 50 50",
-        ].map((d, i) => (
+        ].map((d, index) => (
           <path
-            key={i}
+            key={index}
             d={d}
             fill="none"
             stroke="rgba(147,197,253,0.32)"
@@ -388,36 +397,74 @@ function AIEngineVisual() {
           { x: 14, y: 50 },
           { x: 86, y: 50 },
           { x: 50, y: 50 },
-        ].map((node, i) => (
+        ].map((node, index) => (
           <circle
-            key={i}
+            key={index}
             cx={node.x}
             cy={node.y}
-            fill={i === 8 ? "rgba(255,255,255,0.95)" : "rgba(147,197,253,0.85)"}
-            r={i === 8 ? 2.4 : 1.15}
+            fill={
+              index === 8
+                ? "rgba(255,255,255,0.95)"
+                : "rgba(147,197,253,0.85)"
+            }
+            r={index === 8 ? 2.4 : 1.15}
           />
         ))}
       </svg>
 
-      <div className="ai-core absolute left-1/2 top-[48%] z-10 flex h-[188px] w-[188px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-blue-300/20 bg-[radial-gradient(circle_at_50%_28%,rgba(96,165,250,0.22),rgba(4,8,18,0.99)_55%,rgba(2,6,23,1))] shadow-[0_0_78px_rgba(59,130,246,0.34)]">
-        <div className="absolute inset-[11px] rounded-full border border-blue-200/15 shadow-[inset_0_0_42px_rgba(96,165,250,0.15)]" />
+      <div className="ai-core absolute left-1/2 top-[48%] z-10 flex h-[208px] w-[208px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-blue-300/25 bg-[radial-gradient(circle_at_50%_25%,rgba(96,165,250,0.28),rgba(4,8,18,0.99)_55%,rgba(2,6,23,1))] shadow-[0_0_90px_rgba(59,130,246,0.38)]">
+        <div className="absolute inset-[10px] rounded-full border border-blue-200/15 shadow-[inset_0_0_48px_rgba(96,165,250,0.18)]" />
+
+        <div className="absolute inset-[22px] rounded-full border border-white/[0.06]" />
+
         <div className="ai-center-ring absolute inset-[-18px] rounded-full border border-blue-400/15" />
+
         <div className="ai-center-ring-two absolute inset-[-34px] rounded-full border border-cyan-300/10" />
 
-        <div className="relative text-center">
-          <div
-            className="text-[72px] font-black tracking-[0.12em] text-white"
-            style={{
-              textShadow:
-                "0 0 14px rgba(255,255,255,0.88), 0 0 42px rgba(59,130,246,0.55), 0 0 76px rgba(14,165,233,0.25)",
-            }}
-          >
-            AI
-          </div>
+        <div className="ai-core-corner ai-core-corner-one" />
+        <div className="ai-core-corner ai-core-corner-two" />
+        <div className="ai-core-corner ai-core-corner-three" />
+        <div className="ai-core-corner ai-core-corner-four" />
 
-          <div className="mt-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-blue-100/80">
-            Neural Core
+        <div className="ai-core-mark relative flex h-[154px] w-[154px] items-center justify-center overflow-hidden rounded-full border border-blue-300/15 bg-black/25 shadow-[inset_0_0_40px_rgba(59,130,246,0.16)]">
+          <div className="ai-core-mark-grid pointer-events-none absolute inset-0 opacity-30" />
+
+          <div className="ai-core-sweep pointer-events-none absolute inset-y-0 left-[-45%] w-[45%] bg-gradient-to-r from-transparent via-blue-100/20 to-transparent" />
+
+          <div className="relative text-center">
+            <div className="text-[8px] font-black uppercase tracking-[0.42em] text-blue-100/65">
+              KORAX
+            </div>
+
+            <div
+              className="ai-core-letters mt-1 bg-gradient-to-b from-white via-blue-50 to-blue-300 bg-clip-text text-[74px] font-black leading-[0.86] tracking-[-0.08em] text-transparent"
+              style={{
+                WebkitTextStroke: "1px rgba(255,255,255,0.12)",
+                textShadow:
+                  "0 0 12px rgba(255,255,255,0.9), 0 0 34px rgba(59,130,246,0.7), 0 0 72px rgba(14,165,233,0.32)",
+              }}
+            >
+              AI
+            </div>
+
+            <div className="mt-2 flex items-center justify-center gap-2">
+              <span className="h-px w-5 bg-gradient-to-r from-transparent to-blue-300/80" />
+
+              <span className="text-[7px] font-black uppercase tracking-[0.26em] text-cyan-100/75">
+                Intelligence Core
+              </span>
+
+              <span className="h-px w-5 bg-gradient-to-l from-transparent to-blue-300/80" />
+            </div>
           </div>
+        </div>
+
+        <div className="ai-core-status absolute -bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full border border-blue-400/25 bg-[#040b18]/95 px-3 py-1.5 shadow-[0_0_24px_rgba(59,130,246,0.22)] backdrop-blur-xl">
+          <span className="ai-core-status-dot h-1.5 w-1.5 rounded-full bg-cyan-300 shadow-[0_0_10px_rgba(103,232,249,0.95)]" />
+
+          <span className="text-[8px] font-black uppercase tracking-[0.22em] text-blue-100">
+            Neural Engine Online
+          </span>
         </div>
       </div>
 
@@ -459,7 +506,9 @@ function AIEngineVisual() {
               <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
                 <span
                   className="block h-full rounded-full bg-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.45)]"
-                  style={{ width: `${62 + index * 12}%` }}
+                  style={{
+                    width: `${62 + index * 12}%`,
+                  }}
                 />
               </div>
             </div>
@@ -580,12 +629,14 @@ function AIEngineVisual() {
           0%,
           100% {
             transform: translate(-50%, -50%) scale(1);
-            box-shadow: 0 0 78px rgba(59, 130, 246, 0.34);
+            box-shadow: 0 0 90px rgba(59, 130, 246, 0.38);
           }
 
           50% {
-            transform: translate(-50%, -51.5%) scale(1.028);
-            box-shadow: 0 0 96px rgba(14, 165, 233, 0.34);
+            transform: translate(-50%, -51.5%) scale(1.03);
+            box-shadow:
+              0 0 110px rgba(14, 165, 233, 0.38),
+              0 0 155px rgba(59, 130, 246, 0.14);
           }
         }
 
@@ -597,7 +648,7 @@ function AIEngineVisual() {
           }
 
           50% {
-            opacity: 0.7;
+            opacity: 0.72;
             transform: scale(1.045);
           }
         }
@@ -641,6 +692,63 @@ function AIEngineVisual() {
 
           50% {
             transform: translateY(8px);
+          }
+        }
+
+        @keyframes aiCoreSweep {
+          0% {
+            left: -50%;
+            opacity: 0;
+          }
+
+          20% {
+            opacity: 0.8;
+          }
+
+          80% {
+            opacity: 0.8;
+          }
+
+          100% {
+            left: 110%;
+            opacity: 0;
+          }
+        }
+
+        @keyframes aiCoreLetters {
+          0%,
+          100% {
+            filter: brightness(1);
+            transform: scale(1);
+          }
+
+          50% {
+            filter: brightness(1.22);
+            transform: scale(1.025);
+          }
+        }
+
+        @keyframes aiCoreStatus {
+          0%,
+          100% {
+            opacity: 0.45;
+            transform: scale(0.82);
+          }
+
+          50% {
+            opacity: 1;
+            transform: scale(1.15);
+          }
+        }
+
+        @keyframes aiCoreCorner {
+          0%,
+          100% {
+            opacity: 0.25;
+          }
+
+          50% {
+            opacity: 0.9;
           }
         }
 
@@ -711,6 +819,72 @@ function AIEngineVisual() {
           animation: floatSlow 7.5s ease-in-out infinite;
         }
 
+        .ai-core-sweep {
+          animation: aiCoreSweep 4.8s ease-in-out infinite;
+        }
+
+        .ai-core-letters {
+          animation: aiCoreLetters 3.4s ease-in-out infinite;
+        }
+
+        .ai-core-status-dot {
+          animation: aiCoreStatus 1.7s ease-in-out infinite;
+        }
+
+        .ai-core-mark-grid {
+          background-image:
+            linear-gradient(
+              rgba(147, 197, 253, 0.08) 1px,
+              transparent 1px
+            ),
+            linear-gradient(
+              90deg,
+              rgba(147, 197, 253, 0.08) 1px,
+              transparent 1px
+            );
+          background-size: 14px 14px;
+        }
+
+        .ai-core-corner {
+          position: absolute;
+          z-index: 4;
+          height: 17px;
+          width: 17px;
+          border-color: rgba(147, 197, 253, 0.72);
+          animation: aiCoreCorner 2.8s ease-in-out infinite;
+        }
+
+        .ai-core-corner-one {
+          left: 29px;
+          top: 29px;
+          border-left-width: 1px;
+          border-top-width: 1px;
+        }
+
+        .ai-core-corner-two {
+          right: 29px;
+          top: 29px;
+          border-right-width: 1px;
+          border-top-width: 1px;
+          animation-delay: 0.4s;
+        }
+
+        .ai-core-corner-three {
+          bottom: 29px;
+          left: 29px;
+          border-bottom-width: 1px;
+          border-left-width: 1px;
+          animation-delay: 0.8s;
+        }
+
+        .ai-core-corner-four {
+          bottom: 29px;
+          right: 29px;
+          border-bottom-width: 1px;
+          border-right-width: 1px;
+          animation-delay: 1.2s;
+        }
+
         @media (max-width: 640px) {
           .edge-pulse {
             width: 12px;
@@ -719,6 +893,56 @@ function AIEngineVisual() {
 
           .ai-chip-card {
             display: none;
+          }
+
+          .ai-core {
+            height: 176px;
+            width: 176px;
+          }
+
+          .ai-core-mark {
+            height: 132px;
+            width: 132px;
+          }
+
+          .ai-core-letters {
+            font-size: 62px;
+          }
+
+          .ai-core-corner-one,
+          .ai-core-corner-three {
+            left: 24px;
+          }
+
+          .ai-core-corner-two,
+          .ai-core-corner-four {
+            right: 24px;
+          }
+
+          .ai-core-corner-one,
+          .ai-core-corner-two {
+            top: 24px;
+          }
+
+          .ai-core-corner-three,
+          .ai-core-corner-four {
+            bottom: 24px;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .edge-pulse,
+          .ai-core,
+          .ai-center-ring,
+          .ai-center-ring-two,
+          .ai-processor-orbit,
+          .ai-float,
+          .ai-float-slow,
+          .ai-core-sweep,
+          .ai-core-letters,
+          .ai-core-status-dot,
+          .ai-core-corner {
+            animation: none;
           }
         }
       `}</style>
@@ -796,7 +1020,7 @@ export default function AIPage() {
     connected: false,
     wallet: "",
     eligibleAmount: "0",
-    tokensPerProject: "1,500",
+    tokensPerProject: DEFAULT_TOKENS_PER_PROJECT,
     requiredRewardBps: 9000,
     totalSlots: 0,
     usedSlots: 0,
@@ -806,8 +1030,14 @@ export default function AIPage() {
     error: "",
   });
 
-  function update<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
-    setForm((prev) => ({ ...prev, [key]: value }));
+  function update<K extends keyof typeof form>(
+    key: K,
+    value: (typeof form)[K]
+  ) {
+    setForm((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
   }
 
   function saveProjectForWebsiteBuilder(deployed: DeployResult) {
@@ -1084,7 +1314,7 @@ These contracts were deployed through KORAX Token Builder AI.
         connected: false,
         wallet: "",
         eligibleAmount: "0",
-        tokensPerProject: "1,500",
+        tokensPerProject: DEFAULT_TOKENS_PER_PROJECT,
         requiredRewardBps: 9000,
         totalSlots: 0,
         usedSlots: 0,
@@ -1093,6 +1323,7 @@ These contracts were deployed through KORAX Token Builder AI.
         registeredProjects: 0,
         error: "",
       });
+
       return;
     }
 
@@ -1157,7 +1388,9 @@ These contracts were deployed through KORAX Token Builder AI.
         loading: false,
         connected: true,
         wallet: user,
-        eligibleAmount: formatTokenAmount(BigInt(eligibleAmountRaw.toString())),
+        eligibleAmount: formatTokenAmount(
+          BigInt(eligibleAmountRaw.toString())
+        ),
         tokensPerProject: formatTokenAmount(
           BigInt(tokensPerProjectRaw.toString())
         ),
@@ -1175,9 +1408,12 @@ These contracts were deployed through KORAX Token Builder AI.
         loading: false,
         connected: true,
         wallet: user,
-        tokensPerProject: prev.tokensPerProject || "1,500",
+        tokensPerProject:
+          prev.tokensPerProject || DEFAULT_TOKENS_PER_PROJECT,
         error:
-          err?.shortMessage || err?.message || "Failed to load access data",
+          err?.shortMessage ||
+          err?.message ||
+          "Failed to load access data",
       }));
     }
   }
@@ -1275,7 +1511,8 @@ These contracts were deployed through KORAX Token Builder AI.
       });
     } catch (err: any) {
       setVisualError(
-        err?.message || "Something went wrong while generating the visual."
+        err?.message ||
+          "Something went wrong while generating the visual."
       );
     } finally {
       setVisualLoading(false);
@@ -1285,7 +1522,14 @@ These contracts were deployed through KORAX Token Builder AI.
   function addStakingPlan() {
     setStakingPlans((prev) => {
       if (prev.length >= 10) return prev;
-      return [...prev, { durationDays: "30", rewardBps: "500" }];
+
+      return [
+        ...prev,
+        {
+          durationDays: "30",
+          rewardBps: "500",
+        },
+      ];
     });
   }
 
@@ -1299,7 +1543,14 @@ These contracts were deployed through KORAX Token Builder AI.
     value: string
   ) {
     setStakingPlans((prev) =>
-      prev.map((plan, i) => (i === index ? { ...plan, [key]: value } : plan))
+      prev.map((plan, i) =>
+        i === index
+          ? {
+              ...plan,
+              [key]: value,
+            }
+          : plan
+      )
     );
   }
 
@@ -1340,10 +1591,16 @@ These contracts were deployed through KORAX Token Builder AI.
         18
       );
 
-      const maxSupply = ethers.parseUnits(deployForm.maxSupply || "0", 18);
+      const maxSupply = ethers.parseUnits(
+        deployForm.maxSupply || "0",
+        18
+      );
 
       const stakingRewardsAllocation = deployForm.stakingEnabled
-        ? ethers.parseUnits(deployForm.stakingRewardsAllocation || "0", 18)
+        ? ethers.parseUnits(
+            deployForm.stakingRewardsAllocation || "0",
+            18
+          )
         : 0n;
 
       if (initialSupply <= 0n) {
@@ -1360,8 +1617,13 @@ These contracts were deployed through KORAX Token Builder AI.
         );
       }
 
-      if (deployForm.stakingEnabled && stakingRewardsAllocation <= 0n) {
-        throw new Error("Staking rewards allocation must be greater than 0.");
+      if (
+        deployForm.stakingEnabled &&
+        stakingRewardsAllocation <= 0n
+      ) {
+        throw new Error(
+          "Staking rewards allocation must be greater than 0."
+        );
       }
 
       if (stakingRewardsAllocation > initialSupply) {
@@ -1451,7 +1713,7 @@ These contracts were deployed through KORAX Token Builder AI.
             break;
           }
         } catch {
-          // ignore unrelated logs
+          // Ignore unrelated logs.
         }
       }
 
@@ -1472,18 +1734,26 @@ These contracts were deployed through KORAX Token Builder AI.
 
       await loadAccessData(address);
     } catch (err: any) {
-      setDeployError(err?.shortMessage || err?.message || "Deployment failed.");
+      setDeployError(
+        err?.shortMessage || err?.message || "Deployment failed."
+      );
     } finally {
       setDeployingProject(false);
     }
   }
 
-  const canContinueToCreation = !!result && access.availableSlots > 0;
-  const needsUnlock = !!result && access.availableSlots <= 0;
+  const canContinueToCreation =
+    Boolean(result) && access.availableSlots > 0;
+
+  const needsUnlock =
+    Boolean(result) && access.availableSlots <= 0;
 
   const visualImageSrc = visualResult?.imageBase64
     ? `data:image/png;base64,${visualResult.imageBase64}`
     : visualResult?.imageUrl || "";
+
+  const displayedTokensPerProject =
+    access.tokensPerProject || DEFAULT_TOKENS_PER_PROJECT;
 
   const finalProjectPreview = result
     ? {
@@ -1598,6 +1868,12 @@ These contracts were deployed through KORAX Token Builder AI.
           will-change: transform;
         }
 
+        @media (hover: none) {
+          .ai-card-3d:hover {
+            transform: none;
+          }
+        }
+
         @media (prefers-reduced-motion: reduce) {
           .ai-hero-scan,
           .ai-hero-shimmer,
@@ -1613,8 +1889,11 @@ These contracts were deployed through KORAX Token Builder AI.
 
       <section className="ai-hero-3d relative overflow-hidden rounded-[38px] border border-white/10 bg-black/35 p-5 shadow-[0_35px_130px_rgba(0,0,0,0.62)] backdrop-blur-xl md:p-8">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.24),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.16),transparent_35%)]" />
+
         <div className="pointer-events-none absolute inset-0 opacity-[0.075] [background-image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:52px_52px]" />
+
         <div className="ai-hero-scan pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-blue-400/10 to-transparent" />
+
         <div className="ai-hero-shimmer pointer-events-none absolute left-0 top-0 h-full w-1/4 bg-gradient-to-r from-transparent via-white/5 to-transparent" />
 
         <div className="relative grid gap-8 xl:grid-cols-[1fr_470px] xl:items-center">
@@ -1646,9 +1925,18 @@ These contracts were deployed through KORAX Token Builder AI.
 
             <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <StatusPill active>AI Draft</StatusPill>
-              <StatusPill active={Boolean(visualImageSrc)}>AI Visual</StatusPill>
-              <StatusPill active={access.hasAccess}>1500 KRX Gate</StatusPill>
-              <StatusPill active={Boolean(deployResult)}>On-chain Ready</StatusPill>
+
+              <StatusPill active={Boolean(visualImageSrc)}>
+                AI Visual
+              </StatusPill>
+
+              <StatusPill active={access.hasAccess}>
+                1,500 KRX Gate
+              </StatusPill>
+
+              <StatusPill active={Boolean(deployResult)}>
+                On-chain Ready
+              </StatusPill>
             </div>
           </div>
 
@@ -1667,7 +1955,9 @@ These contracts were deployed through KORAX Token Builder AI.
               <Field label="Project Name">
                 <input
                   value={form.projectName}
-                  onChange={(e) => update("projectName", e.target.value)}
+                  onChange={(event) =>
+                    update("projectName", event.target.value)
+                  }
                   placeholder="Project Name"
                   className={inputClass}
                 />
@@ -1676,7 +1966,9 @@ These contracts were deployed through KORAX Token Builder AI.
               <Field label="Token Symbol">
                 <input
                   value={form.symbol}
-                  onChange={(e) => update("symbol", e.target.value)}
+                  onChange={(event) =>
+                    update("symbol", event.target.value)
+                  }
                   placeholder="Token Symbol"
                   className={inputClass}
                 />
@@ -1687,7 +1979,9 @@ These contracts were deployed through KORAX Token Builder AI.
               <Field label="Category">
                 <select
                   value={form.category}
-                  onChange={(e) => update("category", e.target.value)}
+                  onChange={(event) =>
+                    update("category", event.target.value)
+                  }
                   className={selectClass}
                 >
                   <option>AI</option>
@@ -1703,10 +1997,13 @@ These contracts were deployed through KORAX Token Builder AI.
               <Field label="Network">
                 <select
                   value={form.network}
-                  onChange={(e) => update("network", e.target.value)}
+                  onChange={(event) =>
+                    update("network", event.target.value)
+                  }
                   className={selectClass}
                 >
                   <option value="BNB Chain">BNB Chain</option>
+
                   <option value="Solana — Planned for Future">
                     Solana — Planned for Future
                   </option>
@@ -1717,7 +2014,9 @@ These contracts were deployed through KORAX Token Builder AI.
             <Field label="Short Description">
               <textarea
                 value={form.shortDescription}
-                onChange={(e) => update("shortDescription", e.target.value)}
+                onChange={(event) =>
+                  update("shortDescription", event.target.value)
+                }
                 placeholder="Short Description"
                 rows={4}
                 className={inputClass}
@@ -1727,7 +2026,9 @@ These contracts were deployed through KORAX Token Builder AI.
             <Field label="Target Audience">
               <input
                 value={form.targetAudience}
-                onChange={(e) => update("targetAudience", e.target.value)}
+                onChange={(event) =>
+                  update("targetAudience", event.target.value)
+                }
                 placeholder="Target Audience"
                 className={inputClass}
               />
@@ -1736,7 +2037,9 @@ These contracts were deployed through KORAX Token Builder AI.
             <Field label="Brand Style">
               <select
                 value={form.style}
-                onChange={(e) => update("style", e.target.value)}
+                onChange={(event) =>
+                  update("style", event.target.value)
+                }
                 className={selectClass}
               >
                 <option>Professional</option>
@@ -1768,7 +2071,9 @@ These contracts were deployed through KORAX Token Builder AI.
                   <textarea
                     key={key}
                     value={form[key] as string}
-                    onChange={(e) => update(key, e.target.value as any)}
+                    onChange={(event) =>
+                      update(key, event.target.value as any)
+                    }
                     placeholder={placeholder}
                     rows={3}
                     className={inputClass}
@@ -1782,8 +2087,11 @@ These contracts were deployed through KORAX Token Builder AI.
                 <input
                   type="checkbox"
                   checked={form.presale}
-                  onChange={(e) => update("presale", e.target.checked)}
+                  onChange={(event) =>
+                    update("presale", event.target.checked)
+                  }
                 />
+
                 Launchpad
               </label>
 
@@ -1791,17 +2099,19 @@ These contracts were deployed through KORAX Token Builder AI.
                 <input
                   type="checkbox"
                   checked={form.staking}
-                  onChange={(e) => {
-                    update("staking", e.target.checked);
+                  onChange={(event) => {
+                    update("staking", event.target.checked);
+
                     setDeployForm((prev) => ({
                       ...prev,
-                      stakingEnabled: e.target.checked,
-                      stakingRewardsAllocation: e.target.checked
+                      stakingEnabled: event.target.checked,
+                      stakingRewardsAllocation: event.target.checked
                         ? prev.stakingRewardsAllocation || "20000000"
                         : "0",
                     }));
                   }}
                 />
+
                 Staking
               </label>
 
@@ -1809,13 +2119,17 @@ These contracts were deployed through KORAX Token Builder AI.
                 <input
                   type="checkbox"
                   checked={form.vesting}
-                  onChange={(e) => update("vesting", e.target.checked)}
+                  onChange={(event) =>
+                    update("vesting", event.target.checked)
+                  }
                 />
+
                 Vesting
               </label>
             </div>
 
             <button
+              type="button"
               onClick={generateDraft}
               disabled={loading}
               className="rounded-2xl bg-blue-500 px-6 py-4 font-black text-white shadow-[0_0_36px_rgba(59,130,246,0.28)] transition hover:scale-[1.01] hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
@@ -1846,7 +2160,7 @@ These contracts were deployed through KORAX Token Builder AI.
             <div className="mt-4 rounded-2xl border border-blue-400/25 bg-blue-500/10 p-4 text-sm leading-7 text-white/75">
               To unlock the KORAX Builder Package, users need to stake{" "}
               <span className="font-black text-white">
-                {access.tokensPerProject} KRX
+                {displayedTokensPerProject} KRX
               </span>{" "}
               on the{" "}
               <span className="font-black text-white">
@@ -1871,7 +2185,10 @@ These contracts were deployed through KORAX Token Builder AI.
               </div>
             ) : (
               <div className="mt-4 grid gap-3">
-                <InfoCard label="Wallet" value={shortAddress(access.wallet)} />
+                <InfoCard
+                  label="Wallet"
+                  value={shortAddress(access.wallet)}
+                />
 
                 <div className="grid grid-cols-2 gap-3">
                   <MetricCard
@@ -1882,7 +2199,7 @@ These contracts were deployed through KORAX Token Builder AI.
 
                   <MetricCard
                     label="Tokens Per Project"
-                    value={`${access.tokensPerProject} KRX`}
+                    value={`${displayedTokensPerProject} KRX`}
                   />
 
                   <MetricCard label="Required Plan" value="12 Months" />
@@ -1910,8 +2227,9 @@ These contracts were deployed through KORAX Token Builder AI.
 
           <SectionCard eyebrow="Free Draft" title="KORAX AI Intelligence">
             <p className="mt-3 text-sm leading-7 text-white/60">
-              The free draft helps users understand whether their idea is strong,
-              weak, fixable, or worth converting into a real on-chain project.
+              The free draft helps users understand whether their idea is
+              strong, weak, fixable, or worth converting into a real on-chain
+              project.
             </p>
 
             <div className="mt-5 rounded-2xl border border-white/10 bg-black/25 p-5">
@@ -1936,10 +2254,10 @@ These contracts were deployed through KORAX Token Builder AI.
             <div className="mt-5 grid gap-4">
               <select
                 value={visualForm.imageType}
-                onChange={(e) =>
+                onChange={(event) =>
                   setVisualForm((prev) => ({
                     ...prev,
-                    imageType: e.target.value,
+                    imageType: event.target.value,
                   }))
                 }
                 className={selectClass}
@@ -1955,10 +2273,10 @@ These contracts were deployed through KORAX Token Builder AI.
 
               <select
                 value={visualForm.visualStyle}
-                onChange={(e) =>
+                onChange={(event) =>
                   setVisualForm((prev) => ({
                     ...prev,
-                    visualStyle: e.target.value,
+                    visualStyle: event.target.value,
                   }))
                 }
                 className={selectClass}
@@ -1973,10 +2291,10 @@ These contracts were deployed through KORAX Token Builder AI.
 
               <input
                 value={visualForm.colors}
-                onChange={(e) =>
+                onChange={(event) =>
                   setVisualForm((prev) => ({
                     ...prev,
-                    colors: e.target.value,
+                    colors: event.target.value,
                   }))
                 }
                 placeholder="Preferred colors"
@@ -1985,8 +2303,11 @@ These contracts were deployed through KORAX Token Builder AI.
 
               <input
                 value={visualForm.mood}
-                onChange={(e) =>
-                  setVisualForm((prev) => ({ ...prev, mood: e.target.value }))
+                onChange={(event) =>
+                  setVisualForm((prev) => ({
+                    ...prev,
+                    mood: event.target.value,
+                  }))
                 }
                 placeholder="Mood"
                 className={inputClass}
@@ -2018,10 +2339,10 @@ These contracts were deployed through KORAX Token Builder AI.
                   />
 
                   <div className="mt-3 rounded-xl border border-white/10 bg-black/30 p-3 text-xs leading-relaxed text-white/55">
-                    AI visuals are generated from your project description. Text
-                    inside images may not always be perfect, so the best use is
-                    for concept art, posters, branding direction, and early
-                    marketing visuals.
+                    AI visuals are generated from your project description.
+                    Text inside images may not always be perfect, so the best
+                    use is for concept art, posters, branding direction, and
+                    early marketing visuals.
                   </div>
 
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -2073,6 +2394,7 @@ These contracts were deployed through KORAX Token Builder AI.
           </SectionCard>
         </div>
       </section>
+
       {result ? (
         <section className="space-y-6">
           <SectionCard
@@ -2092,13 +2414,16 @@ These contracts were deployed through KORAX Token Builder AI.
             <div className="mt-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <p className="text-sm leading-7 text-white/60">
                 Your AI draft is ready. You can now deploy the project on-chain
-                through KORAX AI when your wallet has an available project slot.
+                through KORAX AI when your wallet has an available project
+                slot.
               </p>
 
               {canContinueToCreation ? (
                 <button
                   type="button"
-                  onClick={() => setShowCreationStep((prev) => !prev)}
+                  onClick={() =>
+                    setShowCreationStep((prev) => !prev)
+                  }
                   className="rounded-2xl bg-blue-500 px-5 py-3 font-black text-white shadow-[0_0_34px_rgba(59,130,246,0.28)] transition hover:bg-blue-400"
                 >
                   {showCreationStep
@@ -2109,7 +2434,7 @@ These contracts were deployed through KORAX Token Builder AI.
                 <div className="rounded-2xl border border-blue-400/25 bg-blue-500/10 px-4 py-3 text-sm text-white/75">
                   Unlock the Builder Package with{" "}
                   <span className="font-black text-white">
-                    {access.tokensPerProject} KRX
+                    {displayedTokensPerProject} KRX
                   </span>{" "}
                   on the 12-month staking plan.
                 </div>
@@ -2129,8 +2454,8 @@ These contracts were deployed through KORAX Token Builder AI.
                 </h3>
 
                 <p className="mt-3 text-sm leading-7 text-white/75">
-                  This step connects your AI draft to the real KORAX AI Deployer
-                  contract.
+                  This step connects your AI draft to the real KORAX AI
+                  Deployer contract.
                 </p>
               </div>
 
@@ -2168,13 +2493,13 @@ These contracts were deployed through KORAX Token Builder AI.
                   <Field label="Initial Supply">
                     <input
                       value={deployForm.initialSupply}
-                      onChange={(e) =>
+                      onChange={(event) =>
                         setDeployForm((prev) => ({
                           ...prev,
-                          initialSupply: e.target.value,
+                          initialSupply: event.target.value,
                           maxSupply: prev.mintable
                             ? prev.maxSupply
-                            : e.target.value,
+                            : event.target.value,
                         }))
                       }
                       placeholder="100000000"
@@ -2185,10 +2510,10 @@ These contracts were deployed through KORAX Token Builder AI.
                   <Field label="Max Supply">
                     <input
                       value={deployForm.maxSupply}
-                      onChange={(e) =>
+                      onChange={(event) =>
                         setDeployForm((prev) => ({
                           ...prev,
-                          maxSupply: e.target.value,
+                          maxSupply: event.target.value,
                         }))
                       }
                       placeholder="100000000"
@@ -2203,16 +2528,17 @@ These contracts were deployed through KORAX Token Builder AI.
                     <input
                       type="checkbox"
                       checked={deployForm.mintable}
-                      onChange={(e) =>
+                      onChange={(event) =>
                         setDeployForm((prev) => ({
                           ...prev,
-                          mintable: e.target.checked,
-                          maxSupply: e.target.checked
+                          mintable: event.target.checked,
+                          maxSupply: event.target.checked
                             ? prev.maxSupply
                             : prev.initialSupply,
                         }))
                       }
                     />
+
                     Mintable token
                   </label>
 
@@ -2220,13 +2546,14 @@ These contracts were deployed through KORAX Token Builder AI.
                     <input
                       type="checkbox"
                       checked={deployForm.burnable}
-                      onChange={(e) =>
+                      onChange={(event) =>
                         setDeployForm((prev) => ({
                           ...prev,
-                          burnable: e.target.checked,
+                          burnable: event.target.checked,
                         }))
                       }
                     />
+
                     Burnable token
                   </label>
                 </div>
@@ -2243,16 +2570,17 @@ These contracts were deployed through KORAX Token Builder AI.
                   <input
                     type="checkbox"
                     checked={deployForm.stakingEnabled}
-                    onChange={(e) =>
+                    onChange={(event) =>
                       setDeployForm((prev) => ({
                         ...prev,
-                        stakingEnabled: e.target.checked,
-                        stakingRewardsAllocation: e.target.checked
+                        stakingEnabled: event.target.checked,
+                        stakingRewardsAllocation: event.target.checked
                           ? prev.stakingRewardsAllocation || "20000000"
                           : "0",
                       }))
                     }
                   />
+
                   Deploy staking contract
                 </label>
 
@@ -2260,10 +2588,10 @@ These contracts were deployed through KORAX Token Builder AI.
                   <Field label="Staking Rewards Allocation">
                     <input
                       value={deployForm.stakingRewardsAllocation}
-                      onChange={(e) =>
+                      onChange={(event) =>
                         setDeployForm((prev) => ({
                           ...prev,
-                          stakingRewardsAllocation: e.target.value,
+                          stakingRewardsAllocation: event.target.value,
                         }))
                       }
                       placeholder="20000000"
@@ -2304,11 +2632,11 @@ These contracts were deployed through KORAX Token Builder AI.
                       >
                         <input
                           value={plan.durationDays}
-                          onChange={(e) =>
+                          onChange={(event) =>
                             updateStakingPlan(
                               index,
                               "durationDays",
-                              e.target.value
+                              event.target.value
                             )
                           }
                           placeholder="Duration days"
@@ -2317,11 +2645,11 @@ These contracts were deployed through KORAX Token Builder AI.
 
                         <input
                           value={plan.rewardBps}
-                          onChange={(e) =>
+                          onChange={(event) =>
                             updateStakingPlan(
                               index,
                               "rewardBps",
-                              e.target.value
+                              event.target.value
                             )
                           }
                           placeholder="Reward BPS"
@@ -2345,10 +2673,10 @@ These contracts were deployed through KORAX Token Builder AI.
               <SectionCard title="Metadata URI / Project Reference">
                 <input
                   value={deployForm.metadataURI}
-                  onChange={(e) =>
+                  onChange={(event) =>
                     setDeployForm((prev) => ({
                       ...prev,
-                      metadataURI: e.target.value,
+                      metadataURI: event.target.value,
                     }))
                   }
                   placeholder="Optional: IPFS / website / project reference"
@@ -2357,8 +2685,8 @@ These contracts were deployed through KORAX Token Builder AI.
 
                 <p className="mt-4 text-sm leading-7 text-white/55">
                   The staking rewards allocation will be sent automatically to
-                  the project vault. The remaining initial supply will be sent to
-                  your wallet.
+                  the project vault. The remaining initial supply will be sent
+                  to your wallet.
                 </p>
               </SectionCard>
 
@@ -2381,7 +2709,9 @@ These contracts were deployed through KORAX Token Builder AI.
                   <button
                     type="button"
                     onClick={deployAIProject}
-                    disabled={deployingProject || access.availableSlots <= 0}
+                    disabled={
+                      deployingProject || access.availableSlots <= 0
+                    }
                     className="rounded-2xl bg-blue-500 px-5 py-3 font-black text-white shadow-[0_0_34px_rgba(59,130,246,0.28)] transition hover:bg-blue-400 disabled:opacity-50"
                   >
                     {deployingProject
@@ -2484,7 +2814,10 @@ These contracts were deployed through KORAX Token Builder AI.
           ) : null}
 
           <div className="grid gap-6 lg:grid-cols-3">
-            <InfoCard label="Project Verdict" value={result.projectVerdict} />
+            <InfoCard
+              label="Project Verdict"
+              value={result.projectVerdict}
+            />
 
             <InfoCard
               label="Originality Score"
@@ -2497,7 +2830,10 @@ These contracts were deployed through KORAX Token Builder AI.
             />
           </div>
 
-          <InfoCard label="Market Fit Score" value={result.marketFitScore} />
+          <InfoCard
+            label="Market Fit Score"
+            value={result.marketFitScore}
+          />
 
           <div className="grid gap-6 lg:grid-cols-2">
             <SectionCard title="Project Summary">
@@ -2513,15 +2849,19 @@ These contracts were deployed through KORAX Token Builder AI.
                 {result.brandAngle}
               </p>
 
-              <h3 className="mt-6 text-lg font-black text-white">Pitch</h3>
+              <h3 className="mt-6 text-lg font-black text-white">
+                Pitch
+              </h3>
 
-              <p className="mt-3 leading-7 text-white/70">{result.pitch}</p>
+              <p className="mt-3 leading-7 text-white/70">
+                {result.pitch}
+              </p>
             </SectionCard>
 
             <SectionCard title="Core Utility">
               <ul className="mt-3 space-y-2 text-white/70">
-                {result.coreUtility.map((item, idx) => (
-                  <li key={idx}>• {item}</li>
+                {result.coreUtility.map((item, index) => (
+                  <li key={index}>• {item}</li>
                 ))}
               </ul>
 
@@ -2530,8 +2870,8 @@ These contracts were deployed through KORAX Token Builder AI.
               </h3>
 
               <ul className="mt-3 space-y-2 text-white/70">
-                {result.differentiation.map((item, idx) => (
-                  <li key={idx}>• {item}</li>
+                {result.differentiation.map((item, index) => (
+                  <li key={index}>• {item}</li>
                 ))}
               </ul>
             </SectionCard>
@@ -2546,7 +2886,9 @@ These contracts were deployed through KORAX Token Builder AI.
                 </div>
 
                 <div>
-                  <span className="font-black text-white">Launchpad:</span>{" "}
+                  <span className="font-black text-white">
+                    Launchpad:
+                  </span>{" "}
                   {result.tokenomicsPreview.presaleAllocationSuggestion}
                 </div>
 
@@ -2556,12 +2898,16 @@ These contracts were deployed through KORAX Token Builder AI.
                 </div>
 
                 <div>
-                  <span className="font-black text-white">Treasury:</span>{" "}
+                  <span className="font-black text-white">
+                    Treasury:
+                  </span>{" "}
                   {result.tokenomicsPreview.treasuryAllocationSuggestion}
                 </div>
 
                 <div>
-                  <span className="font-black text-white">Liquidity:</span>{" "}
+                  <span className="font-black text-white">
+                    Liquidity:
+                  </span>{" "}
                   {result.tokenomicsPreview.liquidityAllocationSuggestion}
                 </div>
 
@@ -2589,12 +2935,16 @@ These contracts were deployed through KORAX Token Builder AI.
                 </div>
 
                 <div>
-                  <span className="font-black text-white">Funding Logic:</span>{" "}
+                  <span className="font-black text-white">
+                    Funding Logic:
+                  </span>{" "}
                   {result.launchPlan.fundingLogic}
                 </div>
 
                 <div>
-                  <span className="font-black text-white">Launch Notes:</span>{" "}
+                  <span className="font-black text-white">
+                    Launch Notes:
+                  </span>{" "}
                   {result.launchPlan.launchNotes}
                 </div>
               </div>
@@ -2603,13 +2953,13 @@ These contracts were deployed through KORAX Token Builder AI.
 
           <SectionCard title="Roadmap">
             <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {result.roadmap.map((step, idx) => (
+              {result.roadmap.map((step, index) => (
                 <div
-                  key={idx}
+                  key={index}
                   className="ai-card-3d rounded-2xl border border-white/10 bg-black/25 p-4 text-sm leading-7 text-white/70"
                 >
                   <div className="mb-2 font-black text-white">
-                    Phase {idx + 1}
+                    Phase {index + 1}
                   </div>
 
                   {step}
@@ -2621,24 +2971,24 @@ These contracts were deployed through KORAX Token Builder AI.
           <div className="grid gap-6 lg:grid-cols-3">
             <SectionCard title="Weak Points">
               <ul className="mt-3 space-y-2 text-white/70">
-                {result.weakPoints.map((item, idx) => (
-                  <li key={idx}>• {item}</li>
+                {result.weakPoints.map((item, index) => (
+                  <li key={index}>• {item}</li>
                 ))}
               </ul>
             </SectionCard>
 
             <SectionCard title="Risks">
               <ul className="mt-3 space-y-2 text-white/70">
-                {result.risks.map((item, idx) => (
-                  <li key={idx}>• {item}</li>
+                {result.risks.map((item, index) => (
+                  <li key={index}>• {item}</li>
                 ))}
               </ul>
             </SectionCard>
 
             <SectionCard title="Improvement Actions">
               <ul className="mt-3 space-y-2 text-white/70">
-                {result.improvementActions.map((item, idx) => (
-                  <li key={idx}>• {item}</li>
+                {result.improvementActions.map((item, index) => (
+                  <li key={index}>• {item}</li>
                 ))}
               </ul>
             </SectionCard>

@@ -54,6 +54,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
+    site: "@Korax_fund_",
+    creator: "@Korax_fund_",
     title: "KORAX (KRX) | Presale, Claim, Staking & Web3 Builder Tools",
     description:
       "A BNB Chain ecosystem with presale, claim, staking, AI project tools, Website Builder AI, Token Builder AI, and launch infrastructure.",
@@ -160,8 +162,21 @@ function TelegramIcon() {
   );
 }
 
+function XIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-5 w-5 text-white"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M18.244 2H21l-6.02 6.88L22.062 22h-5.548l-4.345-5.68L7.2 22H4.442l6.432-7.35L4.082 2H9.77l3.926 5.19L18.244 2Zm-.967 17.69h1.527L8.94 4.19H7.302l9.975 15.5Z" />
+    </svg>
+  );
+}
+
 const socialButtonClass =
-  "flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white/75 backdrop-blur-md transition hover:bg-white/15";
+  "flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white/75 backdrop-blur-md transition duration-300 hover:-translate-y-1 hover:bg-white/15 hover:shadow-[0_0_26px_rgba(59,130,246,0.18)]";
 
 function SocialIcons() {
   return (
@@ -181,6 +196,7 @@ function SocialIcons() {
           target="_blank"
           rel="noopener noreferrer"
           aria-label="KORAX on Facebook"
+          title="KORAX on Facebook"
           className={`${socialButtonClass} hover:border-[#1877F2]/60 hover:bg-[#1877F2]/10`}
         >
           <FacebookIcon />
@@ -191,6 +207,7 @@ function SocialIcons() {
           target="_blank"
           rel="noopener noreferrer"
           aria-label="KORAX on TikTok"
+          title="TikTok: @koraxfund"
           className={`${socialButtonClass} hover:border-white/50 hover:bg-white/10`}
         >
           <TikTokIcon />
@@ -201,6 +218,7 @@ function SocialIcons() {
           target="_blank"
           rel="noopener noreferrer"
           aria-label="KORAX on YouTube"
+          title="YouTube: @koraxfund"
           className={`${socialButtonClass} hover:border-[#FF0000]/60 hover:bg-[#FF0000]/10`}
         >
           <YouTubeIcon />
@@ -222,6 +240,7 @@ function SocialIcons() {
           target="_blank"
           rel="noopener noreferrer"
           aria-label="KORAX on LinkedIn"
+          title="KORAX on LinkedIn"
           className={`${socialButtonClass} hover:border-[#0A66C2]/60 hover:bg-[#0A66C2]/10`}
         >
           <LinkedInIcon />
@@ -231,12 +250,13 @@ function SocialIcons() {
           <button
             type="button"
             aria-label="KORAX Telegram links"
+            title="KORAX Telegram"
             className={`${socialButtonClass} hover:border-[#26A5E4]/60 hover:bg-[#26A5E4]/10`}
           >
             <TelegramIcon />
           </button>
 
-          <div className="pointer-events-none absolute bottom-14 left-1/2 z-50 w-44 -translate-x-1/2 rounded-2xl border border-white/10 bg-black/90 p-2 opacity-0 shadow-2xl backdrop-blur-xl transition group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
+          <div className="pointer-events-none absolute bottom-14 left-1/2 z-50 w-44 -translate-x-1/2 translate-y-2 rounded-2xl border border-white/10 bg-black/90 p-2 opacity-0 shadow-2xl backdrop-blur-xl transition duration-200 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100">
             <a
               href="https://t.me/koraxgroub"
               target="_blank"
@@ -256,6 +276,17 @@ function SocialIcons() {
             </a>
           </div>
         </div>
+
+        <a
+          href="https://x.com/Korax_fund_"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="KORAX on X"
+          title="X: @Korax_fund_"
+          className={`${socialButtonClass} hover:border-white/60 hover:bg-white/10`}
+        >
+          <XIcon />
+        </a>
       </div>
     </div>
   );
@@ -281,6 +312,7 @@ export default function RootLayout({
       "https://www.linkedin.com/company/koraxfund",
       "https://t.me/koraxfund",
       "https://t.me/koraxgroub",
+      "https://x.com/Korax_fund_",
     ],
     contactPoint: [
       {
@@ -302,7 +334,7 @@ export default function RootLayout({
         <Providers>
           <Topbar />
 
-          <main className="mx-auto w-full max-w-[1500px] px-6 pt-24 pb-10">
+          <main className="mx-auto w-full max-w-[1500px] px-6 pb-10 pt-24">
             {children}
           </main>
 
@@ -310,22 +342,24 @@ export default function RootLayout({
 
           <footer className="mx-auto w-full max-w-6xl px-6 pb-10 pt-6 text-xs text-white/45">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>© {new Date().getFullYear()} KORAX • All rights reserved</div>
+              <div>
+                © {new Date().getFullYear()} KORAX • All rights reserved
+              </div>
 
               <div className="flex flex-wrap gap-4">
-                <a className="hover:text-white" href="/about">
+                <a className="transition hover:text-white" href="/about">
                   About
                 </a>
 
-                <a className="hover:text-white" href="/terms">
+                <a className="transition hover:text-white" href="/terms">
                   Terms of service
                 </a>
 
-                <a className="hover:text-white" href="/privacy">
+                <a className="transition hover:text-white" href="/privacy">
                   Privacy Policy
                 </a>
 
-                <a className="hover:text-white" href="/docs">
+                <a className="transition hover:text-white" href="/docs">
                   Docs
                 </a>
               </div>

@@ -1,8 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import Link from "next/link";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { ethers } from "ethers";
-import { useAccount, useWalletClient } from "wagmi";
+import {
+  useAccount,
+  useSwitchChain,
+  useWalletClient,
+} from "wagmi";
 import {
   ACCESS_MANAGER_ADDRESS,
   LAUNCHPAD_ADDRESS,
@@ -11,44 +22,71 @@ import {
   USDC_ADDRESS,
   accessManagerAbi,
   launchpadAbi,
-  erc20Abi,
 } from "@/lib/korax/contracts";
 
-const LEVELS = [
+const BSC_CHAIN_ID = 56;
+const BSC_SCAN_URL = "https://bscscan.com";
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const SALE_REFRESH_INTERVAL_MS = 15_000;
+
+const LEVEL_DEFINITIONS = [
   {
     name: "Level 1",
     label: "Basic Access",
-    minKrx: 500,
-    maxUsd: 250,
     level: 1,
+    fallbackMinKrx: "500",
+    fallbackMaxUsd: 250,
     desc: "Entry access for KORAX launch participation.",
   },
   {
     name: "Level 2",
     label: "Strong Access",
-    minKrx: 2500,
-    maxUsd: 500,
     level: 2,
+    fallbackMinKrx: "2,500",
+    fallbackMaxUsd: 500,
     desc: "Higher allocation power for committed KRX holders.",
   },
   {
     name: "Level 3",
     label: "Priority Access",
-    minKrx: 5000,
-    maxUsd: 750,
     level: 3,
+    fallbackMinKrx: "5,000",
+    fallbackMaxUsd: 750,
     desc: "Priority participation with the highest launch allocation.",
   },
+] as const;
+
+const FULL_ERC20_ABI = [
+  "function approve(address spender,uint256 amount) returns (bool)",
+  "function allowance(address owner,address spender) view returns (uint256)",
+  "function balanceOf(address account) view returns (uint256)",
+  "function decimals() view returns (uint8)",
+  "function symbol() view returns (string)",
 ];
+
+type PaymentKey = "USDT" | "USDC";
+
+type PaymentAsset = {
+  key: PaymentKey;
+  address: string;
+  decimals: number;
+  symbol: string;
+  ready: boolean;
+  error: string;
+};
 
 type AccessState = {
   loading: boolean;
   connected: boolean;
   wallet: string;
+  eligibleAmountRaw: bigint;
   eligibleAmount: string;
   launchLevel: number;
   totalProjectSlots: number;
   hasLaunchAccess: boolean;
+  level1AmountRaw: bigint;
+  level2AmountRaw: bigint;
+  level3AmountRaw: bigint;
   level1Amount: string;
   level2Amount: string;
   level3Amount: string;
@@ -65,6 +103,7 @@ type LoadedStage = {
 type LoadedSale = {
   owner: string;
   saleToken: string;
+  saleTokenSymbol: string;
   fundReceiver: string;
   saleTokenDecimals: number;
   totalForSale: bigint;
@@ -93,23 +132,29 @@ type PublicProject = {
 };
 
 type LoadedBuilderProject = {
+  projectId?: string;
   projectName?: string;
+  name?: string;
   symbol?: string;
   category?: string;
   shortDescription?: string;
+  description?: string;
   targetAudience?: string;
   network?: string;
-
   tokenAddress?: string;
+  token?: string;
   vaultAddress?: string;
+  vault?: string;
   stakingAddress?: string;
+  staking?: string;
   launchpadAddress?: string;
-
+  launchpad?: string;
   websiteName?: string;
   websiteSummary?: string;
   websiteGenerated?: boolean;
-
   txHash?: string;
+  launchSaleId?: string;
+  launchSaleTxHash?: string;
 };
 
 const inputClass =
@@ -130,52 +175,208 @@ const cyanButtonClass =
 const dangerButtonClass =
   "rounded-2xl border border-red-500/25 bg-red-500/10 px-5 py-3 font-black text-red-100 transition hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-50";
 
+function getErrorMessage(error: unknown, fallback: string) {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "shortMessage" in error &&
+    typeof (error as { shortMessage?: unknown }).shortMessage === "string"
+  ) {
+    return (error as { shortMessage: string }).shortMessage;
+  }
+
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "reason" in error &&
+    typeof (error as { reason?: unknown }).reason === "string"
+  ) {
+    return (error as { reason: string }).reason;
+  }
+
+  if (error instanceof Error) {
+    return error.message || fallback;
+  }
+
+  return fallback;
+}
+
 function shortAddress(address?: string) {
-  if (!address) return "";
+  if (!address) return "Not available";
+  if (address.length < 12) return address;
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
 function formatUnitsSafe(value: bigint, decimals = 18, max = 6) {
   try {
-    return Number(ethers.formatUnits(value, decimals)).toLocaleString("en-US", {
-      maximumFractionDigits: max,
-    });
+    const raw = ethers.formatUnits(value, decimals);
+    const [wholeRaw, fractionRaw = ""] = raw.split(".");
+    const whole = BigInt(wholeRaw || "0").toLocaleString("en-US");
+    const fraction = fractionRaw.slice(0, max).replace(/0+$/g, "");
+    return fraction ? `${whole}.${fraction}` : whole;
   } catch {
     return "0";
   }
 }
 
-function levelFromNumber(level: number) {
-  if (level >= 3) return LEVELS[2];
-  if (level >= 2) return LEVELS[1];
-  if (level >= 1) return LEVELS[0];
-  return null;
+function formatPercent(numerator: bigint, denominator: bigint) {
+  if (denominator <= 0n) return 0;
+  return Math.min(100, Number((numerator * 10_000n) / denominator) / 100);
+}
+
+function isPositiveDecimal(value: string) {
+  const normalized = value.trim();
+  if (!/^(?:\d+\.?\d*|\.\d+)$/.test(normalized)) return false;
+  const numberValue = Number(normalized);
+  return Number.isFinite(numberValue) && numberValue > 0;
+}
+
+function isNonNegativeInteger(value: string) {
+  return /^\d+$/.test(value.trim());
+}
+
+function normalizeDecimalInput(value: string) {
+  return value.replace(",", ".");
 }
 
 function parseLines(value: string) {
   return value
     .split("\n")
-    .map((x) => x.trim())
+    .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function parsePositiveLines(value: string, label: string) {
+  const lines = parseLines(value);
+
+  if (!lines.length) {
+    throw new Error(`${label}: add at least one value.`);
+  }
+
+  lines.forEach((line, index) => {
+    if (!isPositiveDecimal(line)) {
+      throw new Error(`${label}: line ${index + 1} is not a valid positive number.`);
+    }
+  });
+
+  return lines;
+}
+
+function parseSaleId(value: string) {
+  const normalized = value.trim();
+
+  if (!/^\d+$/.test(normalized)) {
+    throw new Error("Sale ID must be a non-negative whole number.");
+  }
+
+  return BigInt(normalized);
+}
+
+function safeParseUnits(value: string, decimals: number) {
+  try {
+    if (!isPositiveDecimal(value)) return 0n;
+    return ethers.parseUnits(value.trim(), decimals);
+  } catch {
+    return 0n;
+  }
+}
+
+function levelFromNumber(level: number) {
+  if (level >= 3) return LEVEL_DEFINITIONS[2];
+  if (level >= 2) return LEVEL_DEFINITIONS[1];
+  if (level >= 1) return LEVEL_DEFINITIONS[0];
+  return null;
+}
+
+function makeEip1193Provider(walletClient: any) {
+  return {
+    request: async ({
+      method,
+      params,
+    }: {
+      method: string;
+      params?: unknown[] | object;
+    }) =>
+      walletClient.request({
+        method: method as any,
+        params: (params as any) ?? [],
+      }),
+  };
+}
+
+async function validateContract(
+  provider: ethers.Provider,
+  address: string,
+  label: string
+) {
+  if (!address || !ethers.isAddress(address)) {
+    throw new Error(`${label} address is missing or invalid.`);
+  }
+
+  const code = await provider.getCode(address);
+
+  if (!code || code === "0x") {
+    throw new Error(`No ${label} contract was found at ${address}.`);
+  }
+}
+
+function getSafeProjectUrl(project: PublicProject) {
+  const fallback = `/launch?project=${encodeURIComponent(project.slug)}`;
+  const raw = project.launchUrl?.trim();
+
+  if (!raw) return fallback;
+  if (raw.startsWith("/") && !raw.startsWith("//")) return raw;
+
+  try {
+    const parsed = new URL(raw);
+    return parsed.protocol === "https:" || parsed.protocol === "http:"
+      ? parsed.toString()
+      : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 function readLastBuilderProject(): LoadedBuilderProject | null {
   if (typeof window === "undefined") return null;
 
-  const raw = window.localStorage.getItem("korax_last_project");
-  if (!raw) return null;
+  const keys = [
+    "korax_last_project",
+    "korax_last_deployed_project",
+    "korax_builder_project",
+    "korax_generated_project",
+  ];
 
-  try {
-    const parsed = JSON.parse(raw);
+  for (const key of keys) {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) continue;
 
-    if (parsed && typeof parsed === "object") {
-      return parsed as LoadedBuilderProject;
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") {
+        return parsed as LoadedBuilderProject;
+      }
+    } catch {
+      continue;
     }
-
-    return null;
-  } catch {
-    return null;
   }
+
+  return null;
+}
+
+function saveSaleToBuilderProject(saleId: string, txHash: string) {
+  if (typeof window === "undefined") return;
+
+  const previous = readLastBuilderProject() || {};
+
+  window.localStorage.setItem(
+    "korax_last_project",
+    JSON.stringify({
+      ...previous,
+      launchSaleId: saleId,
+      launchSaleTxHash: txHash,
+    })
+  );
 }
 
 function SectionBox({
@@ -183,14 +384,19 @@ function SectionBox({
   eyebrow,
   children,
   right,
+  id,
 }: {
   title: string;
   eyebrow?: string;
   children: ReactNode;
   right?: ReactNode;
+  id?: string;
 }) {
   return (
-    <section className="launch-section-card relative overflow-hidden rounded-[32px] border border-white/10 bg-[#020617]/60 p-5 shadow-[0_24px_95px_rgba(0,0,0,0.48)] backdrop-blur-xl md:p-6">
+    <section
+      id={id}
+      className="launch-section-card relative scroll-mt-28 overflow-hidden rounded-[32px] border border-white/10 bg-[#020617]/60 p-5 shadow-[0_24px_95px_rgba(0,0,0,0.48)] backdrop-blur-xl md:p-6"
+    >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.13),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(34,211,238,0.10),transparent_36%)]" />
       <div className="pointer-events-none absolute inset-0 opacity-[0.05] [background-image:linear-gradient(rgba(255,255,255,0.09)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.09)_1px,transparent_1px)] [background-size:42px_42px]" />
 
@@ -218,17 +424,26 @@ function SectionBox({
 function StatusPill({
   active,
   children,
+  tone = "blue",
 }: {
   active?: boolean;
   children: ReactNode;
+  tone?: "blue" | "cyan" | "amber" | "slate";
 }) {
+  const tones = {
+    blue: "border-blue-300/30 bg-blue-500/10 text-blue-100",
+    cyan: "border-cyan-300/30 bg-cyan-400/10 text-cyan-100",
+    amber: "border-amber-300/25 bg-amber-300/10 text-amber-100",
+    slate: "border-white/10 bg-white/[0.04] text-white/50",
+  };
+
   return (
     <span
       className={[
         "inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-[0.16em]",
         active
-          ? "border-blue-300/30 bg-blue-500/10 text-blue-100 shadow-[0_0_22px_rgba(59,130,246,0.16)]"
-          : "border-white/10 bg-white/[0.04] text-white/50",
+          ? `${tones[tone]} shadow-[0_0_22px_rgba(59,130,246,0.12)]`
+          : tones.slate,
       ].join(" ")}
     >
       {children}
@@ -239,9 +454,11 @@ function StatusPill({
 function InfoCard({
   label,
   value,
+  mono,
 }: {
   label: string;
   value: string | number;
+  mono?: boolean;
 }) {
   return (
     <div className="launch-card-3d rounded-2xl border border-white/10 bg-[#020617]/60 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
@@ -249,9 +466,43 @@ function InfoCard({
         {label}
       </div>
 
-      <div className="mt-2 break-all text-sm font-semibold leading-relaxed text-white/80">
-        {value || "Not available"}
+      <div
+        className={[
+          "mt-2 break-all text-sm font-semibold leading-relaxed text-white/80",
+          mono ? "font-mono text-xs" : "",
+        ].join(" ")}
+      >
+        {value === "" || value === null || value === undefined
+          ? "Not available"
+          : value}
       </div>
+    </div>
+  );
+}
+
+function TransactionStatus({
+  message,
+  txHash,
+}: {
+  message: string;
+  txHash?: string;
+}) {
+  if (!message) return null;
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm leading-7 text-white/80">
+      <div>{message}</div>
+
+      {txHash ? (
+        <a
+          href={`${BSC_SCAN_URL}/tx/${txHash}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-2 inline-flex break-all font-black text-cyan-200 hover:text-white"
+        >
+          Open transaction on BscScan ↗
+        </a>
+      ) : null}
     </div>
   );
 }
@@ -263,9 +514,14 @@ function ProjectIconCard({
   project: PublicProject;
   active?: boolean;
 }) {
+  const launchUrl = getSafeProjectUrl(project);
+  const external = /^https?:\/\//i.test(launchUrl);
+
   return (
     <a
-      href={project.launchUrl}
+      href={launchUrl}
+      target={external ? "_blank" : undefined}
+      rel={external ? "noopener noreferrer" : undefined}
       className={[
         "launch-card-3d group relative block overflow-hidden rounded-[34px] border p-5 transition hover:-translate-y-1",
         active
@@ -288,26 +544,26 @@ function ProjectIconCard({
             />
           </div>
 
-          <StatusPill active={project.active}>
+          <StatusPill active={project.active} tone="cyan">
             {project.active ? "Live" : "Inactive"}
           </StatusPill>
         </div>
 
         <h3 className="mt-5 text-2xl font-black leading-tight text-white">
-          {project.name}
+          {project.name || "Unnamed Project"}
         </h3>
 
         <div className="mt-2 text-sm font-black uppercase tracking-[0.22em] text-cyan-200">
-          {project.symbol}
+          {project.symbol || "TOKEN"}
         </div>
 
         <p className="mt-4 text-sm leading-7 text-white/60">
-          Registered on KORAX Project Registry and ready to be connected with
-          Launchpad sale setup.
+          Registered through the KORAX Project Registry and available for public
+          launch discovery.
         </p>
 
         <div className="mt-5 grid gap-3">
-          <InfoCard label="Launch Link" value={project.launchUrl} />
+          <InfoCard label="Project ID" value={project.id} />
           <InfoCard
             label="Token"
             value={project.token ? shortAddress(project.token) : "Not available"}
@@ -920,41 +1176,37 @@ function LaunchHeroVisual() {
 }
 
 export default function LaunchPage() {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, chainId } = useAccount();
   const { data: walletClient } = useWalletClient();
+  const { switchChainAsync } = useSwitchChain();
+
+  const previewRequestIdRef = useRef(0);
+  const initialSaleIdRef = useRef("");
 
   const [publicProjects, setPublicProjects] = useState<PublicProject[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [projectsError, setProjectsError] = useState("");
   const [activeProjectSlug, setActiveProjectSlug] = useState("");
 
-  const activeProject = useMemo(() => {
-    if (!publicProjects.length) return null;
-
-    if (activeProjectSlug) {
-      return (
-        publicProjects.find((item) => item.slug === activeProjectSlug) ||
-        publicProjects[0]
-      );
-    }
-
-    return publicProjects[0];
-  }, [publicProjects, activeProjectSlug]);
-
   const [loadedBuilderProject, setLoadedBuilderProject] =
     useState<LoadedBuilderProject | null>(null);
 
   const [isLaunchpadOwner, setIsLaunchpadOwner] = useState(false);
   const [isApprovedCreator, setIsApprovedCreator] = useState(false);
+  const [permissionError, setPermissionError] = useState("");
 
   const [access, setAccess] = useState<AccessState>({
     loading: false,
     connected: false,
     wallet: "",
+    eligibleAmountRaw: 0n,
     eligibleAmount: "0",
     launchLevel: 0,
     totalProjectSlots: 0,
     hasLaunchAccess: false,
+    level1AmountRaw: ethers.parseUnits("500", 18),
+    level2AmountRaw: ethers.parseUnits("2500", 18),
+    level3AmountRaw: ethers.parseUnits("5000", 18),
     level1Amount: "500",
     level2Amount: "2,500",
     level3Amount: "5,000",
@@ -962,12 +1214,26 @@ export default function LaunchPage() {
     error: "",
   });
 
-  const currentLevel = useMemo(
-    () => levelFromNumber(access.launchLevel),
-    [access.launchLevel]
-  );
-
-  const canCreateSale = isLaunchpadOwner || isApprovedCreator;
+  const [paymentAssets, setPaymentAssets] = useState<
+    Record<PaymentKey, PaymentAsset>
+  >({
+    USDT: {
+      key: "USDT",
+      address: USDT_ADDRESS,
+      decimals: 18,
+      symbol: "USDT",
+      ready: false,
+      error: "",
+    },
+    USDC: {
+      key: "USDC",
+      address: USDC_ADDRESS,
+      decimals: 18,
+      symbol: "USDC",
+      ready: false,
+      error: "",
+    },
+  });
 
   const [creatorForm, setCreatorForm] = useState({
     saleToken: "",
@@ -990,48 +1256,214 @@ export default function LaunchPage() {
     cooldown: "15",
   });
 
-  const [creatorStatus, setCreatorStatus] = useState("");
-  const [adminStatus, setAdminStatus] = useState("");
-  const [creatingSale, setCreatingSale] = useState(false);
-  const [adminBusy, setAdminBusy] = useState(false);
-
-  const [buyerForm, setBuyerForm] = useState({
+  const [buyerForm, setBuyerForm] = useState<{
+    saleId: string;
+    paymentAmount: string;
+    payToken: PaymentKey;
+  }>({
     saleId: "0",
     paymentAmount: "10",
     payToken: "USDT",
   });
 
+  const [creatorStatus, setCreatorStatus] = useState("");
+  const [creatorTxHash, setCreatorTxHash] = useState("");
+  const [adminStatus, setAdminStatus] = useState("");
+  const [adminTxHash, setAdminTxHash] = useState("");
+  const [buyerStatus, setBuyerStatus] = useState("");
+  const [buyerTxHash, setBuyerTxHash] = useState("");
+
+  const [creatingSale, setCreatingSale] = useState(false);
+  const [adminBusy, setAdminBusy] = useState(false);
+  const [loadingSale, setLoadingSale] = useState(false);
+  const [buying, setBuying] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+
+  const [loadedSaleId, setLoadedSaleId] = useState("");
   const [loadedSale, setLoadedSale] = useState<LoadedSale | null>(null);
   const [buyerMax, setBuyerMax] = useState<bigint>(0n);
   const [buyerPurchased, setBuyerPurchased] = useState<bigint>(0n);
   const [buyerContributed, setBuyerContributed] = useState<bigint>(0n);
   const [buyerClaimed, setBuyerClaimed] = useState(false);
   const [previewTokens, setPreviewTokens] = useState<bigint>(0n);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState("");
+  const [lastSaleUpdate, setLastSaleUpdate] = useState("");
 
-  const [buyerStatus, setBuyerStatus] = useState("");
-  const [loadingSale, setLoadingSale] = useState(false);
-  const [buying, setBuying] = useState(false);
-  const [claiming, setClaiming] = useState(false);
+  const activeProject = useMemo(() => {
+    if (!publicProjects.length) return null;
+
+    if (activeProjectSlug) {
+      return (
+        publicProjects.find((item) => item.slug === activeProjectSlug) ||
+        publicProjects[0]
+      );
+    }
+
+    return publicProjects[0];
+  }, [publicProjects, activeProjectSlug]);
+
+  const currentLevel = useMemo(
+    () => levelFromNumber(access.launchLevel),
+    [access.launchLevel]
+  );
+
+  const canCreateSale = isLaunchpadOwner || isApprovedCreator;
+  const currentPaymentAsset = paymentAssets[buyerForm.payToken];
+
+  const dynamicLevels = useMemo(
+    () =>
+      LEVEL_DEFINITIONS.map((level) => ({
+        ...level,
+        minKrx:
+          level.level === 1
+            ? access.level1Amount
+            : level.level === 2
+              ? access.level2Amount
+              : access.level3Amount,
+      })),
+    [access.level1Amount, access.level2Amount, access.level3Amount]
+  );
+
+  const loadedSaleMatchesInput =
+    Boolean(loadedSale) && loadedSaleId === buyerForm.saleId.trim();
+
+  const saleProgress = loadedSale
+    ? formatPercent(loadedSale.totalSold, loadedSale.totalForSale)
+    : 0;
+
+  const currentStageIndex = loadedSale
+    ? loadedSale.stages.findIndex((stage) => stage.sold < stage.cap)
+    : -1;
+
+  const buyerRemainingUsd18 =
+    buyerMax > buyerContributed ? buyerMax - buyerContributed : 0n;
+
+  const paymentAmountUsd18 = safeParseUnits(buyerForm.paymentAmount, 18);
+
+  const exceedsBuyerLimit =
+    buyerMax > 0n && paymentAmountUsd18 > buyerRemainingUsd18;
+
+  const participationAccessReady =
+    !loadedSale?.requireKoraxAccess || access.hasLaunchAccess;
+
+  const canBuy =
+    loadedSaleMatchesInput &&
+    Boolean(loadedSale?.active) &&
+    isPositiveDecimal(buyerForm.paymentAmount) &&
+    previewTokens > 0n &&
+    participationAccessReady &&
+    !exceedsBuyerLimit &&
+    !buying;
+
+  const canClaim =
+    loadedSaleMatchesInput &&
+    Boolean(loadedSale?.claimOpen) &&
+    buyerPurchased > 0n &&
+    !buyerClaimed &&
+    !claiming;
+
+  async function getReadProvider() {
+    return new ethers.JsonRpcProvider(RPC_URL);
+  }
+
+  async function getBrowserSigner() {
+    if (!isConnected || !address || !walletClient) {
+      throw new Error("Connect your wallet from the top bar first.");
+    }
+
+    if (chainId !== BSC_CHAIN_ID) {
+      try {
+        setBuyerStatus("Requesting a switch to BNB Chain...");
+        await switchChainAsync({ chainId: BSC_CHAIN_ID });
+        await new Promise((resolve) => window.setTimeout(resolve, 450));
+      } catch {
+        throw new Error("Switch your wallet to BNB Chain and try again.");
+      }
+    }
+
+    const provider = new ethers.BrowserProvider(
+      makeEip1193Provider(walletClient) as any
+    );
+
+    const network = await provider.getNetwork();
+
+    if (Number(network.chainId) !== BSC_CHAIN_ID) {
+      throw new Error("The connected wallet is not using BNB Chain.");
+    }
+
+    await validateContract(provider, LAUNCHPAD_ADDRESS, "Launchpad");
+
+    return provider.getSigner();
+  }
+
+  async function loadPaymentAssets() {
+    const provider = await getReadProvider();
+
+    const nextAssets = { ...paymentAssets };
+
+    for (const key of ["USDT", "USDC"] as PaymentKey[]) {
+      const addressValue = key === "USDT" ? USDT_ADDRESS : USDC_ADDRESS;
+
+      try {
+        await validateContract(provider, addressValue, key);
+
+        const token = new ethers.Contract(
+          addressValue,
+          FULL_ERC20_ABI,
+          provider
+        );
+
+        const [decimalsRaw, symbolRaw] = await Promise.all([
+          token.decimals(),
+          token.symbol().catch(() => key),
+        ]);
+
+        nextAssets[key] = {
+          key,
+          address: ethers.getAddress(addressValue),
+          decimals: Number(decimalsRaw),
+          symbol: String(symbolRaw || key),
+          ready: true,
+          error: "",
+        };
+      } catch (error) {
+        nextAssets[key] = {
+          key,
+          address: addressValue,
+          decimals: 18,
+          symbol: key,
+          ready: false,
+          error: getErrorMessage(error, `${key} configuration failed.`),
+        };
+      }
+    }
+
+    setPaymentAssets(nextAssets);
+  }
 
   async function loadPublicProjects() {
     setProjectsLoading(true);
     setProjectsError("");
 
     try {
-      const res = await fetch("/api/public-projects?limit=50", {
+      const response = await fetch("/api/public-projects?limit=50", {
         cache: "no-store",
       });
 
-      const data = await res.json();
+      const data = await response.json();
 
-      if (!res.ok || !data?.ok) {
+      if (!response.ok || !data?.ok) {
         throw new Error(data?.error || "Failed to load public projects.");
       }
 
       setPublicProjects(Array.isArray(data.projects) ? data.projects : []);
-    } catch (err: any) {
+    } catch (error) {
       setProjectsError(
-        err?.message || "Failed to load public projects from registry."
+        getErrorMessage(
+          error,
+          "Failed to load public projects from the registry."
+        )
       );
       setPublicProjects([]);
     } finally {
@@ -1039,56 +1471,9 @@ export default function LaunchPage() {
     }
   }
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setActiveProjectSlug(params.get("project") || "");
-
-    const project = readLastBuilderProject();
-
-    if (project) {
-      setLoadedBuilderProject(project);
-
-      setCreatorForm((prev) => ({
-        ...prev,
-        saleToken: project.tokenAddress || prev.saleToken,
-      }));
-    }
-
-    loadPublicProjects();
-  }, []);
-
-  useEffect(() => {
-    if (!activeProject?.token) return;
-
-    setCreatorForm((prev) => ({
-      ...prev,
-      saleToken: activeProject.token || prev.saleToken,
-    }));
-  }, [activeProject?.token]);
-
-  async function getBrowserSigner() {
-    if (!isConnected || !address) {
-      throw new Error("Connect wallet first.");
-    }
-
-    if (!walletClient) {
-      throw new Error("Wallet client not ready.");
-    }
-
-    const browserProvider = new ethers.BrowserProvider(
-      walletClient.transport as any
-    );
-
-    return browserProvider.getSigner();
-  }
-
-  async function getSaleTokenDecimals(saleToken: string) {
-    const provider = new ethers.JsonRpcProvider(RPC_URL);
-    const token = new ethers.Contract(saleToken, erc20Abi, provider);
-    return Number(await token.decimals());
-  }
-
   async function loadLaunchpadPermissions(user?: string) {
+    setPermissionError("");
+
     try {
       if (!user || !LAUNCHPAD_ADDRESS) {
         setIsLaunchpadOwner(false);
@@ -1096,7 +1481,9 @@ export default function LaunchPage() {
         return;
       }
 
-      const provider = new ethers.JsonRpcProvider(RPC_URL);
+      const provider = await getReadProvider();
+      await validateContract(provider, LAUNCHPAD_ADDRESS, "Launchpad");
+
       const launchpad = new ethers.Contract(
         LAUNCHPAD_ADDRESS,
         launchpadAbi,
@@ -1108,47 +1495,48 @@ export default function LaunchPage() {
         launchpad.approvedSaleCreators(user),
       ]);
 
-      setIsLaunchpadOwner(ownerRaw.toLowerCase() === user.toLowerCase());
+      setIsLaunchpadOwner(
+        String(ownerRaw).toLowerCase() === user.toLowerCase()
+      );
       setIsApprovedCreator(Boolean(approvedRaw));
-    } catch {
+    } catch (error) {
       setIsLaunchpadOwner(false);
       setIsApprovedCreator(false);
+      setPermissionError(
+        getErrorMessage(error, "Failed to load Launchpad permissions.")
+      );
     }
   }
 
   async function loadAccess(user?: string) {
     if (!user) {
-      setAccess({
+      setAccess((previous) => ({
+        ...previous,
         loading: false,
         connected: false,
         wallet: "",
+        eligibleAmountRaw: 0n,
         eligibleAmount: "0",
         launchLevel: 0,
         totalProjectSlots: 0,
         hasLaunchAccess: false,
-        level1Amount: "500",
-        level2Amount: "2,500",
-        level3Amount: "5,000",
-        requiredRewardBps: 9000,
         error: "",
-      });
+      }));
       return;
     }
 
     try {
-      setAccess((prev) => ({
-        ...prev,
+      setAccess((previous) => ({
+        ...previous,
         loading: true,
         connected: true,
         wallet: user,
         error: "",
       }));
 
-      if (!ACCESS_MANAGER_ADDRESS) {
-        throw new Error("Access manager address is missing.");
-      }
+      const provider = await getReadProvider();
+      await validateContract(provider, ACCESS_MANAGER_ADDRESS, "Access Manager");
 
-      const provider = new ethers.JsonRpcProvider(RPC_URL);
       const accessManager = new ethers.Contract(
         ACCESS_MANAGER_ADDRESS,
         accessManagerAbi,
@@ -1161,157 +1549,72 @@ export default function LaunchPage() {
         accessManager.hasLaunchAccess(user),
       ]);
 
-      const eligibleBig = BigInt(launchData.totalEligibleAmount.toString());
+      const eligibleAmountRaw = BigInt(
+        launchData.totalEligibleAmount.toString()
+      );
+      const level1AmountRaw = BigInt(launchData.level1Amount.toString());
+      const level2AmountRaw = BigInt(launchData.level2Amount.toString());
+      const level3AmountRaw = BigInt(launchData.level3Amount.toString());
 
       setAccess({
         loading: false,
         connected: true,
         wallet: user,
-        eligibleAmount: Number(
-          ethers.formatUnits(eligibleBig, 18)
-        ).toLocaleString("en-US", { maximumFractionDigits: 4 }),
+        eligibleAmountRaw,
+        eligibleAmount: formatUnitsSafe(eligibleAmountRaw, 18, 4),
         launchLevel: Number(launchData.launchLevel),
-        totalProjectSlots: Number(accessData.totalProjectSlots),
+        totalProjectSlots: Number(accessData.totalProjectSlots || 0),
         hasLaunchAccess: Boolean(hasLaunchAccessRaw),
-        level1Amount: Number(
-          ethers.formatUnits(BigInt(launchData.level1Amount.toString()), 18)
-        ).toLocaleString("en-US", { maximumFractionDigits: 0 }),
-        level2Amount: Number(
-          ethers.formatUnits(BigInt(launchData.level2Amount.toString()), 18)
-        ).toLocaleString("en-US", { maximumFractionDigits: 0 }),
-        level3Amount: Number(
-          ethers.formatUnits(BigInt(launchData.level3Amount.toString()), 18)
-        ).toLocaleString("en-US", { maximumFractionDigits: 0 }),
+        level1AmountRaw,
+        level2AmountRaw,
+        level3AmountRaw,
+        level1Amount: formatUnitsSafe(level1AmountRaw, 18, 0),
+        level2Amount: formatUnitsSafe(level2AmountRaw, 18, 0),
+        level3Amount: formatUnitsSafe(level3AmountRaw, 18, 0),
         requiredRewardBps: Number(launchData.currentRequiredRewardBps),
         error: "",
       });
-    } catch (err: any) {
-      setAccess((prev) => ({
-        ...prev,
+    } catch (error) {
+      setAccess((previous) => ({
+        ...previous,
         loading: false,
         connected: true,
         wallet: user,
-        error: err?.shortMessage || err?.message || "Failed to load access.",
+        error: getErrorMessage(error, "Failed to load launch access."),
       }));
     }
   }
 
-  useEffect(() => {
-    if (!address || !isConnected) {
-      loadAccess(undefined);
-      loadLaunchpadPermissions(undefined);
-      return;
-    }
-
-    loadAccess(address);
-    loadLaunchpadPermissions(address);
-  }, [address, isConnected]);
-
-  async function createSale() {
-    setCreatingSale(true);
-    setCreatorStatus("");
+  async function updatePreview(saleIdText?: string) {
+    const requestId = ++previewRequestIdRef.current;
+    setPreviewError("");
 
     try {
-      if (!LAUNCHPAD_ADDRESS) {
-        throw new Error("Launchpad address is missing.");
+      const idText = (saleIdText ?? buyerForm.saleId).trim();
+
+      if (!/^\d+$/.test(idText) || !isPositiveDecimal(buyerForm.paymentAmount)) {
+        setPreviewTokens(0n);
+        setPreviewLoading(false);
+        return;
       }
 
-      if (!creatorForm.saleToken.trim()) {
-        throw new Error("Sale token address is required.");
-      }
-
-      const signer = await getBrowserSigner();
-      const owner = await signer.getAddress();
-
-      const saleTokenAddress = ethers.getAddress(creatorForm.saleToken.trim());
-      const fundReceiver = creatorForm.fundReceiver.trim()
-        ? ethers.getAddress(creatorForm.fundReceiver.trim())
-        : owner;
-
-      const saleDecimals = await getSaleTokenDecimals(saleTokenAddress);
-
-      const caps = parseLines(creatorForm.stageCaps);
-      const prices = parseLines(creatorForm.stagePricesUsd);
-
-      if (caps.length === 0) throw new Error("At least one stage is required.");
-
-      if (caps.length !== prices.length) {
-        throw new Error("Stage caps and prices count must match.");
-      }
-
-      if (caps.length > 10) {
-        throw new Error("Maximum 10 stages allowed.");
-      }
-
-      const stageCaps = caps.map((x) => ethers.parseUnits(x, saleDecimals));
-      const stagePricesUsd18 = prices.map((x) => ethers.parseUnits(x, 18));
-
-      const totalForSale = stageCaps.reduce((a, b) => a + b, 0n);
-
-      if (totalForSale <= 0n) {
-        throw new Error("Total for sale must be > 0.");
-      }
-
-      const saleToken = new ethers.Contract(saleTokenAddress, erc20Abi, signer);
-      const allowanceRaw = await saleToken.allowance(owner, LAUNCHPAD_ADDRESS);
-      const allowance = BigInt(allowanceRaw.toString());
-
-      if (allowance < totalForSale) {
-        setCreatorStatus("Approving sale tokens...");
-
-        const approveTx = await saleToken.approve(
-          LAUNCHPAD_ADDRESS,
-          totalForSale
+      if (!currentPaymentAsset.ready) {
+        throw new Error(
+          currentPaymentAsset.error ||
+            `${buyerForm.payToken} token configuration is unavailable.`
         );
-
-        await approveTx.wait();
       }
 
-      const launchpad = new ethers.Contract(
-        LAUNCHPAD_ADDRESS,
-        launchpadAbi,
-        signer
+      setPreviewLoading(true);
+
+      const saleId = BigInt(idText);
+      const paymentAmount = ethers.parseUnits(
+        buyerForm.paymentAmount,
+        currentPaymentAsset.decimals
       );
 
-      setCreatorStatus("Creating launch sale...");
-
-      const tx = await launchpad.createSale(
-        saleTokenAddress,
-        fundReceiver,
-        stageCaps,
-        stagePricesUsd18,
-        creatorForm.requireKoraxAccess
-      );
-
-      const receipt = await tx.wait();
-
-      setCreatorStatus(
-        `Launch sale created successfully. Transaction: ${receipt.hash}`
-      );
-
-      await loadPublicProjects();
-    } catch (err: any) {
-      setCreatorStatus(
-        err?.shortMessage ||
-          err?.reason ||
-          err?.message ||
-          "Create sale failed."
-      );
-    } finally {
-      setCreatingSale(false);
-    }
-  }
-
-  async function loadSale() {
-    setLoadingSale(true);
-    setBuyerStatus("");
-
-    try {
-      if (!LAUNCHPAD_ADDRESS) {
-        throw new Error("Launchpad address is missing.");
-      }
-
-      const provider = new ethers.JsonRpcProvider(RPC_URL);
+      const provider = await getReadProvider();
+      await validateContract(provider, LAUNCHPAD_ADDRESS, "Launchpad");
 
       const launchpad = new ethers.Contract(
         LAUNCHPAD_ADDRESS,
@@ -1319,37 +1622,110 @@ export default function LaunchPage() {
         provider
       );
 
-      const saleId = BigInt(buyerForm.saleId || "0");
-      const s = await launchpad.sales(saleId);
-      const countRaw = await launchpad.stagesCount(saleId);
-      const count = Number(countRaw);
+      const output =
+        buyerForm.payToken === "USDC"
+          ? await launchpad.previewTokensForUSDC(saleId, paymentAmount)
+          : await launchpad.previewTokensForUSDT(saleId, paymentAmount);
 
-      const stages: LoadedStage[] = [];
+      if (requestId !== previewRequestIdRef.current) return;
 
-      for (let i = 0; i < count; i++) {
-        const st = await launchpad.getStage(saleId, i);
+      setPreviewTokens(BigInt(output.toString()));
+    } catch (error) {
+      if (requestId !== previewRequestIdRef.current) return;
 
-        stages.push({
-          cap: BigInt(st.cap.toString()),
-          priceUsd18: BigInt(st.priceUsd18.toString()),
-          sold: BigInt(st.sold.toString()),
-        });
+      setPreviewTokens(0n);
+      setPreviewError(
+        getErrorMessage(error, "The token preview could not be calculated.")
+      );
+    } finally {
+      if (requestId === previewRequestIdRef.current) {
+        setPreviewLoading(false);
+      }
+    }
+  }
+
+  async function loadSaleById(saleIdText: string, silent = false) {
+    if (!silent) {
+      setLoadingSale(true);
+      setBuyerStatus("");
+      setBuyerTxHash("");
+    }
+
+    try {
+      const saleId = parseSaleId(saleIdText);
+      const provider = await getReadProvider();
+      await validateContract(provider, LAUNCHPAD_ADDRESS, "Launchpad");
+
+      const launchpad = new ethers.Contract(
+        LAUNCHPAD_ADDRESS,
+        launchpadAbi,
+        provider
+      );
+
+      const [saleRaw, countRaw] = await Promise.all([
+        launchpad.sales(saleId),
+        launchpad.stagesCount(saleId),
+      ]);
+
+      if (
+        !saleRaw?.owner ||
+        String(saleRaw.owner).toLowerCase() === ZERO_ADDRESS
+      ) {
+        throw new Error(`Sale #${saleId.toString()} was not found.`);
+      }
+
+      const stageCount = Number(countRaw);
+
+      if (!Number.isSafeInteger(stageCount) || stageCount < 1 || stageCount > 50) {
+        throw new Error("The sale contains an invalid number of stages.");
+      }
+
+      const stages = await Promise.all(
+        Array.from({ length: stageCount }, async (_, index) => {
+          const stageRaw = await launchpad.getStage(saleId, index);
+
+          return {
+            cap: BigInt(stageRaw.cap.toString()),
+            priceUsd18: BigInt(stageRaw.priceUsd18.toString()),
+            sold: BigInt(stageRaw.sold.toString()),
+          } satisfies LoadedStage;
+        })
+      );
+
+      const saleTokenDecimals = Number(saleRaw.saleTokenDecimals);
+      let saleTokenSymbol = "TOKEN";
+
+      try {
+        const saleToken = new ethers.Contract(
+          saleRaw.saleToken,
+          FULL_ERC20_ABI,
+          provider
+        );
+        saleTokenSymbol = String(await saleToken.symbol());
+      } catch {
+        saleTokenSymbol = "TOKEN";
       }
 
       const sale: LoadedSale = {
-        owner: s.owner,
-        saleToken: s.saleToken,
-        fundReceiver: s.fundReceiver,
-        saleTokenDecimals: Number(s.saleTokenDecimals),
-        totalForSale: BigInt(s.totalForSale.toString()),
-        totalSold: BigInt(s.totalSold.toString()),
-        active: Boolean(s.active),
-        claimOpen: Boolean(s.claimOpen),
-        requireKoraxAccess: Boolean(s.requireKoraxAccess),
+        owner: String(saleRaw.owner),
+        saleToken: String(saleRaw.saleToken),
+        saleTokenSymbol,
+        fundReceiver: String(saleRaw.fundReceiver),
+        saleTokenDecimals,
+        totalForSale: BigInt(saleRaw.totalForSale.toString()),
+        totalSold: BigInt(saleRaw.totalSold.toString()),
+        active: Boolean(saleRaw.active),
+        claimOpen: Boolean(saleRaw.claimOpen),
+        requireKoraxAccess: Boolean(saleRaw.requireKoraxAccess),
         stages,
       };
 
       setLoadedSale(sale);
+      setLoadedSaleId(saleId.toString());
+      setBuyerForm((previous) => ({
+        ...previous,
+        saleId: saleId.toString(),
+      }));
 
       if (address) {
         const [maxRaw, contributedRaw, purchasedRaw, claimedRaw] =
@@ -1371,94 +1747,120 @@ export default function LaunchPage() {
         setBuyerClaimed(false);
       }
 
-      await updatePreview(saleId);
-      setBuyerStatus("Sale loaded.");
-    } catch (err: any) {
-      setLoadedSale(null);
-
-      setBuyerStatus(
-        err?.shortMessage ||
-          err?.reason ||
-          err?.message ||
-          "Failed to load sale."
+      setLastSaleUpdate(
+        new Date().toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        })
       );
-    } finally {
-      setLoadingSale(false);
-    }
-  }
 
-  async function updatePreview(id?: bigint) {
-    try {
-      if (!LAUNCHPAD_ADDRESS) return;
+      await updatePreview(saleId.toString());
 
-      const saleId = id ?? BigInt(buyerForm.saleId || "0");
-      const amount = ethers.parseUnits(buyerForm.paymentAmount || "0", 18);
-
-      if (amount <= 0n) {
-        setPreviewTokens(0n);
-        return;
+      if (!silent) {
+        setBuyerStatus(`Sale #${saleId.toString()} loaded successfully.`);
       }
-
-      const provider = new ethers.JsonRpcProvider(RPC_URL);
-
-      const launchpad = new ethers.Contract(
-        LAUNCHPAD_ADDRESS,
-        launchpadAbi,
-        provider
-      );
-
-      const out =
-        buyerForm.payToken === "USDC"
-          ? await launchpad.previewTokensForUSDC(saleId, amount)
-          : await launchpad.previewTokensForUSDT(saleId, amount);
-
-      setPreviewTokens(BigInt(out.toString()));
-    } catch {
-      setPreviewTokens(0n);
+    } catch (error) {
+      if (!silent) {
+        setLoadedSale(null);
+        setLoadedSaleId("");
+        setBuyerMax(0n);
+        setBuyerContributed(0n);
+        setBuyerPurchased(0n);
+        setBuyerClaimed(false);
+        setBuyerStatus(getErrorMessage(error, "Failed to load sale."));
+      }
+    } finally {
+      if (!silent) setLoadingSale(false);
     }
   }
 
-  useEffect(() => {
-    updatePreview();
-  }, [buyerForm.paymentAmount, buyerForm.payToken, buyerForm.saleId]);
+  async function createSale() {
+    if (creatingSale) return;
 
-  async function buy() {
-    setBuying(true);
-    setBuyerStatus("");
+    setCreatingSale(true);
+    setCreatorStatus("");
+    setCreatorTxHash("");
 
     try {
-      if (!loadedSale) throw new Error("Load sale first.");
-      if (!LAUNCHPAD_ADDRESS) throw new Error("Launchpad address is missing.");
+      if (!canCreateSale) {
+        throw new Error(
+          "Only the Launchpad owner or an approved sale creator can create a sale."
+        );
+      }
 
       const signer = await getBrowserSigner();
-      const buyer = await signer.getAddress();
-      const saleId = BigInt(buyerForm.saleId || "0");
+      const creator = await signer.getAddress();
+      const provider = signer.provider;
 
-      const paymentAmount = ethers.parseUnits(
-        buyerForm.paymentAmount || "0",
-        18
+      const saleTokenAddress = ethers.getAddress(creatorForm.saleToken.trim());
+      const fundReceiver = creatorForm.fundReceiver.trim()
+        ? ethers.getAddress(creatorForm.fundReceiver.trim())
+        : creator;
+
+      await validateContract(provider, saleTokenAddress, "sale token");
+
+      const saleToken = new ethers.Contract(
+        saleTokenAddress,
+        FULL_ERC20_ABI,
+        signer
       );
 
-      if (paymentAmount <= 0n) {
-        throw new Error("Payment amount must be > 0.");
+      const saleDecimals = Number(await saleToken.decimals());
+      const caps = parsePositiveLines(creatorForm.stageCaps, "Stage caps");
+      const prices = parsePositiveLines(
+        creatorForm.stagePricesUsd,
+        "Stage prices"
+      );
+
+      if (caps.length !== prices.length) {
+        throw new Error("Stage caps and prices must contain the same number of lines.");
       }
 
-      const paymentAddress =
-        buyerForm.payToken === "USDC" ? USDC_ADDRESS : USDT_ADDRESS;
+      if (caps.length > 10) {
+        throw new Error("A launch sale can contain a maximum of 10 stages.");
+      }
 
-      const paymentToken = new ethers.Contract(paymentAddress, erc20Abi, signer);
-      const allowanceRaw = await paymentToken.allowance(buyer, LAUNCHPAD_ADDRESS);
+      const stageCaps = caps.map((value) =>
+        ethers.parseUnits(value, saleDecimals)
+      );
+      const stagePricesUsd18 = prices.map((value) =>
+        ethers.parseUnits(value, 18)
+      );
+      const totalForSale = stageCaps.reduce(
+        (total, value) => total + value,
+        0n
+      );
+
+      const tokenBalanceRaw = await saleToken.balanceOf(creator);
+      const tokenBalance = BigInt(tokenBalanceRaw.toString());
+
+      if (tokenBalance < totalForSale) {
+        throw new Error(
+          `Insufficient sale-token balance. Required: ${formatUnitsSafe(
+            totalForSale,
+            saleDecimals,
+            4
+          )}.`
+        );
+      }
+
+      const allowanceRaw = await saleToken.allowance(
+        creator,
+        LAUNCHPAD_ADDRESS
+      );
       const allowance = BigInt(allowanceRaw.toString());
 
-      if (allowance < paymentAmount) {
-        setBuyerStatus(`Approving ${buyerForm.payToken}...`);
+      if (allowance < totalForSale) {
+        setCreatorStatus("Approve the complete sale allocation in your wallet...");
 
-        const approveTx = await paymentToken.approve(
+        const approvalTransaction = await saleToken.approve(
           LAUNCHPAD_ADDRESS,
-          paymentAmount
+          totalForSale
         );
 
-        await approveTx.wait();
+        setCreatorStatus("Sale-token approval submitted. Waiting for confirmation...");
+        await approvalTransaction.wait();
       }
 
       const launchpad = new ethers.Contract(
@@ -1467,51 +1869,238 @@ export default function LaunchPage() {
         signer
       );
 
-      const tx =
+      setCreatorStatus("Confirm the launch-sale creation transaction...");
+
+      const transaction = await launchpad.createSale(
+        saleTokenAddress,
+        fundReceiver,
+        stageCaps,
+        stagePricesUsd18,
+        creatorForm.requireKoraxAccess
+      );
+
+      setCreatorStatus("Launch sale submitted. Waiting for confirmation...");
+
+      const receipt = await transaction.wait();
+      let createdSaleId = "";
+
+      for (const log of receipt.logs) {
+        try {
+          const parsed = launchpad.interface.parseLog({
+            topics: [...log.topics],
+            data: log.data,
+          });
+
+          if (!parsed) continue;
+
+          const candidate =
+            parsed.args?.saleId ?? parsed.args?.id ?? parsed.args?.[0];
+
+          if (
+            candidate !== undefined &&
+            candidate !== null &&
+            /sale/i.test(parsed.name)
+          ) {
+            createdSaleId = candidate.toString();
+            break;
+          }
+        } catch {
+          continue;
+        }
+      }
+
+      setCreatorTxHash(receipt.hash);
+      setCreatorStatus(
+        createdSaleId
+          ? `Launch sale #${createdSaleId} created successfully.`
+          : "Launch sale created successfully. The transaction is confirmed."
+      );
+
+      if (createdSaleId) {
+        saveSaleToBuilderProject(createdSaleId, receipt.hash);
+        setAdminForm((previous) => ({
+          ...previous,
+          saleId: createdSaleId,
+        }));
+        await loadSaleById(createdSaleId, true);
+      }
+
+      await loadPublicProjects();
+    } catch (error) {
+      setCreatorStatus(getErrorMessage(error, "Create sale failed."));
+    } finally {
+      setCreatingSale(false);
+    }
+  }
+
+  async function buy() {
+    if (buying) return;
+
+    setBuying(true);
+    setBuyerStatus("");
+    setBuyerTxHash("");
+
+    try {
+      if (!loadedSale || !loadedSaleMatchesInput) {
+        throw new Error("Load the selected sale before buying.");
+      }
+
+      if (!loadedSale.active) {
+        throw new Error("This sale is not active.");
+      }
+
+      if (loadedSale.requireKoraxAccess && !access.hasLaunchAccess) {
+        throw new Error(
+          "This sale requires eligible KORAX launch access from the qualifying staking plan."
+        );
+      }
+
+      if (!currentPaymentAsset.ready) {
+        throw new Error(
+          currentPaymentAsset.error ||
+            `${buyerForm.payToken} is not configured correctly.`
+        );
+      }
+
+      const paymentAmount = safeParseUnits(
+        buyerForm.paymentAmount,
+        currentPaymentAsset.decimals
+      );
+      const requestedUsd18 = safeParseUnits(buyerForm.paymentAmount, 18);
+
+      if (paymentAmount <= 0n || requestedUsd18 <= 0n) {
+        throw new Error("Enter a valid positive payment amount.");
+      }
+
+      if (buyerMax > 0n && requestedUsd18 > buyerRemainingUsd18) {
+        throw new Error(
+          `This purchase exceeds your remaining limit of $${formatUnitsSafe(
+            buyerRemainingUsd18,
+            18,
+            2
+          )}.`
+        );
+      }
+
+      if (previewTokens <= 0n) {
+        throw new Error("The contract preview returned zero tokens.");
+      }
+
+      const signer = await getBrowserSigner();
+      const buyer = await signer.getAddress();
+      const saleId = parseSaleId(buyerForm.saleId);
+
+      await validateContract(
+        signer.provider,
+        currentPaymentAsset.address,
+        buyerForm.payToken
+      );
+
+      const paymentToken = new ethers.Contract(
+        currentPaymentAsset.address,
+        FULL_ERC20_ABI,
+        signer
+      );
+
+      const balanceRaw = await paymentToken.balanceOf(buyer);
+      const balance = BigInt(balanceRaw.toString());
+
+      if (balance < paymentAmount) {
+        throw new Error(`Insufficient ${buyerForm.payToken} balance.`);
+      }
+
+      const allowanceRaw = await paymentToken.allowance(
+        buyer,
+        LAUNCHPAD_ADDRESS
+      );
+      const allowance = BigInt(allowanceRaw.toString());
+
+      if (allowance < paymentAmount) {
+        setBuyerStatus(`Approve ${buyerForm.payToken} in your wallet...`);
+
+        const approvalTransaction = await paymentToken.approve(
+          LAUNCHPAD_ADDRESS,
+          paymentAmount
+        );
+
+        setBuyerStatus(
+          `${buyerForm.payToken} approval submitted. Waiting for confirmation...`
+        );
+        await approvalTransaction.wait();
+      }
+
+      const launchpad = new ethers.Contract(
+        LAUNCHPAD_ADDRESS,
+        launchpadAbi,
+        signer
+      );
+
+      setBuyerStatus(`Confirm the ${buyerForm.payToken} purchase...`);
+
+      const transaction =
         buyerForm.payToken === "USDC"
           ? await launchpad.buyWithUSDC(saleId, paymentAmount)
           : await launchpad.buyWithUSDT(saleId, paymentAmount);
 
-      const receipt = await tx.wait();
+      setBuyerStatus("Purchase submitted. Waiting for blockchain confirmation...");
 
-      setBuyerStatus(`Buy successful. Transaction: ${receipt.hash}`);
-      await loadSale();
-    } catch (err: any) {
-      setBuyerStatus(
-        err?.shortMessage || err?.reason || err?.message || "Buy failed."
-      );
+      const receipt = await transaction.wait();
+
+      setBuyerTxHash(receipt.hash);
+      setBuyerStatus("Purchase completed successfully.");
+      await loadSaleById(saleId.toString(), true);
+    } catch (error) {
+      setBuyerStatus(getErrorMessage(error, "Buy failed."));
     } finally {
       setBuying(false);
     }
   }
 
   async function claim() {
+    if (claiming) return;
+
     setClaiming(true);
     setBuyerStatus("");
+    setBuyerTxHash("");
 
     try {
-      if (!LAUNCHPAD_ADDRESS) {
-        throw new Error("Launchpad address is missing.");
+      if (!loadedSale || !loadedSaleMatchesInput) {
+        throw new Error("Load the selected sale before claiming.");
+      }
+
+      if (!loadedSale.claimOpen) {
+        throw new Error("Claim is not open for this sale.");
+      }
+
+      if (buyerPurchased <= 0n) {
+        throw new Error("This wallet has no purchased tokens to claim.");
+      }
+
+      if (buyerClaimed) {
+        throw new Error("This wallet has already claimed its allocation.");
       }
 
       const signer = await getBrowserSigner();
-
       const launchpad = new ethers.Contract(
         LAUNCHPAD_ADDRESS,
         launchpadAbi,
         signer
       );
+      const saleId = parseSaleId(buyerForm.saleId);
 
-      const saleId = BigInt(buyerForm.saleId || "0");
-      const tx = await launchpad.claim(saleId);
-      const receipt = await tx.wait();
+      setBuyerStatus("Confirm the claim transaction in your wallet...");
 
-      setBuyerStatus(`Claim successful. Transaction: ${receipt.hash}`);
-      await loadSale();
-    } catch (err: any) {
-      setBuyerStatus(
-        err?.shortMessage || err?.reason || err?.message || "Claim failed."
-      );
+      const transaction = await launchpad.claim(saleId);
+
+      setBuyerStatus("Claim submitted. Waiting for blockchain confirmation...");
+
+      const receipt = await transaction.wait();
+
+      setBuyerTxHash(receipt.hash);
+      setBuyerStatus("Claim completed successfully.");
+      await loadSaleById(saleId.toString(), true);
+    } catch (error) {
+      setBuyerStatus(getErrorMessage(error, "Claim failed."));
     } finally {
       setClaiming(false);
     }
@@ -1520,90 +2109,205 @@ export default function LaunchPage() {
   async function adminAction(
     action: "approve" | "close" | "claim" | "unsold" | "limits" | "antibot"
   ) {
+    if (adminBusy) return;
+
     setAdminBusy(true);
     setAdminStatus("");
+    setAdminTxHash("");
 
     try {
-      if (!LAUNCHPAD_ADDRESS) {
-        throw new Error("Launchpad address is missing.");
+      if (!isLaunchpadOwner) {
+        throw new Error("Only the Launchpad owner can perform this action.");
       }
 
       const signer = await getBrowserSigner();
-
       const launchpad = new ethers.Contract(
         LAUNCHPAD_ADDRESS,
         launchpadAbi,
         signer
       );
 
-      let tx;
+      let transaction: ethers.ContractTransactionResponse;
 
       if (action === "approve") {
         if (!adminForm.creatorAddress.trim()) {
           throw new Error("Creator address is required.");
         }
 
-        tx = await launchpad.setSaleCreatorApproval(
+        transaction = await launchpad.setSaleCreatorApproval(
           ethers.getAddress(adminForm.creatorAddress.trim()),
           adminForm.approved
         );
-      }
-
-      if (action === "close") {
-        tx = await launchpad.closeSale(BigInt(adminForm.saleId || "0"));
-      }
-
-      if (action === "claim") {
-        tx = await launchpad.setClaimOpen(
-          BigInt(adminForm.saleId || "0"),
+      } else if (action === "close") {
+        transaction = await launchpad.closeSale(
+          parseSaleId(adminForm.saleId)
+        );
+      } else if (action === "claim") {
+        transaction = await launchpad.setClaimOpen(
+          parseSaleId(adminForm.saleId),
           adminForm.claimOpen
         );
-      }
-
-      if (action === "unsold") {
-        const to = adminForm.unsoldReceiver.trim()
+      } else if (action === "unsold") {
+        const receiver = adminForm.unsoldReceiver.trim()
           ? ethers.getAddress(adminForm.unsoldReceiver.trim())
           : await signer.getAddress();
 
-        tx = await launchpad.withdrawUnsold(BigInt(adminForm.saleId || "0"), to);
-      }
-
-      if (action === "limits") {
-        tx = await launchpad.setContributionLimits(
-          ethers.parseUnits(adminForm.level1Limit || "0", 18),
-          ethers.parseUnits(adminForm.level2Limit || "0", 18),
-          ethers.parseUnits(adminForm.level3Limit || "0", 18)
+        transaction = await launchpad.withdrawUnsold(
+          parseSaleId(adminForm.saleId),
+          receiver
         );
-      }
+      } else if (action === "limits") {
+        const level1 = safeParseUnits(adminForm.level1Limit, 18);
+        const level2 = safeParseUnits(adminForm.level2Limit, 18);
+        const level3 = safeParseUnits(adminForm.level3Limit, 18);
 
-      if (action === "antibot") {
-        tx = await launchpad.setAntiBot(
+        if (level1 <= 0n || level2 <= 0n || level3 <= 0n) {
+          throw new Error("All contribution limits must be positive.");
+        }
+
+        if (!(level1 <= level2 && level2 <= level3)) {
+          throw new Error("Contribution limits must increase from Level 1 to Level 3.");
+        }
+
+        transaction = await launchpad.setContributionLimits(
+          level1,
+          level2,
+          level3
+        );
+      } else {
+        if (!isNonNegativeInteger(adminForm.cooldown)) {
+          throw new Error("Cooldown must be a non-negative whole number.");
+        }
+
+        const cooldown = BigInt(adminForm.cooldown);
+
+        if (cooldown > 86_400n) {
+          throw new Error("Cooldown cannot exceed 86,400 seconds.");
+        }
+
+        transaction = await launchpad.setAntiBot(
           adminForm.antiBotEnabled,
-          BigInt(adminForm.cooldown || "0")
+          cooldown
         );
       }
 
-      if (!tx) {
-        throw new Error("Unknown admin action.");
+      setAdminStatus("Admin transaction submitted. Waiting for confirmation...");
+
+      const receipt = await transaction.wait();
+
+      setAdminTxHash(receipt.hash);
+      setAdminStatus("Admin action completed successfully.");
+
+      if (loadedSaleId) {
+        await loadSaleById(loadedSaleId, true);
       }
 
-      const receipt = await tx.wait();
-
-      setAdminStatus(`Admin action successful. Transaction: ${receipt.hash}`);
-      await loadSale();
-    } catch (err: any) {
-      setAdminStatus(
-        err?.shortMessage ||
-          err?.reason ||
-          err?.message ||
-          "Admin action failed."
-      );
+      if (action === "approve") {
+        await loadLaunchpadPermissions(address);
+      }
+    } catch (error) {
+      setAdminStatus(getErrorMessage(error, "Admin action failed."));
     } finally {
       setAdminBusy(false);
     }
   }
 
-  function levelCard(level: (typeof LEVELS)[number]) {
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const projectSlug = params.get("project") || "";
+    const saleId = params.get("sale") || params.get("saleId") || "";
+
+    setActiveProjectSlug(projectSlug);
+
+    if (/^\d+$/.test(saleId)) {
+      initialSaleIdRef.current = saleId;
+      setBuyerForm((previous) => ({ ...previous, saleId }));
+      setAdminForm((previous) => ({ ...previous, saleId }));
+    }
+
+    const project = readLastBuilderProject();
+
+    if (project) {
+      setLoadedBuilderProject(project);
+
+      const tokenAddress = project.tokenAddress || project.token || "";
+
+      setCreatorForm((previous) => ({
+        ...previous,
+        saleToken: tokenAddress || previous.saleToken,
+      }));
+
+      if (
+        !saleId &&
+        project.launchSaleId &&
+        /^\d+$/.test(project.launchSaleId)
+      ) {
+        initialSaleIdRef.current = project.launchSaleId;
+        setBuyerForm((previous) => ({
+          ...previous,
+          saleId: project.launchSaleId || previous.saleId,
+        }));
+        setAdminForm((previous) => ({
+          ...previous,
+          saleId: project.launchSaleId || previous.saleId,
+        }));
+      }
+    }
+
+    void loadPaymentAssets();
+    void loadPublicProjects();
+  }, []);
+
+  useEffect(() => {
+    if (!activeProject?.token) return;
+
+    setCreatorForm((previous) => ({
+      ...previous,
+      saleToken: activeProject.token || previous.saleToken,
+    }));
+  }, [activeProject?.token]);
+
+  useEffect(() => {
+    if (!address || !isConnected) {
+      void loadAccess(undefined);
+      void loadLaunchpadPermissions(undefined);
+      return;
+    }
+
+    void loadAccess(address);
+    void loadLaunchpadPermissions(address);
+  }, [address, isConnected]);
+
+  useEffect(() => {
+    if (!initialSaleIdRef.current) return;
+    void loadSaleById(initialSaleIdRef.current, true);
+  }, [address]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void updatePreview();
+    }, 320);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    buyerForm.paymentAmount,
+    buyerForm.payToken,
+    buyerForm.saleId,
+    currentPaymentAsset.decimals,
+    currentPaymentAsset.ready,
+  ]);
+
+  useEffect(() => {
+    if (!loadedSaleId) return;
+
+    const interval = window.setInterval(() => {
+      void loadSaleById(loadedSaleId, true);
+    }, SALE_REFRESH_INTERVAL_MS);
+
+    return () => window.clearInterval(interval);
+  }, [loadedSaleId, address]);
+
+  function renderLevelCard(level: (typeof dynamicLevels)[number]) {
     const active = access.launchLevel >= level.level;
 
     return (
@@ -1616,66 +2320,49 @@ export default function LaunchPage() {
             : "border-white/10 bg-[#020617]/45",
         ].join(" ")}
       >
-        <div className="text-sm uppercase tracking-[0.25em] text-white/45">
-          {level.name}
-        </div>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-sm uppercase tracking-[0.25em] text-white/45">
+              {level.name}
+            </div>
 
-        <div className="mt-2 text-2xl font-black text-white">
-          {level.label}
+            <div className="mt-2 text-2xl font-black text-white">
+              {level.label}
+            </div>
+          </div>
+
+          <StatusPill active={active} tone={active ? "cyan" : "slate"}>
+            {active ? "Unlocked" : "Locked"}
+          </StatusPill>
         </div>
 
         <div className="mt-4 grid gap-3">
+          <InfoCard label="On-chain Requirement" value={`${level.minKrx} KRX`} />
           <InfoCard
-            label="Requirement"
-            value={`${level.minKrx.toLocaleString("en-US")} KRX`}
+            label="Default Displayed Limit"
+            value={`$${level.fallbackMaxUsd}`}
           />
-
-          <InfoCard label="Max Participation" value={`$${level.maxUsd}`} />
         </div>
 
         <p className="mt-4 text-sm leading-relaxed text-white/65">
           {level.desc}
         </p>
-
-        <div className="mt-5 text-sm font-black">
-          {active ? (
-            <span className="text-blue-100">Unlocked</span>
-          ) : (
-            <span className="text-white/45">Locked</span>
-          )}
-        </div>
       </div>
     );
   }
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 overflow-hidden">
       <style jsx global>{`
         @keyframes launchCardShimmer {
-          0%,
-          76% {
-            transform: translateX(-120%);
-            opacity: 0;
-          }
-
-          84% {
-            opacity: 1;
-          }
-
-          100% {
-            transform: translateX(120%);
-            opacity: 0;
-          }
+          0%, 76% { transform: translateX(-120%); opacity: 0; }
+          84% { opacity: 1; }
+          100% { transform: translateX(120%); opacity: 0; }
         }
 
         @keyframes launchLogoFloat {
-          0%,
-          100% {
-            transform: translateY(0) scale(1);
-          }
-
-          50% {
-            transform: translateY(-4px) scale(1.03);
-          }
+          0%, 100% { transform: translateY(0) scale(1); }
+          50% { transform: translateY(-4px) scale(1.03); }
         }
 
         .launch-logo-float {
@@ -1685,11 +2372,8 @@ export default function LaunchPage() {
 
         .launch-card-3d {
           transform-style: preserve-3d;
-          transition:
-            transform 240ms ease,
-            border-color 240ms ease,
-            background 240ms ease,
-            box-shadow 240ms ease;
+          transition: transform 240ms ease, border-color 240ms ease,
+            background 240ms ease, box-shadow 240ms ease;
         }
 
         .launch-card-3d:hover {
@@ -1698,34 +2382,26 @@ export default function LaunchPage() {
           box-shadow: 0 20px 70px rgba(0, 0, 0, 0.42);
         }
 
-        .launch-section-card {
-          transform-style: preserve-3d;
-        }
+        .launch-section-card { transform-style: preserve-3d; }
 
         .launch-section-card::after {
           content: "";
           position: absolute;
           inset: 0;
           pointer-events: none;
-          background: linear-gradient(
-            120deg,
-            transparent,
-            rgba(255, 255, 255, 0.035),
-            transparent
-          );
+          background: linear-gradient(120deg, transparent, rgba(255,255,255,.035), transparent);
           transform: translateX(-120%);
           animation: launchCardShimmer 8s ease-in-out infinite;
         }
 
+        @media (hover: none) {
+          .launch-card-3d:hover { transform: none; }
+        }
+
         @media (prefers-reduced-motion: reduce) {
           .launch-logo-float,
-          .launch-section-card::after {
-            animation: none;
-          }
-
-          .launch-card-3d:hover {
-            transform: none;
-          }
+          .launch-section-card::after { animation: none; }
+          .launch-card-3d:hover { transform: none; }
         }
       `}</style>
 
@@ -1749,31 +2425,86 @@ export default function LaunchPage() {
             </h1>
 
             <p className="mt-6 max-w-3xl text-base leading-8 text-white/70 sm:text-lg">
-              A flexible launch system for AI-created projects and external
-              projects. Sales use USDT / USDC, staged pricing, access levels,
-              and controlled claim activation.
+              A staged BNB Chain launch system for KORAX-created and approved
+              external projects. Sales support USDT and USDC participation,
+              access levels, controlled closing, and owner-activated claims.
             </p>
 
             <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <StatusPill active={Boolean(currentLevel)}>
                 {currentLevel ? currentLevel.label : "Access Locked"}
               </StatusPill>
-
               <StatusPill active={Boolean(publicProjects.length)}>
                 Project Registry
               </StatusPill>
-
-              <StatusPill active={Boolean(loadedSale?.active)}>
-                Sale Console
+              <StatusPill active={Boolean(loadedSale?.active)} tone="cyan">
+                Sale {loadedSale?.active ? "Live" : "Console"}
               </StatusPill>
-
-              <StatusPill active={Boolean(loadedSale?.claimOpen)}>
-                Claim Layer
+              <StatusPill active={Boolean(loadedSale?.claimOpen)} tone="cyan">
+                Claim {loadedSale?.claimOpen ? "Open" : "Layer"}
               </StatusPill>
+            </div>
+
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <a href="#buyer-console" className={primaryButtonClass}>
+                Join a Launch
+              </a>
+              <Link href="/staking" className={cyanButtonClass}>
+                Unlock Launch Access
+              </Link>
+              <Link href="/docs" className={ghostButtonClass}>
+                Read Documentation
+              </Link>
             </div>
           </div>
 
           <LaunchHeroVisual />
+        </div>
+      </section>
+
+      <section className="relative overflow-hidden rounded-[28px] border border-blue-400/20 bg-blue-500/[0.07] px-5 py-4 backdrop-blur-xl">
+        <div className="relative grid gap-4 text-center sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            {
+              label: "Wallet Role",
+              value: isLaunchpadOwner
+                ? "OWNER"
+                : isApprovedCreator
+                  ? "APPROVED CREATOR"
+                  : "BUYER / VISITOR",
+            },
+            {
+              label: "Launch Access",
+              value: access.hasLaunchAccess
+                ? `LEVEL ${access.launchLevel}`
+                : "LOCKED",
+            },
+            {
+              label: "Loaded Sale",
+              value: loadedSaleId ? `#${loadedSaleId}` : "NONE",
+            },
+            {
+              label: "Network",
+              value:
+                chainId === BSC_CHAIN_ID
+                  ? "BNB CHAIN"
+                  : isConnected
+                    ? "WRONG NETWORK"
+                    : "OFFLINE",
+            },
+          ].map((item, index) => (
+            <div
+              key={item.label}
+              className={index > 0 ? "px-4 py-2 lg:border-l lg:border-white/10" : "px-4 py-2"}
+            >
+              <div className="text-[9px] font-black uppercase tracking-[0.22em] text-white/35">
+                {item.label}
+              </div>
+              <div className="mt-1 text-sm font-black text-blue-100">
+                {item.value}
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -1782,7 +2513,7 @@ export default function LaunchPage() {
           eyebrow="Your Launch Access"
           title={currentLevel ? currentLevel.label : "Launch Access Locked"}
           right={
-            <StatusPill active={access.hasLaunchAccess}>
+            <StatusPill active={access.hasLaunchAccess} tone="cyan">
               {access.loading
                 ? "Checking"
                 : access.hasLaunchAccess
@@ -1792,30 +2523,28 @@ export default function LaunchPage() {
           }
         >
           <p className="mt-3 text-sm leading-7 text-white/64">
-            Your launch participation level is calculated from eligible KRX
-            staking. Higher levels unlock stronger participation limits.
+            Your launch participation level is read from eligible KRX staking.
+            Project-slot access and buyer allocation access are separate contract
+            values.
           </p>
 
           <div className="mt-5 grid gap-3 md:grid-cols-2">
-            <InfoCard
-              label="Eligible Staking"
-              value={`${access.eligibleAmount} KRX`}
-            />
+            <InfoCard label="Eligible Staking" value={`${access.eligibleAmount} KRX`} />
             <InfoCard label="Launch Level" value={access.launchLevel} />
             <InfoCard label="Project Slots" value={access.totalProjectSlots} />
             <InfoCard
-              label="Required Plan"
-              value={`${access.requiredRewardBps / 100}% reward plan`}
+              label="Qualifying Reward Plan"
+              value={`${access.requiredRewardBps / 100}% fixed plan`}
             />
           </div>
 
           {access.loading ? (
             <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
-              Loading access...
+              Loading launch access from the Access Manager...
             </div>
           ) : !access.connected ? (
             <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
-              Connect wallet from the top bar.
+              Connect your wallet from the top bar to calculate launch access.
             </div>
           ) : access.error ? (
             <div className="mt-5 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
@@ -1840,15 +2569,19 @@ export default function LaunchPage() {
                     : "Visitor / Buyer"
               }
             />
-
             <InfoCard label="Selected Sale" value={buyerForm.saleId || "0"} />
             <InfoCard label="Selected Payment" value={buyerForm.payToken} />
-
             <InfoCard
               label="Claim Status"
               value={loadedSale?.claimOpen ? "Open" : "Closed / Not loaded"}
             />
           </div>
+
+          {permissionError ? (
+            <div className="mt-4 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+              {permissionError}
+            </div>
+          ) : null}
         </SectionBox>
       </section>
 
@@ -1862,13 +2595,13 @@ export default function LaunchPage() {
             disabled={projectsLoading}
             className={ghostButtonClass}
           >
-            {projectsLoading ? "Refreshing..." : "Refresh"}
+            {projectsLoading ? "Refreshing..." : "Refresh Registry"}
           </button>
         }
       >
         <p className="mt-3 max-w-3xl text-sm leading-7 text-white/60">
-          Projects registered in the KORAX Project Registry appear here for all
-          visitors. Each project receives a public launch link.
+          Projects returned by the KORAX public-project API appear here for all
+          visitors. Launch links are sanitized before being rendered.
         </p>
 
         {projectsError ? (
@@ -1879,9 +2612,9 @@ export default function LaunchPage() {
 
         {projectsLoading ? (
           <div className="mt-6 rounded-2xl border border-white/10 bg-[#020617]/45 p-5 text-sm text-white/60">
-            Loading public projects from Project Registry...
+            Loading public projects from the registry...
           </div>
-        ) : publicProjects.length > 0 ? (
+        ) : publicProjects.length ? (
           <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             {publicProjects.map((project) => (
               <ProjectIconCard
@@ -1893,13 +2626,10 @@ export default function LaunchPage() {
           </div>
         ) : (
           <div className="mt-6 rounded-[28px] border border-white/10 bg-[#020617]/45 p-6">
-            <div className="text-lg font-black text-white">
-              No public launches yet
-            </div>
-
+            <div className="text-lg font-black text-white">No public launches yet</div>
             <p className="mt-3 text-sm leading-7 text-white/60">
-              After the first project is registered in the KORAX Project
-              Registry, it will appear here for everyone.
+              Registered projects will appear here after the public-project API
+              returns them.
             </p>
           </div>
         )}
@@ -1909,99 +2639,110 @@ export default function LaunchPage() {
         <SectionBox
           eyebrow="Selected Project"
           title={`${activeProject.name} (${activeProject.symbol})`}
-          right={<StatusPill active={activeProject.active}>Registry Live</StatusPill>}
+          right={
+            <StatusPill active={activeProject.active} tone="cyan">
+              Registry {activeProject.active ? "Live" : "Inactive"}
+            </StatusPill>
+          }
         >
           <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <InfoCard label="Project ID" value={activeProject.id} />
             <InfoCard label="Owner" value={shortAddress(activeProject.owner)} />
-            <InfoCard label="Token" value={activeProject.token} />
+            <InfoCard label="Token" value={activeProject.token} mono />
             <InfoCard
               label="Created"
               value={
                 activeProject.createdAt
-                  ? new Date(activeProject.createdAt).toLocaleDateString()
+                  ? new Date(activeProject.createdAt).toLocaleDateString("en-US")
                   : "Unknown"
               }
             />
           </div>
 
           <div className="mt-5 rounded-2xl border border-blue-300/20 bg-blue-500/10 p-4 text-sm leading-7 text-white/75">
-            This project token is automatically selected for launch sale setup
-            if your wallet is the Launchpad owner or an approved sale creator.
+            The selected registry token is copied into the creator form. The
+            Launchpad contract still verifies creator permissions and receives
+            the actual token allocation through approval.
           </div>
         </SectionBox>
       ) : null}
 
       {loadedBuilderProject ? (
-        <SectionBox
-          eyebrow="Local Builder Data"
-          title="Last project from your builder flow"
-        >
+        <SectionBox eyebrow="Local Builder Data" title="Last KORAX Builder Project">
           <p className="mt-3 max-w-3xl text-sm leading-7 text-white/60">
-            This section is only loaded from your current browser to help you
-            continue your own builder flow. Public projects above come from the
-            on-chain Project Registry.
+            This information is loaded only from the current browser to continue
+            the Token Builder → Website Builder → Launch workflow.
           </p>
 
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
+          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <InfoCard
               label="Project"
               value={
                 loadedBuilderProject.projectName ||
+                loadedBuilderProject.name ||
                 loadedBuilderProject.websiteName ||
                 "Loaded Project"
               }
             />
-
             <InfoCard
               label="Token"
-              value={loadedBuilderProject.tokenAddress || "Not available"}
+              value={
+                loadedBuilderProject.tokenAddress ||
+                loadedBuilderProject.token ||
+                "Not available"
+              }
+              mono
             />
-
             <InfoCard
               label="Website"
-              value={
-                loadedBuilderProject.websiteGenerated
-                  ? "Generated"
-                  : "Not generated"
-              }
+              value={loadedBuilderProject.websiteGenerated ? "Generated" : "Not generated"}
+            />
+            <InfoCard
+              label="Launch Sale ID"
+              value={loadedBuilderProject.launchSaleId || "Not created"}
             />
           </div>
         </SectionBox>
       ) : null}
 
-      <SectionBox title="Launch Access Levels">
+      <SectionBox title="Launch Access Levels" eyebrow="Staking-Based Participation">
         <p className="mt-2 text-sm leading-relaxed text-white/60">
-          Participation limits are based on KRX staking access.
+          KRX requirements below are read from the Access Manager. The displayed
+          USD caps are the Launchpad defaults used by this interface; after a sale
+          is loaded, the exact wallet limit comes from maxContributionOf.
         </p>
 
         <div className="mt-6 grid gap-4 lg:grid-cols-3">
-          {LEVELS.map(levelCard)}
+          {dynamicLevels.map(renderLevelCard)}
         </div>
       </SectionBox>
 
-      <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-        <SectionBox eyebrow="Buyer Console" title="Join Launch">
+      <section id="buyer-console" className="grid scroll-mt-28 gap-6 xl:grid-cols-2">
+        <SectionBox eyebrow="Buyer Console" title="Join a Launch">
           <p className="mt-2 text-sm leading-relaxed text-white/60">
-            Load a sale by ID, buy with USDT or USDC, then claim after the sale
-            closes and claim opens.
+            Load a sale by ID, inspect its real stages and wallet limit, preview
+            the output, then purchase with the configured USDT or USDC contract.
           </p>
 
           <div className="mt-6 grid gap-4">
             <div className="grid gap-4 md:grid-cols-[1fr_auto]">
               <input
                 value={buyerForm.saleId}
-                onChange={(e) =>
-                  setBuyerForm((prev) => ({ ...prev, saleId: e.target.value }))
+                onChange={(event) =>
+                  setBuyerForm((previous) => ({
+                    ...previous,
+                    saleId: event.target.value.replace(/\D/g, ""),
+                  }))
                 }
                 placeholder="Sale ID"
+                inputMode="numeric"
                 className={inputClass}
               />
 
               <button
                 type="button"
-                onClick={loadSale}
-                disabled={loadingSale}
+                onClick={() => loadSaleById(buyerForm.saleId)}
+                disabled={loadingSale || !buyerForm.saleId}
                 className={ghostButtonClass}
               >
                 {loadingSale ? "Loading..." : "Load Sale"}
@@ -2010,88 +2751,110 @@ export default function LaunchPage() {
 
             {loadedSale ? (
               <div className="rounded-[28px] border border-white/10 bg-[#020617]/45 p-5">
-                <div className="grid gap-3 text-sm text-white/75">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <span className="text-white/45">Owner:</span>{" "}
-                    {shortAddress(loadedSale.owner)}
+                    <div className="text-xs font-black uppercase tracking-[0.2em] text-blue-100/60">
+                      Sale #{loadedSaleId}
+                    </div>
+                    <div className="mt-2 text-2xl font-black text-white">
+                      {loadedSale.saleTokenSymbol}
+                    </div>
                   </div>
 
-                  <div>
-                    <span className="text-white/45">Sale Token:</span>{" "}
-                    {shortAddress(loadedSale.saleToken)}
-                  </div>
-
-                  <div>
-                    <span className="text-white/45">Fund Receiver:</span>{" "}
-                    {shortAddress(loadedSale.fundReceiver)}
-                  </div>
-
-                  <div>
-                    <span className="text-white/45">Status:</span>{" "}
-                    {loadedSale.active ? "Active" : "Closed"} / Claim{" "}
-                    {loadedSale.claimOpen ? "Open" : "Closed"}
-                  </div>
-
-                  <div>
-                    <span className="text-white/45">Sold:</span>{" "}
-                    {formatUnitsSafe(
-                      loadedSale.totalSold,
-                      loadedSale.saleTokenDecimals
-                    )}{" "}
-                    /{" "}
-                    {formatUnitsSafe(
-                      loadedSale.totalForSale,
-                      loadedSale.saleTokenDecimals
-                    )}
-                  </div>
-
-                  <div>
-                    <span className="text-white/45">Your Max:</span> $
-                    {formatUnitsSafe(buyerMax, 18, 2)}
-                  </div>
-
-                  <div>
-                    <span className="text-white/45">Your Contributed:</span> $
-                    {formatUnitsSafe(buyerContributed, 18, 2)}
-                  </div>
-
-                  <div>
-                    <span className="text-white/45">Your Purchased:</span>{" "}
-                    {formatUnitsSafe(
-                      buyerPurchased,
-                      loadedSale.saleTokenDecimals
-                    )}
-                  </div>
-
-                  <div>
-                    <span className="text-white/45">Claimed:</span>{" "}
-                    {buyerClaimed ? "Yes" : "No"}
+                  <div className="flex flex-wrap gap-2">
+                    <StatusPill active={loadedSale.active} tone="cyan">
+                      {loadedSale.active ? "Active" : "Closed"}
+                    </StatusPill>
+                    <StatusPill active={loadedSale.claimOpen} tone="cyan">
+                      Claim {loadedSale.claimOpen ? "Open" : "Closed"}
+                    </StatusPill>
                   </div>
                 </div>
 
-                <div className="mt-5 grid gap-3">
-                  <div className="font-black text-white">Stages</div>
+                <div className="mt-5 grid gap-3 md:grid-cols-2">
+                  <InfoCard label="Owner" value={shortAddress(loadedSale.owner)} />
+                  <InfoCard label="Fund Receiver" value={shortAddress(loadedSale.fundReceiver)} />
+                  <InfoCard label="Sale Token" value={loadedSale.saleToken} mono />
+                  <InfoCard
+                    label="Access Rule"
+                    value={loadedSale.requireKoraxAccess ? "KORAX access required" : "Public sale"}
+                  />
+                </div>
 
-                  {loadedSale.stages.map((st, idx) => (
+                <div className="mt-5">
+                  <div className="mb-2 flex justify-between text-xs text-white/50">
+                    <span>
+                      {formatUnitsSafe(loadedSale.totalSold, loadedSale.saleTokenDecimals, 4)} / {formatUnitsSafe(loadedSale.totalForSale, loadedSale.saleTokenDecimals, 4)} {loadedSale.saleTokenSymbol}
+                    </span>
+                    <span className="font-black text-white">{saleProgress.toFixed(2)}%</span>
+                  </div>
+                  <div className="h-3 overflow-hidden rounded-full bg-white/10">
                     <div
-                      key={idx}
-                      className="launch-card-3d rounded-2xl border border-white/10 bg-[#020617]/45 p-4 text-sm text-white/70"
-                    >
-                      <div className="font-black text-white">
-                        Stage {idx + 1}
-                      </div>
+                      className="h-full rounded-full bg-gradient-to-r from-blue-500 via-blue-200 to-cyan-200 transition-all duration-700"
+                      style={{ width: `${saleProgress}%` }}
+                    />
+                  </div>
+                </div>
 
-                      <div className="mt-1">
-                        Price: ${formatUnitsSafe(st.priceUsd18, 18, 6)}
-                      </div>
+                <div className="mt-5 grid gap-3 md:grid-cols-2">
+                  <InfoCard
+                    label="Your Maximum"
+                    value={buyerMax > 0n ? `$${formatUnitsSafe(buyerMax, 18, 2)}` : "Contract returned 0"}
+                  />
+                  <InfoCard
+                    label="Remaining Limit"
+                    value={buyerMax > 0n ? `$${formatUnitsSafe(buyerRemainingUsd18, 18, 2)}` : "Contract returned 0"}
+                  />
+                  <InfoCard
+                    label="Your Contributed"
+                    value={`$${formatUnitsSafe(buyerContributed, 18, 2)}`}
+                  />
+                  <InfoCard
+                    label="Your Purchased"
+                    value={`${formatUnitsSafe(buyerPurchased, loadedSale.saleTokenDecimals, 4)} ${loadedSale.saleTokenSymbol}`}
+                  />
+                </div>
 
-                      <div className="mt-1">
-                        Sold:{" "}
-                        {formatUnitsSafe(st.sold, loadedSale.saleTokenDecimals)} /{" "}
-                        {formatUnitsSafe(st.cap, loadedSale.saleTokenDecimals)}
+                <div className="mt-5 grid gap-3">
+                  <div className="font-black text-white">Sale Stages</div>
+
+                  {loadedSale.stages.map((stage, index) => {
+                    const progress = formatPercent(stage.sold, stage.cap);
+                    const stageActive = index === currentStageIndex && loadedSale.active;
+
+                    return (
+                      <div
+                        key={`${index}-${stage.cap.toString()}`}
+                        className={[
+                          "launch-card-3d rounded-2xl border p-4 text-sm text-white/70",
+                          stageActive
+                            ? "border-blue-300/25 bg-blue-500/10"
+                            : "border-white/10 bg-[#020617]/45",
+                        ].join(" ")}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="font-black text-white">Stage {index + 1}</div>
+                          <StatusPill active={stageActive} tone="cyan">
+                            {stage.sold >= stage.cap ? "Completed" : stageActive ? "Current" : "Pending"}
+                          </StatusPill>
+                        </div>
+                        <div className="mt-2">Price: ${formatUnitsSafe(stage.priceUsd18, 18, 6)}</div>
+                        <div className="mt-1">
+                          Sold: {formatUnitsSafe(stage.sold, loadedSale.saleTokenDecimals, 4)} / {formatUnitsSafe(stage.cap, loadedSale.saleTokenDecimals, 4)}
+                        </div>
+                        <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-200"
+                            style={{ width: `${progress}%` }}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
+                </div>
+
+                <div className="mt-4 text-xs text-white/35">
+                  Last sale update: {lastSaleUpdate || "Waiting"}
                 </div>
               </div>
             ) : null}
@@ -2099,22 +2862,23 @@ export default function LaunchPage() {
             <div className="grid gap-4 md:grid-cols-[1fr_160px]">
               <input
                 value={buyerForm.paymentAmount}
-                onChange={(e) =>
-                  setBuyerForm((prev) => ({
-                    ...prev,
-                    paymentAmount: e.target.value,
+                onChange={(event) =>
+                  setBuyerForm((previous) => ({
+                    ...previous,
+                    paymentAmount: normalizeDecimalInput(event.target.value),
                   }))
                 }
                 placeholder="Payment Amount"
+                inputMode="decimal"
                 className={inputClass}
               />
 
               <select
                 value={buyerForm.payToken}
-                onChange={(e) =>
-                  setBuyerForm((prev) => ({
-                    ...prev,
-                    payToken: e.target.value,
+                onChange={(event) =>
+                  setBuyerForm((previous) => ({
+                    ...previous,
+                    payToken: event.target.value as PaymentKey,
                   }))
                 }
                 className={selectClass}
@@ -2125,80 +2889,88 @@ export default function LaunchPage() {
             </div>
 
             <div className="rounded-2xl border border-blue-300/20 bg-blue-500/10 p-4 text-sm text-white/75">
-              Estimated tokens:{" "}
-              <span className="font-black text-blue-100">
-                {loadedSale
-                  ? formatUnitsSafe(previewTokens, loadedSale.saleTokenDecimals)
-                  : "0"}
-              </span>
+              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">
+                Contract Preview
+              </div>
+              <div className="mt-2 text-2xl font-black text-blue-100">
+                {previewLoading
+                  ? "Calculating..."
+                  : loadedSale
+                    ? `${formatUnitsSafe(previewTokens, loadedSale.saleTokenDecimals, 6)} ${loadedSale.saleTokenSymbol}`
+                    : "0"}
+              </div>
+              {previewError ? (
+                <div className="mt-3 text-xs leading-6 text-red-200">{previewError}</div>
+              ) : null}
             </div>
+
+            {loadedSale?.requireKoraxAccess && !access.hasLaunchAccess ? (
+              <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4 text-sm leading-7 text-amber-100">
+                This sale requires KORAX launch access. Your connected wallet is
+                not currently eligible.
+              </div>
+            ) : null}
+
+            {exceedsBuyerLimit ? (
+              <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm leading-7 text-red-200">
+                The entered amount exceeds your remaining contract limit.
+              </div>
+            ) : null}
 
             <button
               type="button"
               onClick={buy}
-              disabled={buying || !loadedSale || !loadedSale.active}
+              disabled={!canBuy}
               className={primaryButtonClass}
             >
-              {buying ? "Buying..." : "Buy"}
+              {buying ? `Buying with ${buyerForm.payToken}...` : `Buy with ${buyerForm.payToken}`}
             </button>
 
-            {buyerStatus ? (
-              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80">
-                {buyerStatus}
-              </div>
-            ) : null}
+            <TransactionStatus message={buyerStatus} txHash={buyerTxHash} />
           </div>
         </SectionBox>
 
         <SectionBox eyebrow="Claim Console" title="Claim Purchased Tokens">
           <p className="mt-2 text-sm leading-relaxed text-white/70">
-            After the project owner closes the sale and opens claim, buyers can
-            withdraw their purchased tokens here.
+            Buyers can claim after the sale owner closes the sale and the
+            Launchpad owner opens claim for that sale.
           </p>
 
           <div className="mt-6 grid gap-4">
             <input
               value={buyerForm.saleId}
-              onChange={(e) =>
-                setBuyerForm((prev) => ({ ...prev, saleId: e.target.value }))
+              onChange={(event) =>
+                setBuyerForm((previous) => ({
+                  ...previous,
+                  saleId: event.target.value.replace(/\D/g, ""),
+                }))
               }
               placeholder="Sale ID"
+              inputMode="numeric"
               className={inputClass}
             />
 
             <div className="rounded-2xl border border-white/10 bg-[#020617]/45 p-5 text-sm text-white/70">
               <div>
-                Purchased:{" "}
-                <span className="font-black text-white">
+                Purchased: <span className="font-black text-white">
                   {loadedSale
-                    ? formatUnitsSafe(
-                        buyerPurchased,
-                        loadedSale.saleTokenDecimals
-                      )
+                    ? `${formatUnitsSafe(buyerPurchased, loadedSale.saleTokenDecimals, 6)} ${loadedSale.saleTokenSymbol}`
                     : "0"}
                 </span>
               </div>
-
               <div className="mt-2">
-                Claim status:{" "}
-                <span className="font-black text-white">
-                  {loadedSale?.claimOpen ? "Open" : "Closed"}
-                </span>
+                Claim status: <span className="font-black text-white">{loadedSale?.claimOpen ? "Open" : "Closed"}</span>
               </div>
-
               <div className="mt-2">
-                Already claimed:{" "}
-                <span className="font-black text-white">
-                  {buyerClaimed ? "Yes" : "No"}
-                </span>
+                Already claimed: <span className="font-black text-white">{buyerClaimed ? "Yes" : "No"}</span>
               </div>
             </div>
 
             <div className="flex flex-wrap gap-3">
               <button
                 type="button"
-                onClick={loadSale}
-                disabled={loadingSale}
+                onClick={() => loadSaleById(buyerForm.saleId)}
+                disabled={loadingSale || !buyerForm.saleId}
                 className={ghostButtonClass}
               >
                 Refresh Sale
@@ -2207,33 +2979,42 @@ export default function LaunchPage() {
               <button
                 type="button"
                 onClick={claim}
-                disabled={claiming || !loadedSale || !loadedSale.claimOpen}
+                disabled={!canClaim}
                 className={cyanButtonClass}
               >
                 {claiming ? "Claiming..." : "Claim Tokens"}
               </button>
             </div>
+
+            {!buyerClaimed && buyerPurchased <= 0n ? (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs leading-6 text-white/45">
+                Claim becomes available only when this wallet has a purchased
+                balance and the selected sale has claim enabled.
+              </div>
+            ) : null}
           </div>
         </SectionBox>
       </section>
 
       {canCreateSale ? (
         <SectionBox
+          id="creator-console"
           eyebrow="Creator Console"
           title="Create Launch Sale"
-          right={<StatusPill active>Creator Access</StatusPill>}
+          right={<StatusPill active tone="cyan">Creator Access</StatusPill>}
         >
           <p className="mt-2 text-sm leading-relaxed text-white/60">
-            Visible only for Launchpad owner or approved sale creators.
+            The Launchpad contract accepts the sale-token allocation, stage caps,
+            USD prices with 18 decimals, fund receiver, and optional KORAX buyer gate.
           </p>
 
           <div className="mt-6 grid gap-4">
             <input
               value={creatorForm.saleToken}
-              onChange={(e) =>
-                setCreatorForm((prev) => ({
-                  ...prev,
-                  saleToken: e.target.value,
+              onChange={(event) =>
+                setCreatorForm((previous) => ({
+                  ...previous,
+                  saleToken: event.target.value,
                 }))
               }
               placeholder="Sale Token Address"
@@ -2242,57 +3023,82 @@ export default function LaunchPage() {
 
             <input
               value={creatorForm.fundReceiver}
-              onChange={(e) =>
-                setCreatorForm((prev) => ({
-                  ...prev,
-                  fundReceiver: e.target.value,
+              onChange={(event) =>
+                setCreatorForm((previous) => ({
+                  ...previous,
+                  fundReceiver: event.target.value,
                 }))
               }
-              placeholder="Fund Receiver Wallet / leave empty for your wallet"
+              placeholder="Fund Receiver / leave empty for your wallet"
               className={inputClass}
             />
 
             <div className="grid gap-4 md:grid-cols-2">
-              <textarea
-                value={creatorForm.stageCaps}
-                onChange={(e) =>
-                  setCreatorForm((prev) => ({
-                    ...prev,
-                    stageCaps: e.target.value,
-                  }))
-                }
-                rows={5}
-                placeholder={"Stage caps\n1000000\n1000000\n1000000"}
-                className={inputClass}
-              />
+              <label>
+                <div className="mb-2 text-xs font-black uppercase tracking-[0.2em] text-white/40">
+                  Stage Token Caps — one per line
+                </div>
+                <textarea
+                  value={creatorForm.stageCaps}
+                  onChange={(event) =>
+                    setCreatorForm((previous) => ({
+                      ...previous,
+                      stageCaps: event.target.value,
+                    }))
+                  }
+                  rows={6}
+                  placeholder={"1000000\n1000000\n1000000"}
+                  className={inputClass}
+                />
+              </label>
 
-              <textarea
-                value={creatorForm.stagePricesUsd}
-                onChange={(e) =>
-                  setCreatorForm((prev) => ({
-                    ...prev,
-                    stagePricesUsd: e.target.value,
-                  }))
-                }
-                rows={5}
-                placeholder={"Stage prices USD\n0.01\n0.015\n0.02"}
-                className={inputClass}
-              />
+              <label>
+                <div className="mb-2 text-xs font-black uppercase tracking-[0.2em] text-white/40">
+                  Stage USD Prices — one per line
+                </div>
+                <textarea
+                  value={creatorForm.stagePricesUsd}
+                  onChange={(event) =>
+                    setCreatorForm((previous) => ({
+                      ...previous,
+                      stagePricesUsd: event.target.value,
+                    }))
+                  }
+                  rows={6}
+                  placeholder={"0.01\n0.015\n0.02"}
+                  className={inputClass}
+                />
+              </label>
             </div>
 
-            <label className="flex items-center gap-2 rounded-2xl border border-white/10 bg-[#020617]/45 px-4 py-3 text-sm text-white/80">
+            <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#020617]/45 px-4 py-3 text-sm text-white/80">
               <input
                 type="checkbox"
                 checked={creatorForm.requireKoraxAccess}
-                onChange={(e) =>
-                  setCreatorForm((prev) => ({
-                    ...prev,
-                    requireKoraxAccess: e.target.checked,
+                onChange={(event) =>
+                  setCreatorForm((previous) => ({
+                    ...previous,
+                    requireKoraxAccess: event.target.checked,
                   }))
                 }
               />
-              Require KORAX launch access to participate
+              Require KORAX launch access for buyers
             </label>
+
+            <div className="grid gap-3 md:grid-cols-3">
+              <InfoCard
+                label="Configured Stages"
+                value={parseLines(creatorForm.stageCaps).length}
+              />
+              <InfoCard
+                label="Price Lines"
+                value={parseLines(creatorForm.stagePricesUsd).length}
+              />
+              <InfoCard
+                label="Buyer Gate"
+                value={creatorForm.requireKoraxAccess ? "Required" : "Public"}
+              />
+            </div>
 
             <button
               type="button"
@@ -2300,45 +3106,53 @@ export default function LaunchPage() {
               disabled={creatingSale}
               className={primaryButtonClass}
             >
-              {creatingSale ? "Creating Sale..." : "Create Launch Sale"}
+              {creatingSale ? "Creating Sale..." : "Approve Allocation & Create Sale"}
             </button>
 
-            {creatorStatus ? (
-              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80">
-                {creatorStatus}
-              </div>
-            ) : null}
+            <TransactionStatus message={creatorStatus} txHash={creatorTxHash} />
           </div>
         </SectionBox>
-      ) : null}
+      ) : (
+        <SectionBox eyebrow="Creator Access" title="Sale Creation Requires Approval">
+          <p className="mt-3 text-sm leading-7 text-white/60">
+            Public users can discover, buy, and claim. Creating a launch sale is
+            limited by the Launchpad contract to its owner and approved sale creators.
+          </p>
+        </SectionBox>
+      )}
 
       {isLaunchpadOwner ? (
         <SectionBox
           eyebrow="Admin Control"
           title="Admin / Launch Manager"
-          right={<StatusPill active>Owner Only</StatusPill>}
+          right={<StatusPill active tone="cyan">Owner Only</StatusPill>}
         >
           <p className="mt-2 text-sm leading-relaxed text-white/60">
-            Visible only for Launchpad owner.
+            These transactions modify Launchpad permissions, sale status, claim,
+            contribution limits, unsold-token recovery, and anti-bot settings.
           </p>
 
           <div className="mt-6 grid gap-4">
             <input
               value={adminForm.saleId}
-              onChange={(e) =>
-                setAdminForm((prev) => ({ ...prev, saleId: e.target.value }))
+              onChange={(event) =>
+                setAdminForm((previous) => ({
+                  ...previous,
+                  saleId: event.target.value.replace(/\D/g, ""),
+                }))
               }
               placeholder="Sale ID"
+              inputMode="numeric"
               className={inputClass}
             />
 
             <div className="grid gap-4 md:grid-cols-[1fr_160px]">
               <input
                 value={adminForm.creatorAddress}
-                onChange={(e) =>
-                  setAdminForm((prev) => ({
-                    ...prev,
-                    creatorAddress: e.target.value,
+                onChange={(event) =>
+                  setAdminForm((previous) => ({
+                    ...previous,
+                    creatorAddress: event.target.value,
                   }))
                 }
                 placeholder="Creator address"
@@ -2347,10 +3161,10 @@ export default function LaunchPage() {
 
               <select
                 value={adminForm.approved ? "true" : "false"}
-                onChange={(e) =>
-                  setAdminForm((prev) => ({
-                    ...prev,
-                    approved: e.target.value === "true",
+                onChange={(event) =>
+                  setAdminForm((previous) => ({
+                    ...previous,
+                    approved: event.target.value === "true",
                   }))
                 }
                 className={selectClass}
@@ -2385,15 +3199,15 @@ export default function LaunchPage() {
                 disabled={adminBusy}
                 className={cyanButtonClass}
               >
-                {adminForm.claimOpen ? "Open Claim" : "Close Claim"}
+                Apply Claim Status
               </button>
 
               <select
                 value={adminForm.claimOpen ? "true" : "false"}
-                onChange={(e) =>
-                  setAdminForm((prev) => ({
-                    ...prev,
-                    claimOpen: e.target.value === "true",
+                onChange={(event) =>
+                  setAdminForm((previous) => ({
+                    ...previous,
+                    claimOpen: event.target.value === "true",
                   }))
                 }
                 className={selectClass}
@@ -2405,10 +3219,10 @@ export default function LaunchPage() {
 
             <input
               value={adminForm.unsoldReceiver}
-              onChange={(e) =>
-                setAdminForm((prev) => ({
-                  ...prev,
-                  unsoldReceiver: e.target.value,
+              onChange={(event) =>
+                setAdminForm((previous) => ({
+                  ...previous,
+                  unsoldReceiver: event.target.value,
                 }))
               }
               placeholder="Unsold receiver / leave empty for your wallet"
@@ -2425,41 +3239,23 @@ export default function LaunchPage() {
             </button>
 
             <div className="grid gap-4 md:grid-cols-3">
-              <input
-                value={adminForm.level1Limit}
-                onChange={(e) =>
-                  setAdminForm((prev) => ({
-                    ...prev,
-                    level1Limit: e.target.value,
-                  }))
-                }
-                placeholder="Level 1 USD"
-                className={inputClass}
-              />
-
-              <input
-                value={adminForm.level2Limit}
-                onChange={(e) =>
-                  setAdminForm((prev) => ({
-                    ...prev,
-                    level2Limit: e.target.value,
-                  }))
-                }
-                placeholder="Level 2 USD"
-                className={inputClass}
-              />
-
-              <input
-                value={adminForm.level3Limit}
-                onChange={(e) =>
-                  setAdminForm((prev) => ({
-                    ...prev,
-                    level3Limit: e.target.value,
-                  }))
-                }
-                placeholder="Level 3 USD"
-                className={inputClass}
-              />
+              {(["level1Limit", "level2Limit", "level3Limit"] as const).map(
+                (key, index) => (
+                  <input
+                    key={key}
+                    value={adminForm[key]}
+                    onChange={(event) =>
+                      setAdminForm((previous) => ({
+                        ...previous,
+                        [key]: normalizeDecimalInput(event.target.value),
+                      }))
+                    }
+                    placeholder={`Level ${index + 1} USD`}
+                    inputMode="decimal"
+                    className={inputClass}
+                  />
+                )
+              )}
             </div>
 
             <button
@@ -2471,13 +3267,13 @@ export default function LaunchPage() {
               Update Contribution Limits
             </button>
 
-            <div className="grid gap-4 md:grid-cols-[1fr_160px]">
+            <div className="grid gap-4 md:grid-cols-[1fr_180px]">
               <select
                 value={adminForm.antiBotEnabled ? "true" : "false"}
-                onChange={(e) =>
-                  setAdminForm((prev) => ({
-                    ...prev,
-                    antiBotEnabled: e.target.value === "true",
+                onChange={(event) =>
+                  setAdminForm((previous) => ({
+                    ...previous,
+                    antiBotEnabled: event.target.value === "true",
                   }))
                 }
                 className={selectClass}
@@ -2488,13 +3284,14 @@ export default function LaunchPage() {
 
               <input
                 value={adminForm.cooldown}
-                onChange={(e) =>
-                  setAdminForm((prev) => ({
-                    ...prev,
-                    cooldown: e.target.value,
+                onChange={(event) =>
+                  setAdminForm((previous) => ({
+                    ...previous,
+                    cooldown: event.target.value.replace(/\D/g, ""),
                   }))
                 }
-                placeholder="Cooldown"
+                placeholder="Cooldown seconds"
+                inputMode="numeric"
                 className={inputClass}
               />
             </div>
@@ -2508,14 +3305,81 @@ export default function LaunchPage() {
               Update Anti-Bot
             </button>
 
-            {adminStatus ? (
-              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80">
-                {adminStatus}
-              </div>
-            ) : null}
+            <TransactionStatus message={adminStatus} txHash={adminTxHash} />
           </div>
         </SectionBox>
       ) : null}
+
+      <SectionBox eyebrow="Contract Transparency" title="Configured Launch Infrastructure">
+        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <InfoCard label="Launchpad" value={LAUNCHPAD_ADDRESS || "Missing"} mono />
+          <InfoCard label="Access Manager" value={ACCESS_MANAGER_ADDRESS || "Missing"} mono />
+          <InfoCard label="USDT" value={USDT_ADDRESS || "Missing"} mono />
+          <InfoCard label="USDC" value={USDC_ADDRESS || "Missing"} mono />
+        </div>
+
+        <div className="mt-5 flex flex-wrap gap-3">
+          {LAUNCHPAD_ADDRESS ? (
+            <a
+              href={`${BSC_SCAN_URL}/address/${LAUNCHPAD_ADDRESS}#code`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cyanButtonClass}
+            >
+              Verify Launchpad ↗
+            </a>
+          ) : null}
+
+          {ACCESS_MANAGER_ADDRESS ? (
+            <a
+              href={`${BSC_SCAN_URL}/address/${ACCESS_MANAGER_ADDRESS}#code`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={ghostButtonClass}
+            >
+              Verify Access Manager ↗
+            </a>
+          ) : null}
+        </div>
+      </SectionBox>
+
+      <section className="relative overflow-hidden rounded-[42px] border border-blue-400/25 bg-[#050a18] p-6 shadow-[0_35px_130px_rgba(0,0,0,0.55)] sm:p-9 lg:p-12">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_left,rgba(37,99,235,0.22),transparent_38%),radial-gradient(circle_at_right,rgba(34,211,238,0.11),transparent_34%)]" />
+
+        <div className="relative grid gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
+          <div className="max-w-3xl">
+            <div className="text-xs font-black uppercase tracking-[0.3em] text-blue-100">
+              KORAX Launch Infrastructure
+            </div>
+            <h2 className="mt-4 text-3xl font-black leading-tight text-white sm:text-5xl">
+              Build the project, publish the website, then launch on-chain.
+            </h2>
+            <p className="mt-5 text-sm leading-8 text-white/60 sm:text-base">
+              KORAX connects project creation, website generation, public registry,
+              staged token sales, staking-based access, and controlled claims.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <Link href="/ai" className={primaryButtonClass}>
+              Token Builder AI
+            </Link>
+            <Link href="/website-builder-ai" className={cyanButtonClass}>
+              Website Builder AI
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-[24px] border border-amber-300/15 bg-amber-300/[0.045] px-5 py-4 text-xs leading-6 text-white/45">
+        <span className="font-black text-amber-100">Launch and security notice:</span>{" "}
+        KORAX launch participation involves crypto assets and smart contracts.
+        Project registration does not constitute an audit, endorsement, guarantee,
+        or promise of profit. Review project information, contract addresses,
+        allocation limits, token approvals, claim conditions, and wallet
+        transactions before confirmation. Blockchain transactions are generally
+        irreversible.
+      </section>
     </div>
   );
 }

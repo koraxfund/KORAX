@@ -2,11 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 
-const TelegramIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
+const TelegramIcon = ({
+  className = "h-4 w-4",
+}: {
+  className?: string;
+}) => (
   <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
     <path
       fill="currentColor"
@@ -15,7 +19,11 @@ const TelegramIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
   </svg>
 );
 
-const FacebookIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
+const FacebookIcon = ({
+  className = "h-4 w-4",
+}: {
+  className?: string;
+}) => (
   <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
     <path
       fill="currentColor"
@@ -24,7 +32,11 @@ const FacebookIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
   </svg>
 );
 
-const TikTokIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
+const TikTokIcon = ({
+  className = "h-4 w-4",
+}: {
+  className?: string;
+}) => (
   <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
     <path
       fill="currentColor"
@@ -33,7 +45,11 @@ const TikTokIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
   </svg>
 );
 
-const YouTubeIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
+const YouTubeIcon = ({
+  className = "h-4 w-4",
+}: {
+  className?: string;
+}) => (
   <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
     <path
       fill="currentColor"
@@ -42,7 +58,11 @@ const YouTubeIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
   </svg>
 );
 
-const InstagramIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
+const InstagramIcon = ({
+  className = "h-4 w-4",
+}: {
+  className?: string;
+}) => (
   <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
     <path
       fill="currentColor"
@@ -51,11 +71,24 @@ const InstagramIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
   </svg>
 );
 
-const LinkedInIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
+const LinkedInIcon = ({
+  className = "h-4 w-4",
+}: {
+  className?: string;
+}) => (
   <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
     <path
       fill="currentColor"
       d="M4.98 3.5C4.98 4.88 3.86 6 2.5 6S0 4.88 0 3.5 1.12 1 2.5 1s2.48 1.12 2.48 2.5ZM.3 8h4.4v14H.3V8Zm7.2 0h4.2v1.9h.1c.6-1.1 2-2.3 4.1-2.3 4.4 0 5.2 2.9 5.2 6.6V22h-4.4v-6.9c0-1.6 0-3.8-2.3-3.8s-2.7 1.8-2.7 3.7v7H7.5V8Z"
+    />
+  </svg>
+);
+
+const XIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+    <path
+      fill="currentColor"
+      d="M18.244 2H21l-6.02 6.88L22.062 22h-5.548l-4.345-5.68L7.2 22H4.442l6.432-7.35L4.082 2H9.77l3.926 5.19L18.244 2Zm-.967 17.69h1.527L8.94 4.19H7.302l9.975 15.5Z"
     />
   </svg>
 );
@@ -69,7 +102,11 @@ const MailIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
   </svg>
 );
 
-const ExternalIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
+const ExternalIcon = ({
+  className = "h-4 w-4",
+}: {
+  className?: string;
+}) => (
   <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
     <path
       fill="currentColor"
@@ -105,11 +142,11 @@ type NavItem = {
 
 type SocialItem = {
   label: string;
-  href?: string;
+  href: string;
   note?: string;
   icon: ReactNode;
-  internal?: boolean;
   iconBg: string;
+  newAccount?: boolean;
 };
 
 function shortAddress(address?: string) {
@@ -131,7 +168,7 @@ const socialLinks: SocialItem[] = [
     href: "mailto:contact@korax.fund",
     note: "contact@korax.fund",
     icon: <MailIcon className="h-5 w-5" />,
-    iconBg: "from-[#2563eb] to-[#020617]",
+    iconBg: "from-[#2563EB] to-[#020617]",
   },
   {
     label: "Facebook",
@@ -143,14 +180,14 @@ const socialLinks: SocialItem[] = [
   {
     label: "TikTok",
     href: "https://www.tiktok.com/@koraxfund",
-    note: "Short-form updates",
+    note: "@koraxfund",
     icon: <TikTokIcon className="h-5 w-5" />,
     iconBg: "from-[#25F4EE] via-[#111111] to-[#FE2C55]",
   },
   {
     label: "YouTube",
     href: "https://www.youtube.com/@koraxfund",
-    note: "Official videos",
+    note: "@koraxfund",
     icon: <YouTubeIcon className="h-5 w-5" />,
     iconBg: "from-[#FF0000] to-[#7F0000]",
   },
@@ -171,7 +208,7 @@ const socialLinks: SocialItem[] = [
   {
     label: "Telegram Channel",
     href: "https://t.me/koraxfund",
-    note: "Official updates",
+    note: "Official announcements",
     icon: <TelegramIcon className="h-5 w-5" />,
     iconBg: "from-[#26A5E4] to-[#0B6EA8]",
   },
@@ -182,14 +219,39 @@ const socialLinks: SocialItem[] = [
     icon: <TelegramIcon className="h-5 w-5" />,
     iconBg: "from-[#229ED9] to-[#075985]",
   },
+  {
+    label: "X / Twitter",
+    href: "https://x.com/Korax_fund_",
+    note: "@Korax_fund_",
+    icon: <XIcon className="h-5 w-5" />,
+    iconBg: "from-[#202020] via-[#0F172A] to-black",
+    newAccount: true,
+  },
 ];
 
-function SocialLinkRow({ item }: { item: SocialItem }) {
-  const content = (
-    <>
+function SocialLinkRow({
+  item,
+  onNavigate,
+}: {
+  item: SocialItem;
+  onNavigate?: () => void;
+}) {
+  return (
+    <a
+      href={item.href}
+      target={item.href.startsWith("mailto:") ? undefined : "_blank"}
+      rel={
+        item.href.startsWith("mailto:")
+          ? undefined
+          : "noopener noreferrer"
+      }
+      onClick={onNavigate}
+      role="menuitem"
+      className="group flex items-center gap-3 rounded-2xl border border-transparent px-3 py-3 text-white/75 transition duration-200 hover:border-white/10 hover:bg-white/[0.06] hover:text-white"
+    >
       <span
         className={[
-          "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-white shadow-[0_0_22px_rgba(80,140,255,0.22)] ring-1 ring-white/10 transition group-hover:scale-105",
+          "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-white shadow-[0_0_22px_rgba(80,140,255,0.22)] ring-1 ring-white/10 transition duration-200 group-hover:scale-105",
           item.iconBg,
         ].join(" ")}
       >
@@ -197,49 +259,26 @@ function SocialLinkRow({ item }: { item: SocialItem }) {
       </span>
 
       <span className="min-w-0">
-        <span className="block text-sm font-semibold">{item.label}</span>
+        <span className="flex items-center gap-2 text-sm font-semibold">
+          <span>{item.label}</span>
+
+          {item.newAccount ? (
+            <span className="rounded-full border border-blue-400/25 bg-blue-500/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-blue-100">
+              New
+            </span>
+          ) : null}
+        </span>
+
         {item.note ? (
-          <span className="block truncate text-xs text-white/40">
+          <span className="mt-0.5 block truncate text-xs text-white/40">
             {item.note}
           </span>
         ) : null}
       </span>
 
-      {item.href ? (
-        <span className="ml-auto hidden text-white/25 transition group-hover:text-blue-100 sm:inline-flex">
-          <ExternalIcon className="h-4 w-4" />
-        </span>
-      ) : null}
-    </>
-  );
-
-  if (!item.href) {
-    return (
-      <div className="flex items-center gap-3 rounded-xl px-3 py-3 text-white/35">
-        {content}
-      </div>
-    );
-  }
-
-  if (item.internal) {
-    return (
-      <Link
-        href={item.href}
-        className="group flex items-center gap-3 rounded-xl px-3 py-3 text-white/75 transition hover:bg-white/[0.06] hover:text-white"
-      >
-        {content}
-      </Link>
-    );
-  }
-
-  return (
-    <a
-      href={item.href}
-      target="_blank"
-      rel="noreferrer"
-      className="group flex items-center gap-3 rounded-xl px-3 py-3 text-white/75 transition hover:bg-white/[0.06] hover:text-white"
-    >
-      {content}
+      <span className="ml-auto hidden text-white/25 transition group-hover:text-blue-100 sm:inline-flex">
+        <ExternalIcon className="h-4 w-4" />
+      </span>
     </a>
   );
 }
@@ -247,56 +286,130 @@ function SocialLinkRow({ item }: { item: SocialItem }) {
 function FindUsDropdown({
   align = "right",
   fullWidth = false,
+  closeSignal = "",
 }: {
   align?: "left" | "right" | "center";
   fullWidth?: boolean;
+  closeSignal?: string;
 }) {
   const [socialOpen, setSocialOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
 
-  const positionClass =
+  const desktopPositionClass =
     align === "left"
-      ? "left-0"
+      ? "sm:left-0"
       : align === "center"
-        ? "left-1/2 -translate-x-1/2"
-        : "right-0";
+        ? "sm:left-1/2 sm:-translate-x-1/2"
+        : "sm:right-0";
+
+  useEffect(() => {
+    setSocialOpen(false);
+  }, [closeSignal]);
+
+  useEffect(() => {
+    if (!socialOpen) return;
+
+    function handleOutside(event: MouseEvent | TouchEvent) {
+      const target = event.target as Node | null;
+
+      if (
+        target &&
+        rootRef.current &&
+        !rootRef.current.contains(target)
+      ) {
+        setSocialOpen(false);
+      }
+    }
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setSocialOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleOutside);
+    document.addEventListener("touchstart", handleOutside);
+    window.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutside);
+      document.removeEventListener("touchstart", handleOutside);
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [socialOpen]);
 
   return (
-    <div className={fullWidth ? "relative w-full" : "relative"}>
+    <div
+      ref={rootRef}
+      className={fullWidth ? "relative w-full" : "relative"}
+    >
       <button
         type="button"
-        onClick={() => setSocialOpen((prev) => !prev)}
+        onClick={() => setSocialOpen((previous) => !previous)}
         className={[
-          "inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-sm font-black text-white/85 transition hover:border-blue-400/35 hover:bg-blue-500/10 hover:text-blue-100",
+          "inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-sm font-black text-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition duration-200 hover:border-blue-400/35 hover:bg-blue-500/10 hover:text-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-400/40",
+          socialOpen
+            ? "border-blue-400/35 bg-blue-500/10 text-blue-100"
+            : "",
           fullWidth ? "w-full px-4" : "w-12 px-0 sm:w-auto sm:px-4",
         ].join(" ")}
         aria-expanded={socialOpen}
-        aria-label="Find KORAX social links"
+        aria-haspopup="menu"
+        aria-label="Find KORAX official social links"
       >
         <span>{fullWidth ? "Find us here" : "SM"}</span>
-        <span className="ml-1 text-white/45">{socialOpen ? "−" : "+"}</span>
+
+        <span
+          className={[
+            "ml-1 text-white/45 transition-transform duration-200",
+            socialOpen ? "rotate-180" : "",
+          ].join(" ")}
+        >
+          {socialOpen ? "−" : "+"}
+        </span>
       </button>
 
       {socialOpen ? (
         <div
-          className={[
-            "fixed left-4 right-4 top-[92px] z-50 max-h-[70vh] overflow-y-auto rounded-2xl border border-white/10 bg-[#050914]/95 p-2 shadow-[0_24px_80px_rgba(0,0,0,0.75)] backdrop-blur-xl sm:absolute sm:left-auto sm:right-auto sm:top-12 sm:w-80",
-            fullWidth ? "sm:left-0 sm:right-0 sm:w-full" : positionClass,
-          ].join(" ")}
+          role="menu"
+          aria-label="KORAX official social links"
+          className={
+            fullWidth
+              ? "absolute left-0 right-0 top-12 z-[70] max-h-[64vh] overflow-y-auto rounded-2xl border border-white/10 bg-[#050914]/98 p-2 shadow-[0_24px_80px_rgba(0,0,0,0.78)] backdrop-blur-2xl"
+              : [
+                  "fixed left-4 right-4 top-[92px] z-[70] max-h-[72vh] overflow-y-auto rounded-2xl border border-white/10 bg-[#050914]/98 p-2 shadow-[0_24px_80px_rgba(0,0,0,0.78)] backdrop-blur-2xl",
+                  "sm:absolute sm:left-auto sm:right-auto sm:top-12 sm:w-80",
+                  desktopPositionClass,
+                ].join(" ")
+          }
         >
-          <div className="border-b border-white/10 px-3 py-3">
-            <div className="text-xs uppercase tracking-[0.22em] text-blue-100">
-              KORAX Socials
-            </div>
+          <div className="relative overflow-hidden rounded-xl border border-white/10 bg-white/[0.035] px-4 py-4">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.14),transparent_42%)]" />
 
-            <div className="mt-1 text-xs leading-relaxed text-white/45">
-              Official channels and community links.
+            <div className="relative">
+              <div className="text-xs font-black uppercase tracking-[0.22em] text-blue-100">
+                KORAX Socials
+              </div>
+
+              <div className="mt-1 text-xs leading-relaxed text-white/45">
+                Official channels, project updates, and community links.
+              </div>
             </div>
           </div>
 
           <div className="mt-2 grid gap-1">
             {socialLinks.map((item) => (
-              <SocialLinkRow key={item.label} item={item} />
+              <SocialLinkRow
+                key={item.label}
+                item={item}
+                onNavigate={() => setSocialOpen(false)}
+              />
             ))}
+          </div>
+
+          <div className="mt-2 rounded-xl border border-blue-400/15 bg-blue-500/[0.06] px-3 py-3 text-[11px] leading-5 text-white/45">
+            Always verify that you are using the official KORAX links shown
+            here.
           </div>
         </div>
       ) : null}
@@ -304,7 +417,11 @@ function FindUsDropdown({
   );
 }
 
-function WordmarkBrand({ mobileMenu = false }: { mobileMenu?: boolean }) {
+function WordmarkBrand({
+  mobileMenu = false,
+}: {
+  mobileMenu?: boolean;
+}) {
   return (
     <Link
       href="/"
@@ -318,10 +435,101 @@ function WordmarkBrand({ mobileMenu = false }: { mobileMenu?: boolean }) {
           "topbar-wordmark-image bg-transparent object-contain",
           mobileMenu
             ? "h-8 w-auto max-w-[180px]"
-            : "h-7 w-auto max-w-[92px] sm:h-8 sm:max-w-[170px] lg:h-9 lg:max-w-[210px]",
+            : "topbar-main-wordmark h-7 w-auto max-w-[92px] sm:h-8 sm:max-w-[170px] lg:h-9 lg:max-w-[210px]",
         ].join(" ")}
       />
     </Link>
+  );
+}
+
+function WalletControl({
+  fullWidth = false,
+}: {
+  fullWidth?: boolean;
+}) {
+  return (
+    <ConnectButton.Custom>
+      {({
+        account,
+        chain,
+        openAccountModal,
+        openChainModal,
+        openConnectModal,
+        mounted,
+      }) => {
+        const connected = mounted && account && chain;
+
+        const baseClass = fullWidth
+          ? "h-11 w-full whitespace-nowrap rounded-xl px-5 text-sm font-black text-white transition duration-200"
+          : "h-10 shrink-0 whitespace-nowrap rounded-xl px-3 text-[11px] font-black text-white transition duration-200 sm:px-5 sm:text-sm";
+
+        if (!mounted) {
+          return (
+            <button
+              type="button"
+              disabled
+              aria-label="Loading wallet connection"
+              className={`${baseClass} cursor-wait bg-blue-500/70 shadow-[0_0_25px_rgba(59,130,246,0.16)]`}
+            >
+              Connect Wallet
+            </button>
+          );
+        }
+
+        if (!connected) {
+          return (
+            <button
+              onClick={openConnectModal}
+              type="button"
+              className={`${baseClass} bg-blue-500 shadow-[0_0_25px_rgba(59,130,246,0.25)] hover:-translate-y-0.5 hover:bg-blue-400 hover:shadow-[0_0_34px_rgba(59,130,246,0.36)] focus:outline-none focus:ring-2 focus:ring-blue-300/50`}
+            >
+              Connect Wallet
+            </button>
+          );
+        }
+
+        if (chain.unsupported) {
+          return (
+            <button
+              onClick={openChainModal}
+              type="button"
+              className={`${baseClass} bg-red-500 shadow-[0_0_24px_rgba(239,68,68,0.22)] hover:bg-red-400 focus:outline-none focus:ring-2 focus:ring-red-300/50`}
+            >
+              Wrong Network
+            </button>
+          );
+        }
+
+        return (
+          <button
+            onClick={openAccountModal}
+            type="button"
+            title={account.address}
+            className={[
+              baseClass,
+              "bg-blue-500 shadow-[0_0_25px_rgba(59,130,246,0.25)] hover:-translate-y-0.5 hover:bg-blue-400 hover:shadow-[0_0_34px_rgba(59,130,246,0.36)] focus:outline-none focus:ring-2 focus:ring-blue-300/50",
+              fullWidth
+                ? ""
+                : "max-w-[112px] overflow-hidden text-ellipsis sm:max-w-none",
+            ].join(" ")}
+          >
+            {fullWidth ? (
+              account.displayName
+            ) : (
+              <>
+                <span className="sm:hidden">
+                  {shortAddress(account.address)}
+                </span>
+
+                <span className="hidden sm:inline">
+                  {account.displayName}
+                </span>
+              </>
+            )}
+          </button>
+        );
+      }}
+    </ConnectButton.Custom>
   );
 }
 
@@ -335,15 +543,31 @@ export default function Topbar() {
       { label: "Roadmap", href: "/roadmap" },
       { label: "Docs", href: "/docs" },
       { label: "Presale", href: "/presale" },
-      { label: "Claim", href: "/claim", sublabel: "After Presale Ends" },
-      { label: "Staking", href: "/staking", sublabel: "Available After Claim" },
-      { label: "Token Builder AI", href: "/ai", status: "Live" },
+      {
+        label: "Claim",
+        href: "/claim",
+        sublabel: "After Presale Ends",
+      },
+      {
+        label: "Staking",
+        href: "/staking",
+        sublabel: "Available After Claim",
+      },
+      {
+        label: "Token Builder AI",
+        href: "/ai",
+        status: "Live",
+      },
       {
         label: "Website Builder AI",
         href: "/website-builder-ai",
         status: "Live",
       },
-      { label: "Launch", href: "/launch", status: "Live" },
+      {
+        label: "Launch",
+        href: "/launch",
+        status: "Live",
+      },
     ],
     []
   );
@@ -353,17 +577,34 @@ export default function Topbar() {
   }, [pathname]);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+    function handleKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", handleKey);
+
+    return () => {
+      window.removeEventListener("keydown", handleKey);
     };
-
-    window.addEventListener("keydown", onKey);
-
-    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  useEffect(() => {
+    if (!open) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
+
   const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : pathname?.startsWith(href);
+    href === "/"
+      ? pathname === "/"
+      : Boolean(pathname?.startsWith(href));
 
   return (
     <header className="fixed left-0 right-0 top-0 z-50">
@@ -385,6 +626,18 @@ export default function Topbar() {
 
           50% {
             opacity: 0.85;
+          }
+        }
+
+        @keyframes topbarEdge {
+          0%, 100% {
+            opacity: 0.18;
+            transform: translateX(-12%);
+          }
+
+          50% {
+            opacity: 0.55;
+            transform: translateX(12%);
           }
         }
 
@@ -414,231 +667,87 @@ export default function Topbar() {
           border-radius: 1rem;
           pointer-events: none;
           background:
-            radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.13), transparent 28%),
-            radial-gradient(circle at 85% 50%, rgba(14, 165, 233, 0.08), transparent 26%);
+            radial-gradient(
+              circle at 15% 50%,
+              rgba(59, 130, 246, 0.13),
+              transparent 28%
+            ),
+            radial-gradient(
+              circle at 85% 50%,
+              rgba(14, 165, 233, 0.08),
+              transparent 26%
+            );
           animation: topbarGlow 4s ease-in-out infinite;
+        }
+
+        .topbar-shell::after {
+          content: "";
+          position: absolute;
+          left: 8%;
+          right: 8%;
+          bottom: -1px;
+          height: 1px;
+          pointer-events: none;
+          background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(96, 165, 250, 0.5),
+            transparent
+          );
+          animation: topbarEdge 5s ease-in-out infinite;
+        }
+
+        @media (max-width: 370px) {
+          .topbar-main-wordmark {
+            max-width: 70px !important;
+          }
         }
 
         @media (prefers-reduced-motion: reduce) {
           .topbar-wordmark-image,
-          .topbar-shell::before {
+          .topbar-shell::before,
+          .topbar-shell::after {
             animation: none;
           }
         }
       `}</style>
 
       <div className="mx-auto w-full max-w-[1500px] px-3 pt-3 sm:px-4 sm:pt-4">
-        <div className="topbar-shell relative flex min-h-[64px] items-center gap-2 rounded-2xl border border-white/10 bg-black/40 px-3 py-3 shadow-[0_18px_70px_rgba(0,0,0,0.45)] backdrop-blur-md">
+        <div className="topbar-shell relative flex min-h-[64px] items-center gap-2 rounded-2xl border border-white/10 bg-black/45 px-3 py-3 shadow-[0_18px_70px_rgba(0,0,0,0.48)] backdrop-blur-xl">
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="relative z-20 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/90 hover:bg-white/10 lg:hidden"
-            aria-label="Open Menu"
+            className="relative z-20 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/90 transition hover:border-blue-400/25 hover:bg-blue-500/10 hover:text-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-400/40 lg:hidden"
+            aria-label="Open navigation menu"
+            aria-expanded={open}
           >
             <MenuIcon className="h-5 w-5" />
           </button>
 
           <WordmarkBrand />
 
-          <nav className="relative z-10 hidden flex-1 items-center justify-center gap-2 lg:flex">
-            {nav.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={[
-                  "rounded-xl px-3 py-2 text-sm transition",
-                  isActive(item.href)
-                    ? "bg-white/10 text-white"
-                    : "text-white/70 hover:bg-white/5 hover:text-white",
-                ].join(" ")}
-              >
-                <span className="flex flex-col items-center text-center leading-tight">
-                  <span className="inline-flex items-center gap-2">
-                    {item.label}
-                    {item.status ? (
-                      <span
-                        className={[
-                          "rounded-full border px-2 py-0.5 text-[11px]",
-                          statusClass(item.status),
-                        ].join(" ")}
-                      >
-                        {item.status}
-                      </span>
-                    ) : null}
-                  </span>
+          <nav
+            className="relative z-10 hidden flex-1 items-center justify-center gap-1.5 lg:flex"
+            aria-label="Main navigation"
+          >
+            {nav.map((item) => {
+              const active = isActive(item.href);
 
-                  {item.sublabel ? (
-                    <span className="mt-1 text-[10px] text-white/40">
-                      {item.sublabel}
-                    </span>
-                  ) : null}
-                </span>
-              </Link>
-            ))}
-          </nav>
-
-          <div className="relative z-20 ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
-            <FindUsDropdown align="right" />
-
-            <ConnectButton.Custom>
-              {({
-                account,
-                chain,
-                openAccountModal,
-                openChainModal,
-                openConnectModal,
-                mounted,
-              }) => {
-                const ready = mounted;
-                const connected = ready && account && chain;
-
-                return (
-                  <div
-                    aria-hidden={!ready}
-                    className={!ready ? "pointer-events-none opacity-0" : ""}
-                  >
-                    {!connected ? (
-                      <button
-                        onClick={openConnectModal}
-                        type="button"
-                        className="h-10 shrink-0 whitespace-nowrap rounded-xl bg-blue-500 px-3 text-[11px] font-black text-white shadow-[0_0_25px_rgba(59,130,246,0.25)] transition hover:bg-blue-400 sm:px-5 sm:text-sm"
-                      >
-                        Connect Wallet
-                      </button>
-                    ) : chain?.unsupported ? (
-                      <button
-                        onClick={openChainModal}
-                        type="button"
-                        className="h-10 shrink-0 whitespace-nowrap rounded-xl bg-red-500 px-3 text-[11px] font-black text-white sm:px-5 sm:text-sm"
-                      >
-                        Wrong Network
-                      </button>
-                    ) : (
-                      <button
-                        onClick={openAccountModal}
-                        type="button"
-                        className="h-10 max-w-[112px] shrink-0 overflow-hidden text-ellipsis whitespace-nowrap rounded-xl bg-blue-500 px-3 text-[11px] font-black text-white shadow-[0_0_25px_rgba(59,130,246,0.25)] transition hover:bg-blue-400 sm:max-w-none sm:px-5 sm:text-sm"
-                        title={account.address}
-                      >
-                        <span className="sm:hidden">
-                          {shortAddress(account.address)}
-                        </span>
-
-                        <span className="hidden sm:inline">
-                          {account.displayName}
-                        </span>
-                      </button>
-                    )}
-                  </div>
-                );
-              }}
-            </ConnectButton.Custom>
-          </div>
-        </div>
-      </div>
-
-      {open ? (
-        <div className="lg:hidden">
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="fixed inset-0 z-40 bg-black/60"
-            aria-label="Close Overlay"
-          />
-
-          <div className="fixed left-0 right-0 top-0 z-50 mx-auto w-full max-w-[1500px] px-3 pt-3 sm:px-4 sm:pt-4">
-            <div className="max-h-[calc(100vh-24px)] overflow-y-auto rounded-2xl border border-white/10 bg-black/80 shadow-[0_24px_90px_rgba(0,0,0,0.75)] backdrop-blur-md">
-              <div className="relative flex min-h-[64px] items-center justify-between px-4 py-3">
-                <WordmarkBrand mobileMenu />
-
-                <button
-                  type="button"
-                  onClick={() => setOpen(false)}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/90 hover:bg-white/10"
-                  aria-label="Close Menu"
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={active ? "page" : undefined}
+                  className={[
+                    "rounded-xl px-3 py-2 text-sm transition duration-200",
+                    active
+                      ? "border border-blue-400/20 bg-blue-500/10 text-blue-100 shadow-[0_0_22px_rgba(59,130,246,0.10)]"
+                      : "border border-transparent text-white/70 hover:border-white/10 hover:bg-white/5 hover:text-white",
+                  ].join(" ")}
                 >
-                  <CloseIcon />
-                </button>
-              </div>
-
-              <div className="px-4 pb-4">
-                <div className="mb-3">
-                  <ConnectButton.Custom>
-                    {({
-                      account,
-                      chain,
-                      openAccountModal,
-                      openChainModal,
-                      openConnectModal,
-                      mounted,
-                    }) => {
-                      const ready = mounted;
-                      const connected = ready && account && chain;
-
-                      return (
-                        <div
-                          aria-hidden={!ready}
-                          className={
-                            !ready ? "pointer-events-none opacity-0" : ""
-                          }
-                        >
-                          {!connected ? (
-                            <button
-                              onClick={openConnectModal}
-                              type="button"
-                              className="h-11 w-full whitespace-nowrap rounded-xl bg-blue-500 font-black text-white"
-                            >
-                              Connect Wallet
-                            </button>
-                          ) : chain?.unsupported ? (
-                            <button
-                              onClick={openChainModal}
-                              type="button"
-                              className="h-11 w-full whitespace-nowrap rounded-xl bg-red-500 font-black text-white"
-                            >
-                              Wrong Network
-                            </button>
-                          ) : (
-                            <button
-                              onClick={openAccountModal}
-                              type="button"
-                              className="h-11 w-full whitespace-nowrap rounded-xl bg-blue-500 font-black text-white"
-                              title={account.address}
-                            >
-                              {account.displayName}
-                            </button>
-                          )}
-                        </div>
-                      );
-                    }}
-                  </ConnectButton.Custom>
-                </div>
-
-                <div className="mb-3">
-                  <FindUsDropdown align="center" fullWidth />
-                </div>
-
-                <div className="grid gap-2 rounded-2xl border border-white/10 bg-white/5 p-3">
-                  {nav.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={[
-                        "flex items-start justify-between rounded-xl px-3 py-3 text-sm transition",
-                        isActive(item.href)
-                          ? "bg-white/10 text-white"
-                          : "text-white/80 hover:bg-white/10",
-                      ].join(" ")}
-                    >
-                      <div className="flex flex-col leading-tight">
-                        <span>{item.label}</span>
-
-                        {item.sublabel ? (
-                          <span className="mt-1 text-[11px] text-white/45">
-                            {item.sublabel}
-                          </span>
-                        ) : null}
-                      </div>
+                  <span className="flex flex-col items-center text-center leading-tight">
+                    <span className="inline-flex items-center gap-2">
+                      {item.label}
 
                       {item.status ? (
                         <span
@@ -650,8 +759,112 @@ export default function Topbar() {
                           {item.status}
                         </span>
                       ) : null}
-                    </Link>
-                  ))}
+                    </span>
+
+                    {item.sublabel ? (
+                      <span className="mt-1 text-[10px] text-white/40">
+                        {item.sublabel}
+                      </span>
+                    ) : null}
+                  </span>
+                </Link>
+              );
+            })}
+          </nav>
+
+          <div className="relative z-20 ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+            <FindUsDropdown
+              align="right"
+              closeSignal={pathname || ""}
+            />
+
+            <WalletControl />
+          </div>
+        </div>
+      </div>
+
+      {open ? (
+        <div className="lg:hidden">
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm"
+            aria-label="Close navigation overlay"
+          />
+
+          <div className="fixed left-0 right-0 top-0 z-50 mx-auto w-full max-w-[1500px] px-3 pt-3 sm:px-4 sm:pt-4">
+            <div className="max-h-[calc(100vh-24px)] overflow-y-auto rounded-2xl border border-white/10 bg-[#020611]/96 shadow-[0_24px_90px_rgba(0,0,0,0.78)] backdrop-blur-2xl">
+              <div className="relative flex min-h-[64px] items-center justify-between border-b border-white/10 px-4 py-3">
+                <WordmarkBrand mobileMenu />
+
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/90 transition hover:border-blue-400/25 hover:bg-blue-500/10 hover:text-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-400/40"
+                  aria-label="Close navigation menu"
+                >
+                  <CloseIcon />
+                </button>
+              </div>
+
+              <div className="px-4 pb-4 pt-4">
+                <div className="mb-3">
+                  <WalletControl fullWidth />
+                </div>
+
+                <div className="mb-3">
+                  <FindUsDropdown
+                    align="center"
+                    fullWidth
+                    closeSignal={pathname || ""}
+                  />
+                </div>
+
+                <div className="grid gap-2 rounded-2xl border border-white/10 bg-white/[0.035] p-3">
+                  {nav.map((item) => {
+                    const active = isActive(item.href);
+
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setOpen(false)}
+                        aria-current={active ? "page" : undefined}
+                        className={[
+                          "flex items-start justify-between rounded-xl border px-3 py-3 text-sm transition duration-200",
+                          active
+                            ? "border-blue-400/20 bg-blue-500/10 text-blue-100"
+                            : "border-transparent text-white/80 hover:border-white/10 hover:bg-white/[0.06] hover:text-white",
+                        ].join(" ")}
+                      >
+                        <div className="flex flex-col leading-tight">
+                          <span className="font-semibold">{item.label}</span>
+
+                          {item.sublabel ? (
+                            <span className="mt-1 text-[11px] text-white/45">
+                              {item.sublabel}
+                            </span>
+                          ) : null}
+                        </div>
+
+                        {item.status ? (
+                          <span
+                            className={[
+                              "rounded-full border px-2 py-0.5 text-[11px]",
+                              statusClass(item.status),
+                            ].join(" ")}
+                          >
+                            {item.status}
+                          </span>
+                        ) : null}
+                      </Link>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-3 rounded-2xl border border-blue-400/15 bg-blue-500/[0.06] px-4 py-3 text-xs leading-6 text-white/50">
+                  KORAX official ecosystem access. Verify all links and contract
+                  addresses before interacting.
                 </div>
               </div>
             </div>
