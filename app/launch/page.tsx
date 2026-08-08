@@ -21,7 +21,6 @@ import {
   USDT_ADDRESS,
   USDC_ADDRESS,
   accessManagerAbi,
-  launchpadAbi,
 } from "@/lib/korax/contracts";
 
 const BSC_CHAIN_ID = 56;
@@ -62,6 +61,67 @@ const FULL_ERC20_ABI = [
   "function balanceOf(address account) view returns (uint256)",
   "function decimals() view returns (uint8)",
   "function symbol() view returns (string)",
+];
+
+const launchpadAbi = [
+  "function PROJECT() view returns (string)",
+  "function MODULE() view returns (string)",
+  "function BUILD() view returns (uint256)",
+  "function owner() view returns (address)",
+  "function USDT() view returns (address)",
+  "function USDC() view returns (address)",
+  "function USDT_DECIMALS() view returns (uint8)",
+  "function USDC_DECIMALS() view returns (uint8)",
+  "function accessManager() view returns (address)",
+  "function nextSaleId() view returns (uint256)",
+  "function approvedSaleCreators(address) view returns (bool)",
+  "function globalPaused() view returns (bool)",
+  "function antiBotEnabled() view returns (bool)",
+  "function buyCooldown() view returns (uint256)",
+  "function level1ContributionLimitUsd18() view returns (uint256)",
+  "function level2ContributionLimitUsd18() view returns (uint256)",
+  "function level3ContributionLimitUsd18() view returns (uint256)",
+  "function sales(uint256) view returns (address owner,address saleToken,address fundReceiver,uint8 saleTokenDecimals,uint64 startTime,uint64 endTime,uint256 totalForSale,uint256 totalSold,uint256 softCapUsd18,uint256 hardCapUsd18,uint256 totalRaisedUsd18,bool active,bool paused,bool finalized,bool successful,bool cancelled,bool claimOpen,bool proceedsWithdrawn,bool saleTokensWithdrawn,bool requireKoraxAccess)",
+  "function stagesCount(uint256 saleId) view returns (uint256)",
+  "function getStage(uint256 saleId,uint256 index) view returns (tuple(uint256 cap,uint256 priceUsd18,uint256 sold))",
+  "function getSaleFunds(uint256 saleId) view returns (tuple(uint256 totalRaisedUSDT,uint256 totalRaisedUSDC,uint256 escrowUSDT,uint256 escrowUSDC))",
+  "function getSaleLimits(uint256 saleId) view returns (tuple(uint256 level1Usd18,uint256 level2Usd18,uint256 level3Usd18))",
+  "function isSaleLive(uint256 saleId) view returns (bool)",
+  "function canFinalize(uint256 saleId) view returns (bool)",
+  "function currentStage(uint256 saleId) view returns (uint256)",
+  "function stageRemaining(uint256 saleId,uint256 index) view returns (uint256)",
+  "function maxContributionOf(uint256 saleId,address user) view returns (uint256)",
+  "function contributedUsd18(uint256 saleId,address user) view returns (uint256)",
+  "function contributedUSDT(uint256 saleId,address user) view returns (uint256)",
+  "function contributedUSDC(uint256 saleId,address user) view returns (uint256)",
+  "function purchased(uint256 saleId,address user) view returns (uint256)",
+  "function claimed(uint256 saleId,address user) view returns (bool)",
+  "function refunded(uint256 saleId,address user) view returns (bool)",
+  "function lastBuyAt(uint256 saleId,address user) view returns (uint256)",
+  "function previewTokensForUSDT(uint256 saleId,uint256 maxPaymentAmount) view returns (uint256 tokensOut)",
+  "function previewTokensForUSDC(uint256 saleId,uint256 maxPaymentAmount) view returns (uint256 tokensOut)",
+  "function quoteUSDT(uint256 saleId,uint256 maxPaymentAmount) view returns (uint256 tokensOut,uint256 paymentUsed,uint256 usdValue18)",
+  "function quoteUSDC(uint256 saleId,uint256 maxPaymentAmount) view returns (uint256 tokensOut,uint256 paymentUsed,uint256 usdValue18)",
+  "function createSale(address saleToken,address fundReceiver,uint256[] stageCaps,uint256[] stagePricesUsd18,uint256 softCapUsd18,uint64 startTime,uint64 endTime,bool requireKoraxAccess) returns (uint256 saleId)",
+  "function buyWithUSDT(uint256 saleId,uint256 maxPaymentAmount,uint256 minTokensOut,uint256 deadline)",
+  "function buyWithUSDC(uint256 saleId,uint256 maxPaymentAmount,uint256 minTokensOut,uint256 deadline)",
+  "function claim(uint256 saleId)",
+  "function refund(uint256 saleId)",
+  "function finalizeSale(uint256 saleId)",
+  "function cancelSale(uint256 saleId)",
+  "function withdrawProceeds(uint256 saleId)",
+  "function withdrawSaleTokens(uint256 saleId)",
+  "function setSaleCreatorApproval(address account,bool approved)",
+  "function setAccessManager(address newAccessManager)",
+  "function setGlobalPaused(bool paused)",
+  "function setSalePaused(uint256 saleId,bool paused)",
+  "function setAntiBot(bool enabled,uint256 cooldownSeconds)",
+  "function setContributionLimits(uint256 level1Usd18,uint256 level2Usd18,uint256 level3Usd18)",
+  "event SaleCreated(uint256 indexed saleId,address indexed owner,address indexed saleToken,address fundReceiver,uint256 totalForSale,uint256 softCapUsd18,uint256 hardCapUsd18,uint64 startTime,uint64 endTime,bool requireKoraxAccess)",
+  "event Bought(uint256 indexed saleId,address indexed buyer,address indexed paymentToken,uint256 paymentAmount,uint256 usdValue18,uint256 tokenAmount)",
+  "event SaleFinalized(uint256 indexed saleId,bool successful,uint256 totalRaisedUsd18,uint256 softCapUsd18)",
+  "event Claimed(uint256 indexed saleId,address indexed user,uint256 amount)",
+  "event Refunded(uint256 indexed saleId,address indexed user,uint256 usdtAmount,uint256 usdcAmount)",
 ];
 
 type PaymentKey = "USDT" | "USDC";
@@ -106,11 +166,36 @@ type LoadedSale = {
   saleTokenSymbol: string;
   fundReceiver: string;
   saleTokenDecimals: number;
+  startTime: number;
+  endTime: number;
   totalForSale: bigint;
   totalSold: bigint;
+  softCapUsd18: bigint;
+  hardCapUsd18: bigint;
+  totalRaisedUsd18: bigint;
   active: boolean;
+  paused: boolean;
+  finalized: boolean;
+  successful: boolean;
+  cancelled: boolean;
   claimOpen: boolean;
+  proceedsWithdrawn: boolean;
+  saleTokensWithdrawn: boolean;
   requireKoraxAccess: boolean;
+  live: boolean;
+  canFinalize: boolean;
+  currentStage: number;
+  funds: {
+    totalRaisedUSDT: bigint;
+    totalRaisedUSDC: bigint;
+    escrowUSDT: bigint;
+    escrowUSDC: bigint;
+  };
+  limits: {
+    level1Usd18: bigint;
+    level2Usd18: bigint;
+    level3Usd18: bigint;
+  };
   stages: LoadedStage[];
 };
 
@@ -279,6 +364,67 @@ function safeParseUnits(value: string, decimals: number) {
   } catch {
     return 0n;
   }
+}
+
+function isNonNegativeDecimal(value: string) {
+  const normalized = value.trim();
+  if (!/^(?:\d+\.?\d*|\.\d+)$/.test(normalized)) return false;
+  const numberValue = Number(normalized);
+  return Number.isFinite(numberValue) && numberValue >= 0;
+}
+
+function safeParseNonNegativeUnits(value: string, decimals: number) {
+  try {
+    if (!isNonNegativeDecimal(value)) return 0n;
+    return ethers.parseUnits(value.trim(), decimals);
+  } catch {
+    return 0n;
+  }
+}
+
+function parseDateTimeToUnix(
+  value: string,
+  label: string,
+  allowImmediate = false
+) {
+  const normalized = value.trim();
+
+  if (!normalized) {
+    if (allowImmediate) return 0;
+    throw new Error(`${label} is required.`);
+  }
+
+  const milliseconds = new Date(normalized).getTime();
+
+  if (!Number.isFinite(milliseconds)) {
+    throw new Error(`${label} is invalid.`);
+  }
+
+  const unix = Math.floor(milliseconds / 1000);
+
+  if (!Number.isSafeInteger(unix) || unix <= 0) {
+    throw new Error(`${label} is invalid.`);
+  }
+
+  return unix;
+}
+
+function formatUnixDate(unixSeconds: number) {
+  if (!unixSeconds) return "Immediate";
+
+  return new Date(unixSeconds * 1000).toLocaleString("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
+function mulDivUp(x: bigint, y: bigint, denominator: bigint) {
+  if (denominator <= 0n) {
+    throw new Error("Invalid division denominator.");
+  }
+
+  const product = x * y;
+  return (product + denominator - 1n) / denominator;
 }
 
 function levelFromNumber(level: number) {
@@ -1254,6 +1400,9 @@ export default function LaunchPage() {
     fundReceiver: "",
     stageCaps: "1000000\n1000000\n1000000",
     stagePricesUsd: "0.01\n0.015\n0.02",
+    softCapUsd: "0",
+    startTime: "",
+    endTime: "",
     requireKoraxAccess: true,
   });
 
@@ -1261,8 +1410,7 @@ export default function LaunchPage() {
     saleId: "0",
     creatorAddress: "",
     approved: true,
-    claimOpen: true,
-    unsoldReceiver: "",
+    globalPaused: false,
     level1Limit: "250",
     level2Limit: "500",
     level3Limit: "750",
@@ -1274,32 +1422,45 @@ export default function LaunchPage() {
     saleId: string;
     paymentAmount: string;
     payToken: PaymentKey;
+    slippagePercent: string;
+    deadlineMinutes: string;
   }>({
     saleId: "0",
     paymentAmount: "10",
     payToken: "USDT",
+    slippagePercent: "1",
+    deadlineMinutes: "15",
   });
 
   const [creatorStatus, setCreatorStatus] = useState("");
   const [creatorTxHash, setCreatorTxHash] = useState("");
   const [adminStatus, setAdminStatus] = useState("");
   const [adminTxHash, setAdminTxHash] = useState("");
+  const [saleManagerStatus, setSaleManagerStatus] = useState("");
+  const [saleManagerTxHash, setSaleManagerTxHash] = useState("");
   const [buyerStatus, setBuyerStatus] = useState("");
   const [buyerTxHash, setBuyerTxHash] = useState("");
 
   const [creatingSale, setCreatingSale] = useState(false);
   const [adminBusy, setAdminBusy] = useState(false);
+  const [saleManagerBusy, setSaleManagerBusy] = useState(false);
   const [loadingSale, setLoadingSale] = useState(false);
   const [buying, setBuying] = useState(false);
   const [claiming, setClaiming] = useState(false);
+  const [refunding, setRefunding] = useState(false);
 
   const [loadedSaleId, setLoadedSaleId] = useState("");
   const [loadedSale, setLoadedSale] = useState<LoadedSale | null>(null);
   const [buyerMax, setBuyerMax] = useState<bigint>(0n);
   const [buyerPurchased, setBuyerPurchased] = useState<bigint>(0n);
   const [buyerContributed, setBuyerContributed] = useState<bigint>(0n);
+  const [buyerContributedUSDT, setBuyerContributedUSDT] = useState<bigint>(0n);
+  const [buyerContributedUSDC, setBuyerContributedUSDC] = useState<bigint>(0n);
   const [buyerClaimed, setBuyerClaimed] = useState(false);
+  const [buyerRefunded, setBuyerRefunded] = useState(false);
   const [previewTokens, setPreviewTokens] = useState<bigint>(0n);
+  const [previewPaymentUsed, setPreviewPaymentUsed] = useState<bigint>(0n);
+  const [previewUsdValue18, setPreviewUsdValue18] = useState<bigint>(0n);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState("");
   const [lastSaleUpdate, setLastSaleUpdate] = useState("");
@@ -1322,7 +1483,7 @@ export default function LaunchPage() {
     [access.launchLevel]
   );
 
-  const canCreateSale = isLaunchpadOwner || isApprovedCreator;
+  const canCreateSale = isApprovedCreator;
   const currentPaymentAsset = paymentAssets[buyerForm.payToken];
 
   const dynamicLevels = useMemo(
@@ -1346,36 +1507,54 @@ export default function LaunchPage() {
     ? formatPercent(loadedSale.totalSold, loadedSale.totalForSale)
     : 0;
 
-  const currentStageIndex = loadedSale
-    ? loadedSale.stages.findIndex((stage) => stage.sold < stage.cap)
-    : -1;
+  const currentStageIndex = loadedSale ? loadedSale.currentStage : -1;
 
   const buyerRemainingUsd18 =
     buyerMax > buyerContributed ? buyerMax - buyerContributed : 0n;
 
-  const paymentAmountUsd18 = safeParseUnits(buyerForm.paymentAmount, 18);
-
   const exceedsBuyerLimit =
-    buyerMax > 0n && paymentAmountUsd18 > buyerRemainingUsd18;
+    buyerMax > 0n && previewUsdValue18 > buyerRemainingUsd18;
 
   const participationAccessReady =
     !loadedSale?.requireKoraxAccess || access.hasLaunchAccess;
 
+  const connectedIsSaleOwner =
+    Boolean(address && loadedSale?.owner) &&
+    loadedSale!.owner.toLowerCase() === address!.toLowerCase();
+
+  const canManageLoadedSale =
+    Boolean(loadedSale) && (connectedIsSaleOwner || isLaunchpadOwner);
+
+  const totalBuyerStableContribution =
+    buyerContributedUSDT + buyerContributedUSDC;
+
   const canBuy =
     loadedSaleMatchesInput &&
-    Boolean(loadedSale?.active) &&
+    Boolean(loadedSale?.live) &&
     isPositiveDecimal(buyerForm.paymentAmount) &&
     previewTokens > 0n &&
+    previewPaymentUsed > 0n &&
     participationAccessReady &&
     !exceedsBuyerLimit &&
     !buying;
 
   const canClaim =
     loadedSaleMatchesInput &&
-    Boolean(loadedSale?.claimOpen) &&
+    Boolean(
+      loadedSale?.finalized &&
+        loadedSale.successful &&
+        loadedSale.claimOpen
+    ) &&
     buyerPurchased > 0n &&
     !buyerClaimed &&
     !claiming;
+
+  const canRefund =
+    loadedSaleMatchesInput &&
+    Boolean(loadedSale?.finalized && !loadedSale.successful) &&
+    totalBuyerStableContribution > 0n &&
+    !buyerRefunded &&
+    !refunding;
 
   async function getReadProvider() {
     return new ethers.JsonRpcProvider(RPC_URL);
@@ -1488,10 +1667,10 @@ async function getBrowserSigner() {
     setPermissionError("");
 
     try {
-      if (!user || !LAUNCHPAD_ADDRESS) {
+      if (!LAUNCHPAD_ADDRESS) {
         setIsLaunchpadOwner(false);
         setIsApprovedCreator(false);
-        return;
+        throw new Error("Launchpad address is missing.");
       }
 
       const provider = await getReadProvider();
@@ -1503,15 +1682,41 @@ async function getBrowserSigner() {
         provider
       );
 
-      const [ownerRaw, approvedRaw] = await Promise.all([
+      const [
+        ownerRaw,
+        approvedRaw,
+        globalPausedRaw,
+        antiBotEnabledRaw,
+        cooldownRaw,
+        level1Raw,
+        level2Raw,
+        level3Raw,
+      ] = await Promise.all([
         launchpad.owner(),
-        launchpad.approvedSaleCreators(user),
+        user ? launchpad.approvedSaleCreators(user) : Promise.resolve(false),
+        launchpad.globalPaused(),
+        launchpad.antiBotEnabled(),
+        launchpad.buyCooldown(),
+        launchpad.level1ContributionLimitUsd18(),
+        launchpad.level2ContributionLimitUsd18(),
+        launchpad.level3ContributionLimitUsd18(),
       ]);
 
       setIsLaunchpadOwner(
-        String(ownerRaw).toLowerCase() === user.toLowerCase()
+        Boolean(user) &&
+          String(ownerRaw).toLowerCase() === String(user).toLowerCase()
       );
-      setIsApprovedCreator(Boolean(approvedRaw));
+      setIsApprovedCreator(Boolean(user) && Boolean(approvedRaw));
+
+      setAdminForm((previous) => ({
+        ...previous,
+        globalPaused: Boolean(globalPausedRaw),
+        antiBotEnabled: Boolean(antiBotEnabledRaw),
+        cooldown: cooldownRaw.toString(),
+        level1Limit: ethers.formatUnits(level1Raw, 18),
+        level2Limit: ethers.formatUnits(level2Raw, 18),
+        level3Limit: ethers.formatUnits(level3Raw, 18),
+      }));
     } catch (error) {
       setIsLaunchpadOwner(false);
       setIsApprovedCreator(false);
@@ -1607,6 +1812,8 @@ async function getBrowserSigner() {
 
       if (!/^\d+$/.test(idText) || !isPositiveDecimal(buyerForm.paymentAmount)) {
         setPreviewTokens(0n);
+        setPreviewPaymentUsed(0n);
+        setPreviewUsdValue18(0n);
         setPreviewLoading(false);
         return;
       }
@@ -1635,20 +1842,28 @@ async function getBrowserSigner() {
         provider
       );
 
-      const output =
+      const quote =
         buyerForm.payToken === "USDC"
-          ? await launchpad.previewTokensForUSDC(saleId, paymentAmount)
-          : await launchpad.previewTokensForUSDT(saleId, paymentAmount);
+          ? await launchpad.quoteUSDC(saleId, paymentAmount)
+          : await launchpad.quoteUSDT(saleId, paymentAmount);
 
       if (requestId !== previewRequestIdRef.current) return;
 
-      setPreviewTokens(BigInt(output.toString()));
+      const tokensOutRaw = quote.tokensOut ?? quote[0];
+      const paymentUsedRaw = quote.paymentUsed ?? quote[1];
+      const usdValueRaw = quote.usdValue18 ?? quote[2];
+
+      setPreviewTokens(BigInt(tokensOutRaw.toString()));
+      setPreviewPaymentUsed(BigInt(paymentUsedRaw.toString()));
+      setPreviewUsdValue18(BigInt(usdValueRaw.toString()));
     } catch (error) {
       if (requestId !== previewRequestIdRef.current) return;
 
       setPreviewTokens(0n);
+      setPreviewPaymentUsed(0n);
+      setPreviewUsdValue18(0n);
       setPreviewError(
-        getErrorMessage(error, "The token preview could not be calculated.")
+        getErrorMessage(error, "The token quote could not be calculated.")
       );
     } finally {
       if (requestId === previewRequestIdRef.current) {
@@ -1675,21 +1890,35 @@ async function getBrowserSigner() {
         provider
       );
 
-      const [saleRaw, countRaw] = await Promise.all([
-        launchpad.sales(saleId),
-        launchpad.stagesCount(saleId),
-      ]);
+      const saleRaw = await launchpad.sales(saleId);
+      const saleOwnerRaw = saleRaw?.owner ?? saleRaw?.[0];
 
       if (
-        !saleRaw?.owner ||
-        String(saleRaw.owner).toLowerCase() === ZERO_ADDRESS
+        !saleOwnerRaw ||
+        String(saleOwnerRaw).toLowerCase() === ZERO_ADDRESS
       ) {
         throw new Error(`Sale #${saleId.toString()} was not found.`);
       }
 
+      const [
+        countRaw,
+        fundsRaw,
+        limitsRaw,
+        liveRaw,
+        canFinalizeRaw,
+        currentStageRaw,
+      ] = await Promise.all([
+        launchpad.stagesCount(saleId),
+        launchpad.getSaleFunds(saleId),
+        launchpad.getSaleLimits(saleId),
+        launchpad.isSaleLive(saleId),
+        launchpad.canFinalize(saleId),
+        launchpad.currentStage(saleId),
+      ]);
+
       const stageCount = Number(countRaw);
 
-      if (!Number.isSafeInteger(stageCount) || stageCount < 1 || stageCount > 50) {
+      if (!Number.isSafeInteger(stageCount) || stageCount < 1 || stageCount > 10) {
         throw new Error("The sale contains an invalid number of stages.");
       }
 
@@ -1698,19 +1927,25 @@ async function getBrowserSigner() {
           const stageRaw = await launchpad.getStage(saleId, index);
 
           return {
-            cap: BigInt(stageRaw.cap.toString()),
-            priceUsd18: BigInt(stageRaw.priceUsd18.toString()),
-            sold: BigInt(stageRaw.sold.toString()),
+            cap: BigInt((stageRaw.cap ?? stageRaw[0]).toString()),
+            priceUsd18: BigInt(
+              (stageRaw.priceUsd18 ?? stageRaw[1]).toString()
+            ),
+            sold: BigInt((stageRaw.sold ?? stageRaw[2]).toString()),
           } satisfies LoadedStage;
         })
       );
 
-      const saleTokenDecimals = Number(saleRaw.saleTokenDecimals);
+      const field = (name: string, index: number) =>
+        saleRaw?.[name] ?? saleRaw?.[index];
+
+      const saleTokenAddress = String(field("saleToken", 1));
+      const saleTokenDecimals = Number(field("saleTokenDecimals", 3));
       let saleTokenSymbol = "TOKEN";
 
       try {
         const saleToken = new ethers.Contract(
-          saleRaw.saleToken,
+          saleTokenAddress,
           FULL_ERC20_ABI,
           provider
         );
@@ -1719,17 +1954,61 @@ async function getBrowserSigner() {
         saleTokenSymbol = "TOKEN";
       }
 
+      const currentStageNumber = Number(currentStageRaw);
+
       const sale: LoadedSale = {
-        owner: String(saleRaw.owner),
-        saleToken: String(saleRaw.saleToken),
+        owner: String(field("owner", 0)),
+        saleToken: saleTokenAddress,
         saleTokenSymbol,
-        fundReceiver: String(saleRaw.fundReceiver),
+        fundReceiver: String(field("fundReceiver", 2)),
         saleTokenDecimals,
-        totalForSale: BigInt(saleRaw.totalForSale.toString()),
-        totalSold: BigInt(saleRaw.totalSold.toString()),
-        active: Boolean(saleRaw.active),
-        claimOpen: Boolean(saleRaw.claimOpen),
-        requireKoraxAccess: Boolean(saleRaw.requireKoraxAccess),
+        startTime: Number(field("startTime", 4)),
+        endTime: Number(field("endTime", 5)),
+        totalForSale: BigInt(field("totalForSale", 6).toString()),
+        totalSold: BigInt(field("totalSold", 7).toString()),
+        softCapUsd18: BigInt(field("softCapUsd18", 8).toString()),
+        hardCapUsd18: BigInt(field("hardCapUsd18", 9).toString()),
+        totalRaisedUsd18: BigInt(field("totalRaisedUsd18", 10).toString()),
+        active: Boolean(field("active", 11)),
+        paused: Boolean(field("paused", 12)),
+        finalized: Boolean(field("finalized", 13)),
+        successful: Boolean(field("successful", 14)),
+        cancelled: Boolean(field("cancelled", 15)),
+        claimOpen: Boolean(field("claimOpen", 16)),
+        proceedsWithdrawn: Boolean(field("proceedsWithdrawn", 17)),
+        saleTokensWithdrawn: Boolean(field("saleTokensWithdrawn", 18)),
+        requireKoraxAccess: Boolean(field("requireKoraxAccess", 19)),
+        live: Boolean(liveRaw),
+        canFinalize: Boolean(canFinalizeRaw),
+        currentStage:
+          currentStageNumber >= 0 && currentStageNumber < stageCount
+            ? currentStageNumber
+            : -1,
+        funds: {
+          totalRaisedUSDT: BigInt(
+            (fundsRaw.totalRaisedUSDT ?? fundsRaw[0]).toString()
+          ),
+          totalRaisedUSDC: BigInt(
+            (fundsRaw.totalRaisedUSDC ?? fundsRaw[1]).toString()
+          ),
+          escrowUSDT: BigInt(
+            (fundsRaw.escrowUSDT ?? fundsRaw[2]).toString()
+          ),
+          escrowUSDC: BigInt(
+            (fundsRaw.escrowUSDC ?? fundsRaw[3]).toString()
+          ),
+        },
+        limits: {
+          level1Usd18: BigInt(
+            (limitsRaw.level1Usd18 ?? limitsRaw[0]).toString()
+          ),
+          level2Usd18: BigInt(
+            (limitsRaw.level2Usd18 ?? limitsRaw[1]).toString()
+          ),
+          level3Usd18: BigInt(
+            (limitsRaw.level3Usd18 ?? limitsRaw[2]).toString()
+          ),
+        },
         stages,
       };
 
@@ -1739,25 +2018,45 @@ async function getBrowserSigner() {
         ...previous,
         saleId: saleId.toString(),
       }));
+      setAdminForm((previous) => ({
+        ...previous,
+        saleId: saleId.toString(),
+      }));
 
       if (address) {
-        const [maxRaw, contributedRaw, purchasedRaw, claimedRaw] =
-          await Promise.all([
-            launchpad.maxContributionOf(saleId, address),
-            launchpad.contributedUsd18(saleId, address),
-            launchpad.purchased(saleId, address),
-            launchpad.claimed(saleId, address),
-          ]);
+        const [
+          maxRaw,
+          contributedRaw,
+          contributedUSDTRaw,
+          contributedUSDCRaw,
+          purchasedRaw,
+          claimedRaw,
+          refundedRaw,
+        ] = await Promise.all([
+          launchpad.maxContributionOf(saleId, address),
+          launchpad.contributedUsd18(saleId, address),
+          launchpad.contributedUSDT(saleId, address),
+          launchpad.contributedUSDC(saleId, address),
+          launchpad.purchased(saleId, address),
+          launchpad.claimed(saleId, address),
+          launchpad.refunded(saleId, address),
+        ]);
 
         setBuyerMax(BigInt(maxRaw.toString()));
         setBuyerContributed(BigInt(contributedRaw.toString()));
+        setBuyerContributedUSDT(BigInt(contributedUSDTRaw.toString()));
+        setBuyerContributedUSDC(BigInt(contributedUSDCRaw.toString()));
         setBuyerPurchased(BigInt(purchasedRaw.toString()));
         setBuyerClaimed(Boolean(claimedRaw));
+        setBuyerRefunded(Boolean(refundedRaw));
       } else {
         setBuyerMax(0n);
         setBuyerContributed(0n);
+        setBuyerContributedUSDT(0n);
+        setBuyerContributedUSDC(0n);
         setBuyerPurchased(0n);
         setBuyerClaimed(false);
+        setBuyerRefunded(false);
       }
 
       setLastSaleUpdate(
@@ -1779,8 +2078,14 @@ async function getBrowserSigner() {
         setLoadedSaleId("");
         setBuyerMax(0n);
         setBuyerContributed(0n);
+        setBuyerContributedUSDT(0n);
+        setBuyerContributedUSDC(0n);
         setBuyerPurchased(0n);
         setBuyerClaimed(false);
+        setBuyerRefunded(false);
+        setPreviewTokens(0n);
+        setPreviewPaymentUsed(0n);
+        setPreviewUsdValue18(0n);
         setBuyerStatus(getErrorMessage(error, "Failed to load sale."));
       }
     } finally {
@@ -1798,13 +2103,17 @@ async function getBrowserSigner() {
     try {
       if (!canCreateSale) {
         throw new Error(
-          "Only the Launchpad owner or an approved sale creator can create a sale."
+          "This wallet is not approved by the Launchpad contract to create sales."
         );
       }
 
       const signer = await getBrowserSigner();
       const creator = await signer.getAddress();
       const provider = signer.provider;
+
+      if (!creatorForm.saleToken.trim()) {
+        throw new Error("Sale token address is required.");
+      }
 
       const saleTokenAddress = ethers.getAddress(creatorForm.saleToken.trim());
       const fundReceiver = creatorForm.fundReceiver.trim()
@@ -1820,6 +2129,15 @@ async function getBrowserSigner() {
       );
 
       const saleDecimals = Number(await saleToken.decimals());
+
+      if (
+        !Number.isSafeInteger(saleDecimals) ||
+        saleDecimals < 0 ||
+        saleDecimals > 18
+      ) {
+        throw new Error("The sale token must use between 0 and 18 decimals.");
+      }
+
       const caps = parsePositiveLines(creatorForm.stageCaps, "Stage caps");
       const prices = parsePositiveLines(
         creatorForm.stagePricesUsd,
@@ -1827,11 +2145,17 @@ async function getBrowserSigner() {
       );
 
       if (caps.length !== prices.length) {
-        throw new Error("Stage caps and prices must contain the same number of lines.");
+        throw new Error(
+          "Stage caps and prices must contain the same number of lines."
+        );
       }
 
       if (caps.length > 10) {
         throw new Error("A launch sale can contain a maximum of 10 stages.");
+      }
+
+      if (!isNonNegativeDecimal(creatorForm.softCapUsd)) {
+        throw new Error("Soft cap must be a valid non-negative USD amount.");
       }
 
       const stageCaps = caps.map((value) =>
@@ -1840,10 +2164,56 @@ async function getBrowserSigner() {
       const stagePricesUsd18 = prices.map((value) =>
         ethers.parseUnits(value, 18)
       );
+      const softCapUsd18 = safeParseNonNegativeUnits(
+        creatorForm.softCapUsd,
+        18
+      );
       const totalForSale = stageCaps.reduce(
         (total, value) => total + value,
         0n
       );
+      const saleUnit = 10n ** BigInt(saleDecimals);
+      const hardCapUsd18 = stageCaps.reduce(
+        (total, cap, index) =>
+          total + mulDivUp(cap, stagePricesUsd18[index], saleUnit),
+        0n
+      );
+
+      if (totalForSale <= 0n) {
+        throw new Error("Total sale allocation must be greater than zero.");
+      }
+
+      if (softCapUsd18 > hardCapUsd18) {
+        throw new Error(
+          `Soft cap cannot exceed the calculated hard cap of $${formatUnitsSafe(
+            hardCapUsd18,
+            18,
+            6
+          )}.`
+        );
+      }
+
+      const startTime = parseDateTimeToUnix(
+        creatorForm.startTime,
+        "Start time",
+        true
+      );
+      const endTime = parseDateTimeToUnix(
+        creatorForm.endTime,
+        "End time"
+      );
+      const now = Math.floor(Date.now() / 1000);
+      const effectiveStart = startTime === 0 ? now : startTime;
+
+      if (startTime !== 0 && startTime < now + 60) {
+        throw new Error(
+          "Choose a start time at least one minute in the future, or leave it empty to start immediately."
+        );
+      }
+
+      if (endTime <= effectiveStart) {
+        throw new Error("End time must be later than the effective start time.");
+      }
 
       const tokenBalanceRaw = await saleToken.balanceOf(creator);
       const tokenBalance = BigInt(tokenBalanceRaw.toString());
@@ -1865,15 +2235,19 @@ async function getBrowserSigner() {
       const allowance = BigInt(allowanceRaw.toString());
 
       if (allowance < totalForSale) {
-        setCreatorStatus("Approve the complete sale allocation in your wallet...");
+        setCreatorStatus(
+          "Approve the complete sale-token allocation in your wallet..."
+        );
 
         const approvalTransaction = await saleToken.approve(
           LAUNCHPAD_ADDRESS,
           totalForSale
         );
 
-        setCreatorStatus("Sale-token approval submitted. Waiting for confirmation...");
-        await approvalTransaction.wait();
+        setCreatorStatus(
+          "Sale-token approval submitted. Waiting for confirmation..."
+        );
+        await waitForReceipt(approvalTransaction);
       }
 
       const launchpad = new ethers.Contract(
@@ -1882,13 +2256,16 @@ async function getBrowserSigner() {
         signer
       );
 
-      setCreatorStatus("Confirm the launch-sale creation transaction...");
+      setCreatorStatus("Confirm the BUILD 3 launch-sale transaction...");
 
       const transaction = await launchpad.createSale(
         saleTokenAddress,
         fundReceiver,
         stageCaps,
         stagePricesUsd18,
+        softCapUsd18,
+        startTime,
+        endTime,
         creatorForm.requireKoraxAccess
       );
 
@@ -1904,16 +2281,11 @@ async function getBrowserSigner() {
             data: log.data,
           });
 
-          if (!parsed) continue;
+          if (parsed?.name !== "SaleCreated") continue;
 
-          const candidate =
-            parsed.args?.saleId ?? parsed.args?.id ?? parsed.args?.[0];
+          const candidate = parsed.args?.saleId ?? parsed.args?.[0];
 
-          if (
-            candidate !== undefined &&
-            candidate !== null &&
-            /sale/i.test(parsed.name)
-          ) {
+          if (candidate !== undefined && candidate !== null) {
             createdSaleId = candidate.toString();
             break;
           }
@@ -1958,8 +2330,10 @@ async function getBrowserSigner() {
         throw new Error("Load the selected sale before buying.");
       }
 
-      if (!loadedSale.active) {
-        throw new Error("This sale is not active.");
+      if (!loadedSale.live) {
+        throw new Error(
+          "This sale is not currently live. Check its start time, pause state, finalization state, or end time."
+        );
       }
 
       if (loadedSale.requireKoraxAccess && !access.hasLaunchAccess) {
@@ -1975,28 +2349,40 @@ async function getBrowserSigner() {
         );
       }
 
-      const paymentAmount = safeParseUnits(
-        buyerForm.paymentAmount,
-        currentPaymentAsset.decimals
-      );
-      const requestedUsd18 = safeParseUnits(buyerForm.paymentAmount, 18);
-
-      if (paymentAmount <= 0n || requestedUsd18 <= 0n) {
+      if (!isPositiveDecimal(buyerForm.paymentAmount)) {
         throw new Error("Enter a valid positive payment amount.");
       }
 
-      if (buyerMax > 0n && requestedUsd18 > buyerRemainingUsd18) {
-        throw new Error(
-          `This purchase exceeds your remaining limit of $${formatUnitsSafe(
-            buyerRemainingUsd18,
-            18,
-            2
-          )}.`
-        );
+      if (!isNonNegativeDecimal(buyerForm.slippagePercent)) {
+        throw new Error("Slippage must be a valid non-negative percentage.");
       }
 
-      if (previewTokens <= 0n) {
-        throw new Error("The contract preview returned zero tokens.");
+      const slippageBps = ethers.parseUnits(
+        buyerForm.slippagePercent.trim(),
+        2
+      );
+
+      if (slippageBps > 2_000n) {
+        throw new Error("Slippage cannot exceed 20%.");
+      }
+
+      if (!isNonNegativeInteger(buyerForm.deadlineMinutes)) {
+        throw new Error("Deadline minutes must be a whole number.");
+      }
+
+      const deadlineMinutes = BigInt(buyerForm.deadlineMinutes);
+
+      if (deadlineMinutes < 1n || deadlineMinutes > 120n) {
+        throw new Error("Deadline must be between 1 and 120 minutes.");
+      }
+
+      const maxPaymentAmount = ethers.parseUnits(
+        buyerForm.paymentAmount,
+        currentPaymentAsset.decimals
+      );
+
+      if (maxPaymentAmount <= 0n) {
+        throw new Error("Enter a valid positive payment amount.");
       }
 
       const signer = await getBrowserSigner();
@@ -2009,6 +2395,63 @@ async function getBrowserSigner() {
         buyerForm.payToken
       );
 
+      const launchpad = new ethers.Contract(
+        LAUNCHPAD_ADDRESS,
+        launchpadAbi,
+        signer
+      );
+
+      const liveNow = await launchpad.isSaleLive(saleId);
+
+      if (!liveNow) {
+        throw new Error("The sale is no longer live.");
+      }
+
+      const freshQuote =
+        buyerForm.payToken === "USDC"
+          ? await launchpad.quoteUSDC(saleId, maxPaymentAmount)
+          : await launchpad.quoteUSDT(saleId, maxPaymentAmount);
+
+      const quotedTokens = BigInt(
+        (freshQuote.tokensOut ?? freshQuote[0]).toString()
+      );
+      const quotedPaymentUsed = BigInt(
+        (freshQuote.paymentUsed ?? freshQuote[1]).toString()
+      );
+      const quotedUsdValue = BigInt(
+        (freshQuote.usdValue18 ?? freshQuote[2]).toString()
+      );
+
+      if (quotedTokens <= 0n || quotedPaymentUsed <= 0n) {
+        throw new Error("The contract quote returned zero output.");
+      }
+
+      const maxAllowedRaw = await launchpad.maxContributionOf(saleId, buyer);
+      const alreadyContributedRaw = await launchpad.contributedUsd18(
+        saleId,
+        buyer
+      );
+      const maxAllowed = BigInt(maxAllowedRaw.toString());
+      const alreadyContributed = BigInt(alreadyContributedRaw.toString());
+      const remainingAllowed =
+        maxAllowed > alreadyContributed
+          ? maxAllowed - alreadyContributed
+          : 0n;
+
+      if (maxAllowed <= 0n) {
+        throw new Error("This wallet has no contribution access for the sale.");
+      }
+
+      if (quotedUsdValue > remainingAllowed) {
+        throw new Error(
+          `This purchase exceeds your remaining limit of $${formatUnitsSafe(
+            remainingAllowed,
+            18,
+            2
+          )}.`
+        );
+      }
+
       const paymentToken = new ethers.Contract(
         currentPaymentAsset.address,
         FULL_ERC20_ABI,
@@ -2018,8 +2461,10 @@ async function getBrowserSigner() {
       const balanceRaw = await paymentToken.balanceOf(buyer);
       const balance = BigInt(balanceRaw.toString());
 
-      if (balance < paymentAmount) {
-        throw new Error(`Insufficient ${buyerForm.payToken} balance.`);
+      if (balance < quotedPaymentUsed) {
+        throw new Error(
+          `Insufficient ${buyerForm.payToken} balance for the quoted payment.`
+        );
       }
 
       const allowanceRaw = await paymentToken.allowance(
@@ -2028,34 +2473,52 @@ async function getBrowserSigner() {
       );
       const allowance = BigInt(allowanceRaw.toString());
 
-      if (allowance < paymentAmount) {
+      if (allowance < maxPaymentAmount) {
         setBuyerStatus(`Approve ${buyerForm.payToken} in your wallet...`);
 
         const approvalTransaction = await paymentToken.approve(
           LAUNCHPAD_ADDRESS,
-          paymentAmount
+          maxPaymentAmount
         );
 
         setBuyerStatus(
           `${buyerForm.payToken} approval submitted. Waiting for confirmation...`
         );
-        await approvalTransaction.wait();
+        await waitForReceipt(approvalTransaction);
       }
 
-      const launchpad = new ethers.Contract(
-        LAUNCHPAD_ADDRESS,
-        launchpadAbi,
-        signer
-      );
+      const minTokensOut =
+        (quotedTokens * (10_000n - slippageBps)) / 10_000n;
+      const safeMinTokensOut = minTokensOut > 0n ? minTokensOut : 1n;
+      const deadline =
+        BigInt(Math.floor(Date.now() / 1000)) + deadlineMinutes * 60n;
 
-      setBuyerStatus(`Confirm the ${buyerForm.payToken} purchase...`);
+      setBuyerStatus(
+        `Confirm the ${buyerForm.payToken} purchase. Minimum output: ${formatUnitsSafe(
+          safeMinTokensOut,
+          loadedSale.saleTokenDecimals,
+          6
+        )} ${loadedSale.saleTokenSymbol}.`
+      );
 
       const transaction =
         buyerForm.payToken === "USDC"
-          ? await launchpad.buyWithUSDC(saleId, paymentAmount)
-          : await launchpad.buyWithUSDT(saleId, paymentAmount);
+          ? await launchpad.buyWithUSDC(
+              saleId,
+              maxPaymentAmount,
+              safeMinTokensOut,
+              deadline
+            )
+          : await launchpad.buyWithUSDT(
+              saleId,
+              maxPaymentAmount,
+              safeMinTokensOut,
+              deadline
+            );
 
-      setBuyerStatus("Purchase submitted. Waiting for blockchain confirmation...");
+      setBuyerStatus(
+        "Purchase submitted. Waiting for blockchain confirmation..."
+      );
 
       const receipt = await waitForReceipt(transaction);
 
@@ -2079,6 +2542,10 @@ async function getBrowserSigner() {
     try {
       if (!loadedSale || !loadedSaleMatchesInput) {
         throw new Error("Load the selected sale before claiming.");
+      }
+
+      if (!loadedSale.finalized || !loadedSale.successful) {
+        throw new Error("Only a finalized successful sale can be claimed.");
       }
 
       if (!loadedSale.claimOpen) {
@@ -2105,7 +2572,9 @@ async function getBrowserSigner() {
 
       const transaction = await launchpad.claim(saleId);
 
-      setBuyerStatus("Claim submitted. Waiting for blockchain confirmation...");
+      setBuyerStatus(
+        "Claim submitted. Waiting for blockchain confirmation..."
+      );
 
       const receipt = await waitForReceipt(transaction);
 
@@ -2119,8 +2588,62 @@ async function getBrowserSigner() {
     }
   }
 
+  async function refund() {
+    if (refunding) return;
+
+    setRefunding(true);
+    setBuyerStatus("");
+    setBuyerTxHash("");
+
+    try {
+      if (!loadedSale || !loadedSaleMatchesInput) {
+        throw new Error("Load the selected sale before requesting a refund.");
+      }
+
+      if (!loadedSale.finalized || loadedSale.successful) {
+        throw new Error(
+          "Refunds are available only after an unsuccessful sale is finalized."
+        );
+      }
+
+      if (buyerRefunded) {
+        throw new Error("This wallet has already received its refund.");
+      }
+
+      if (totalBuyerStableContribution <= 0n) {
+        throw new Error("This wallet has no refundable contribution.");
+      }
+
+      const signer = await getBrowserSigner();
+      const launchpad = new ethers.Contract(
+        LAUNCHPAD_ADDRESS,
+        launchpadAbi,
+        signer
+      );
+      const saleId = parseSaleId(buyerForm.saleId);
+
+      setBuyerStatus("Confirm the refund transaction in your wallet...");
+
+      const transaction = await launchpad.refund(saleId);
+
+      setBuyerStatus(
+        "Refund submitted. Waiting for blockchain confirmation..."
+      );
+
+      const receipt = await waitForReceipt(transaction);
+
+      setBuyerTxHash(receipt.hash);
+      setBuyerStatus("Refund completed successfully.");
+      await loadSaleById(saleId.toString(), true);
+    } catch (error) {
+      setBuyerStatus(getErrorMessage(error, "Refund failed."));
+    } finally {
+      setRefunding(false);
+    }
+  }
+
   async function adminAction(
-    action: "approve" | "close" | "claim" | "unsold" | "limits" | "antibot"
+    action: "approve" | "globalPause" | "limits" | "antibot"
   ) {
     if (adminBusy) return;
 
@@ -2151,24 +2674,8 @@ async function getBrowserSigner() {
           ethers.getAddress(adminForm.creatorAddress.trim()),
           adminForm.approved
         );
-      } else if (action === "close") {
-        transaction = await launchpad.closeSale(
-          parseSaleId(adminForm.saleId)
-        );
-      } else if (action === "claim") {
-        transaction = await launchpad.setClaimOpen(
-          parseSaleId(adminForm.saleId),
-          adminForm.claimOpen
-        );
-      } else if (action === "unsold") {
-        const receiver = adminForm.unsoldReceiver.trim()
-          ? ethers.getAddress(adminForm.unsoldReceiver.trim())
-          : await signer.getAddress();
-
-        transaction = await launchpad.withdrawUnsold(
-          parseSaleId(adminForm.saleId),
-          receiver
-        );
+      } else if (action === "globalPause") {
+        transaction = await launchpad.setGlobalPaused(adminForm.globalPaused);
       } else if (action === "limits") {
         const level1 = safeParseUnits(adminForm.level1Limit, 18);
         const level2 = safeParseUnits(adminForm.level2Limit, 18);
@@ -2178,8 +2685,10 @@ async function getBrowserSigner() {
           throw new Error("All contribution limits must be positive.");
         }
 
-        if (!(level1 <= level2 && level2 <= level3)) {
-          throw new Error("Contribution limits must increase from Level 1 to Level 3.");
+        if (!(level1 < level2 && level2 < level3)) {
+          throw new Error(
+            "Contribution limits must strictly increase from Level 1 to Level 3."
+          );
         }
 
         transaction = await launchpad.setContributionLimits(
@@ -2204,24 +2713,142 @@ async function getBrowserSigner() {
         );
       }
 
-      setAdminStatus("Admin transaction submitted. Waiting for confirmation...");
+      setAdminStatus(
+        "Admin transaction submitted. Waiting for confirmation..."
+      );
 
       const receipt = await waitForReceipt(transaction);
 
       setAdminTxHash(receipt.hash);
       setAdminStatus("Admin action completed successfully.");
 
+      await loadLaunchpadPermissions(address);
+
       if (loadedSaleId) {
         await loadSaleById(loadedSaleId, true);
-      }
-
-      if (action === "approve") {
-        await loadLaunchpadPermissions(address);
       }
     } catch (error) {
       setAdminStatus(getErrorMessage(error, "Admin action failed."));
     } finally {
       setAdminBusy(false);
+    }
+  }
+
+  async function saleAction(
+    action:
+      | "pause"
+      | "resume"
+      | "finalize"
+      | "cancel"
+      | "proceeds"
+      | "tokens"
+  ) {
+    if (saleManagerBusy) return;
+
+    setSaleManagerBusy(true);
+    setSaleManagerStatus("");
+    setSaleManagerTxHash("");
+
+    try {
+      if (!loadedSale || !loadedSaleId) {
+        throw new Error("Load a sale before using sale management.");
+      }
+
+      if (!canManageLoadedSale) {
+        throw new Error(
+          "Only the sale owner or Launchpad owner can manage this sale."
+        );
+      }
+
+      const signer = await getBrowserSigner();
+      const connected = await signer.getAddress();
+      const saleId = parseSaleId(loadedSaleId);
+      const launchpad = new ethers.Contract(
+        LAUNCHPAD_ADDRESS,
+        launchpadAbi,
+        signer
+      );
+
+      let transaction: ethers.ContractTransactionResponse;
+
+      if (action === "pause" || action === "resume") {
+        if (loadedSale.finalized || loadedSale.cancelled) {
+          throw new Error("A finalized or cancelled sale cannot be paused.");
+        }
+
+        transaction = await launchpad.setSalePaused(
+          saleId,
+          action === "pause"
+        );
+      } else if (action === "finalize") {
+        if (!loadedSale.canFinalize) {
+          throw new Error(
+            "The sale cannot be finalized until it ends or sells out."
+          );
+        }
+
+        transaction = await launchpad.finalizeSale(saleId);
+      } else if (action === "cancel") {
+        if (
+          connected.toLowerCase() !== loadedSale.owner.toLowerCase()
+        ) {
+          throw new Error("Only the sale owner can cancel this sale.");
+        }
+
+        if (loadedSale.totalRaisedUsd18 > 0n) {
+          throw new Error(
+            "A sale with contributions cannot be cancelled."
+          );
+        }
+
+        transaction = await launchpad.cancelSale(saleId);
+      } else if (action === "proceeds") {
+        if (!loadedSale.finalized || !loadedSale.successful) {
+          throw new Error(
+            "Proceeds can be withdrawn only from a finalized successful sale."
+          );
+        }
+
+        if (loadedSale.proceedsWithdrawn) {
+          throw new Error("Sale proceeds have already been withdrawn.");
+        }
+
+        transaction = await launchpad.withdrawProceeds(saleId);
+      } else {
+        if (
+          connected.toLowerCase() !== loadedSale.owner.toLowerCase()
+        ) {
+          throw new Error("Only the sale owner can withdraw sale tokens.");
+        }
+
+        if (!loadedSale.finalized) {
+          throw new Error(
+            "Sale tokens can be withdrawn only after finalization."
+          );
+        }
+
+        if (loadedSale.saleTokensWithdrawn) {
+          throw new Error("Sale tokens have already been withdrawn.");
+        }
+
+        transaction = await launchpad.withdrawSaleTokens(saleId);
+      }
+
+      setSaleManagerStatus(
+        "Sale-management transaction submitted. Waiting for confirmation..."
+      );
+
+      const receipt = await waitForReceipt(transaction);
+
+      setSaleManagerTxHash(receipt.hash);
+      setSaleManagerStatus("Sale-management action completed successfully.");
+      await loadSaleById(loadedSaleId, true);
+    } catch (error) {
+      setSaleManagerStatus(
+        getErrorMessage(error, "Sale-management action failed.")
+      );
+    } finally {
+      setSaleManagerBusy(false);
     }
   }
 
@@ -2440,7 +3067,8 @@ async function getBrowserSigner() {
             <p className="mt-6 max-w-3xl text-base leading-8 text-white/70 sm:text-lg">
               A staged BNB Chain launch system for KORAX-created and approved
               external projects. Sales support USDT and USDC participation,
-              access levels, controlled closing, and owner-activated claims.
+              access levels, timed finalization, automatic successful-sale
+              claims, and refunds for unsuccessful sales.
             </p>
 
             <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -2450,8 +3078,8 @@ async function getBrowserSigner() {
               <StatusPill active={Boolean(publicProjects.length)}>
                 Project Registry
               </StatusPill>
-              <StatusPill active={Boolean(loadedSale?.active)} tone="cyan">
-                Sale {loadedSale?.active ? "Live" : "Console"}
+              <StatusPill active={Boolean(loadedSale?.live)} tone="cyan">
+                Sale {loadedSale?.live ? "Live" : "Console"}
               </StatusPill>
               <StatusPill active={Boolean(loadedSale?.claimOpen)} tone="cyan">
                 Claim {loadedSale?.claimOpen ? "Open" : "Layer"}
@@ -2774,8 +3402,26 @@ async function getBrowserSigner() {
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    <StatusPill active={loadedSale.active} tone="cyan">
-                      {loadedSale.active ? "Active" : "Closed"}
+                    <StatusPill active={loadedSale.live} tone="cyan">
+                      {loadedSale.live
+                        ? "Live"
+                        : loadedSale.finalized
+                          ? "Finalized"
+                          : loadedSale.cancelled
+                            ? "Cancelled"
+                            : loadedSale.paused
+                              ? "Paused"
+                              : "Not Live"}
+                    </StatusPill>
+                    <StatusPill
+                      active={loadedSale.finalized && loadedSale.successful}
+                      tone="cyan"
+                    >
+                      {loadedSale.finalized
+                        ? loadedSale.successful
+                          ? "Successful"
+                          : "Failed"
+                        : "Pending Result"}
                     </StatusPill>
                     <StatusPill active={loadedSale.claimOpen} tone="cyan">
                       Claim {loadedSale.claimOpen ? "Open" : "Closed"}
@@ -2785,20 +3431,94 @@ async function getBrowserSigner() {
 
                 <div className="mt-5 grid gap-3 md:grid-cols-2">
                   <InfoCard label="Owner" value={shortAddress(loadedSale.owner)} />
-                  <InfoCard label="Fund Receiver" value={shortAddress(loadedSale.fundReceiver)} />
+                  <InfoCard
+                    label="Fund Receiver"
+                    value={shortAddress(loadedSale.fundReceiver)}
+                  />
                   <InfoCard label="Sale Token" value={loadedSale.saleToken} mono />
                   <InfoCard
                     label="Access Rule"
-                    value={loadedSale.requireKoraxAccess ? "KORAX access required" : "Public sale"}
+                    value={
+                      loadedSale.requireKoraxAccess
+                        ? "KORAX access required"
+                        : "Public sale"
+                    }
+                  />
+                </div>
+
+                <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  <InfoCard
+                    label="Start"
+                    value={formatUnixDate(loadedSale.startTime)}
+                  />
+                  <InfoCard
+                    label="End"
+                    value={formatUnixDate(loadedSale.endTime)}
+                  />
+                  <InfoCard
+                    label="Soft Cap"
+                    value={`$${formatUnitsSafe(
+                      loadedSale.softCapUsd18,
+                      18,
+                      4
+                    )}`}
+                  />
+                  <InfoCard
+                    label="Hard Cap"
+                    value={`$${formatUnitsSafe(
+                      loadedSale.hardCapUsd18,
+                      18,
+                      4
+                    )}`}
+                  />
+                </div>
+
+                <div className="mt-3 grid gap-3 md:grid-cols-3">
+                  <InfoCard
+                    label="Raised"
+                    value={`$${formatUnitsSafe(
+                      loadedSale.totalRaisedUsd18,
+                      18,
+                      4
+                    )}`}
+                  />
+                  <InfoCard
+                    label="USDT Escrow"
+                    value={`${formatUnitsSafe(
+                      loadedSale.funds.escrowUSDT,
+                      paymentAssets.USDT.decimals,
+                      6
+                    )} ${paymentAssets.USDT.symbol}`}
+                  />
+                  <InfoCard
+                    label="USDC Escrow"
+                    value={`${formatUnitsSafe(
+                      loadedSale.funds.escrowUSDC,
+                      paymentAssets.USDC.decimals,
+                      6
+                    )} ${paymentAssets.USDC.symbol}`}
                   />
                 </div>
 
                 <div className="mt-5">
                   <div className="mb-2 flex justify-between text-xs text-white/50">
                     <span>
-                      {formatUnitsSafe(loadedSale.totalSold, loadedSale.saleTokenDecimals, 4)} / {formatUnitsSafe(loadedSale.totalForSale, loadedSale.saleTokenDecimals, 4)} {loadedSale.saleTokenSymbol}
+                      {formatUnitsSafe(
+                        loadedSale.totalSold,
+                        loadedSale.saleTokenDecimals,
+                        4
+                      )}{" "}
+                      /{" "}
+                      {formatUnitsSafe(
+                        loadedSale.totalForSale,
+                        loadedSale.saleTokenDecimals,
+                        4
+                      )}{" "}
+                      {loadedSale.saleTokenSymbol}
                     </span>
-                    <span className="font-black text-white">{saleProgress.toFixed(2)}%</span>
+                    <span className="font-black text-white">
+                      {saleProgress.toFixed(2)}%
+                    </span>
                   </div>
                   <div className="h-3 overflow-hidden rounded-full bg-white/10">
                     <div
@@ -2811,19 +3531,39 @@ async function getBrowserSigner() {
                 <div className="mt-5 grid gap-3 md:grid-cols-2">
                   <InfoCard
                     label="Your Maximum"
-                    value={buyerMax > 0n ? `$${formatUnitsSafe(buyerMax, 18, 2)}` : "Contract returned 0"}
+                    value={
+                      buyerMax > 0n
+                        ? `$${formatUnitsSafe(buyerMax, 18, 2)}`
+                        : "Contract returned 0"
+                    }
                   />
                   <InfoCard
                     label="Remaining Limit"
-                    value={buyerMax > 0n ? `$${formatUnitsSafe(buyerRemainingUsd18, 18, 2)}` : "Contract returned 0"}
+                    value={
+                      buyerMax > 0n
+                        ? `$${formatUnitsSafe(
+                            buyerRemainingUsd18,
+                            18,
+                            2
+                          )}`
+                        : "Contract returned 0"
+                    }
                   />
                   <InfoCard
                     label="Your Contributed"
-                    value={`$${formatUnitsSafe(buyerContributed, 18, 2)}`}
+                    value={`$${formatUnitsSafe(
+                      buyerContributed,
+                      18,
+                      2
+                    )}`}
                   />
                   <InfoCard
                     label="Your Purchased"
-                    value={`${formatUnitsSafe(buyerPurchased, loadedSale.saleTokenDecimals, 4)} ${loadedSale.saleTokenSymbol}`}
+                    value={`${formatUnitsSafe(
+                      buyerPurchased,
+                      loadedSale.saleTokenDecimals,
+                      4
+                    )} ${loadedSale.saleTokenSymbol}`}
                   />
                 </div>
 
@@ -2832,7 +3572,8 @@ async function getBrowserSigner() {
 
                   {loadedSale.stages.map((stage, index) => {
                     const progress = formatPercent(stage.sold, stage.cap);
-                    const stageActive = index === currentStageIndex && loadedSale.active;
+                    const stageActive =
+                      index === currentStageIndex && loadedSale.live;
 
                     return (
                       <div
@@ -2845,14 +3586,34 @@ async function getBrowserSigner() {
                         ].join(" ")}
                       >
                         <div className="flex items-center justify-between gap-3">
-                          <div className="font-black text-white">Stage {index + 1}</div>
+                          <div className="font-black text-white">
+                            Stage {index + 1}
+                          </div>
                           <StatusPill active={stageActive} tone="cyan">
-                            {stage.sold >= stage.cap ? "Completed" : stageActive ? "Current" : "Pending"}
+                            {stage.sold >= stage.cap
+                              ? "Completed"
+                              : stageActive
+                                ? "Current"
+                                : "Pending"}
                           </StatusPill>
                         </div>
-                        <div className="mt-2">Price: ${formatUnitsSafe(stage.priceUsd18, 18, 6)}</div>
+                        <div className="mt-2">
+                          Price: $
+                          {formatUnitsSafe(stage.priceUsd18, 18, 6)}
+                        </div>
                         <div className="mt-1">
-                          Sold: {formatUnitsSafe(stage.sold, loadedSale.saleTokenDecimals, 4)} / {formatUnitsSafe(stage.cap, loadedSale.saleTokenDecimals, 4)}
+                          Sold:{" "}
+                          {formatUnitsSafe(
+                            stage.sold,
+                            loadedSale.saleTokenDecimals,
+                            4
+                          )}{" "}
+                          /{" "}
+                          {formatUnitsSafe(
+                            stage.cap,
+                            loadedSale.saleTokenDecimals,
+                            4
+                          )}
                         </div>
                         <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
                           <div
@@ -2880,7 +3641,7 @@ async function getBrowserSigner() {
                     paymentAmount: normalizeDecimalInput(event.target.value),
                   }))
                 }
-                placeholder="Payment Amount"
+                placeholder="Maximum Payment Amount"
                 inputMode="decimal"
                 className={inputClass}
               />
@@ -2900,19 +3661,101 @@ async function getBrowserSigner() {
               </select>
             </div>
 
+            <div className="grid gap-4 md:grid-cols-2">
+              <label>
+                <div className="mb-2 text-xs font-black uppercase tracking-[0.2em] text-white/40">
+                  Slippage Protection
+                </div>
+                <input
+                  value={buyerForm.slippagePercent}
+                  onChange={(event) =>
+                    setBuyerForm((previous) => ({
+                      ...previous,
+                      slippagePercent: normalizeDecimalInput(event.target.value),
+                    }))
+                  }
+                  placeholder="1"
+                  inputMode="decimal"
+                  className={inputClass}
+                />
+                <div className="mt-2 text-xs leading-6 text-white/35">
+                  Percentage used to calculate the minimum acceptable token output.
+                </div>
+              </label>
+
+              <label>
+                <div className="mb-2 text-xs font-black uppercase tracking-[0.2em] text-white/40">
+                  Transaction Deadline
+                </div>
+                <input
+                  value={buyerForm.deadlineMinutes}
+                  onChange={(event) =>
+                    setBuyerForm((previous) => ({
+                      ...previous,
+                      deadlineMinutes: event.target.value.replace(/\D/g, ""),
+                    }))
+                  }
+                  placeholder="15"
+                  inputMode="numeric"
+                  className={inputClass}
+                />
+                <div className="mt-2 text-xs leading-6 text-white/35">
+                  Minutes before the signed purchase instruction expires.
+                </div>
+              </label>
+            </div>
+
             <div className="rounded-2xl border border-blue-300/20 bg-blue-500/10 p-4 text-sm text-white/75">
               <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">
-                Contract Preview
+                Contract Quote
               </div>
+
               <div className="mt-2 text-2xl font-black text-blue-100">
                 {previewLoading
                   ? "Calculating..."
                   : loadedSale
-                    ? `${formatUnitsSafe(previewTokens, loadedSale.saleTokenDecimals, 6)} ${loadedSale.saleTokenSymbol}`
+                    ? `${formatUnitsSafe(
+                        previewTokens,
+                        loadedSale.saleTokenDecimals,
+                        6
+                      )} ${loadedSale.saleTokenSymbol}`
                     : "0"}
               </div>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                  <div className="text-[10px] uppercase tracking-[0.16em] text-white/35">
+                    Payment Used
+                  </div>
+                  <div className="mt-1 font-black text-white">
+                    {formatUnitsSafe(
+                      previewPaymentUsed,
+                      currentPaymentAsset.decimals,
+                      6
+                    )}{" "}
+                    {currentPaymentAsset.symbol}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                  <div className="text-[10px] uppercase tracking-[0.16em] text-white/35">
+                    Quoted USD Value
+                  </div>
+                  <div className="mt-1 font-black text-cyan-100">
+                    ${formatUnitsSafe(previewUsdValue18, 18, 6)}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-3 text-xs leading-6 text-white/45">
+                The Launchpad may use less than the entered maximum when the sale
+                reaches its remaining allocation.
+              </div>
+
               {previewError ? (
-                <div className="mt-3 text-xs leading-6 text-red-200">{previewError}</div>
+                <div className="mt-3 text-xs leading-6 text-red-200">
+                  {previewError}
+                </div>
               ) : null}
             </div>
 
@@ -2942,10 +3785,11 @@ async function getBrowserSigner() {
           </div>
         </SectionBox>
 
-        <SectionBox eyebrow="Claim Console" title="Claim Purchased Tokens">
+        <SectionBox eyebrow="Settlement Console" title="Claim Tokens or Request Refund">
           <p className="mt-2 text-sm leading-relaxed text-white/70">
-            Buyers can claim after the sale owner closes the sale and the
-            Launchpad owner opens claim for that sale.
+            A successful sale opens claims automatically when finalized. An
+            unsuccessful finalized sale enables each buyer to recover the USDT
+            and USDC contributed by that wallet.
           </p>
 
           <div className="mt-6 grid gap-4">
@@ -2963,18 +3807,77 @@ async function getBrowserSigner() {
             />
 
             <div className="rounded-2xl border border-white/10 bg-[#020617]/45 p-5 text-sm text-white/70">
-              <div>
-                Purchased: <span className="font-black text-white">
-                  {loadedSale
-                    ? `${formatUnitsSafe(buyerPurchased, loadedSale.saleTokenDecimals, 6)} ${loadedSale.saleTokenSymbol}`
-                    : "0"}
-                </span>
-              </div>
-              <div className="mt-2">
-                Claim status: <span className="font-black text-white">{loadedSale?.claimOpen ? "Open" : "Closed"}</span>
-              </div>
-              <div className="mt-2">
-                Already claimed: <span className="font-black text-white">{buyerClaimed ? "Yes" : "No"}</span>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  Purchased:{" "}
+                  <span className="font-black text-white">
+                    {loadedSale
+                      ? `${formatUnitsSafe(
+                          buyerPurchased,
+                          loadedSale.saleTokenDecimals,
+                          6
+                        )} ${loadedSale.saleTokenSymbol}`
+                      : "0"}
+                  </span>
+                </div>
+
+                <div>
+                  Sale result:{" "}
+                  <span className="font-black text-white">
+                    {!loadedSale
+                      ? "Not loaded"
+                      : !loadedSale.finalized
+                        ? "Awaiting finalization"
+                        : loadedSale.successful
+                          ? "Successful"
+                          : "Unsuccessful"}
+                  </span>
+                </div>
+
+                <div>
+                  Claim status:{" "}
+                  <span className="font-black text-white">
+                    {loadedSale?.claimOpen ? "Open" : "Closed"}
+                  </span>
+                </div>
+
+                <div>
+                  Already claimed:{" "}
+                  <span className="font-black text-white">
+                    {buyerClaimed ? "Yes" : "No"}
+                  </span>
+                </div>
+
+                <div>
+                  USDT contributed:{" "}
+                  <span className="font-black text-white">
+                    {formatUnitsSafe(
+                      buyerContributedUSDT,
+                      paymentAssets.USDT.decimals,
+                      6
+                    )}{" "}
+                    {paymentAssets.USDT.symbol}
+                  </span>
+                </div>
+
+                <div>
+                  USDC contributed:{" "}
+                  <span className="font-black text-white">
+                    {formatUnitsSafe(
+                      buyerContributedUSDC,
+                      paymentAssets.USDC.decimals,
+                      6
+                    )}{" "}
+                    {paymentAssets.USDC.symbol}
+                  </span>
+                </div>
+
+                <div>
+                  Refund status:{" "}
+                  <span className="font-black text-white">
+                    {buyerRefunded ? "Refunded" : "Not refunded"}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -2996,14 +3899,26 @@ async function getBrowserSigner() {
               >
                 {claiming ? "Claiming..." : "Claim Tokens"}
               </button>
+
+              <button
+                type="button"
+                onClick={refund}
+                disabled={!canRefund}
+                className={dangerButtonClass}
+              >
+                {refunding ? "Refunding..." : "Request Refund"}
+              </button>
             </div>
 
-            {!buyerClaimed && buyerPurchased <= 0n ? (
+            {!canClaim && !canRefund ? (
               <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs leading-6 text-white/45">
-                Claim becomes available only when this wallet has a purchased
-                balance and the selected sale has claim enabled.
+                Claim is available after successful finalization. Refund is
+                available after unsuccessful finalization when this wallet has
+                a stablecoin contribution.
               </div>
             ) : null}
+
+            <TransactionStatus message={buyerStatus} txHash={buyerTxHash} />
           </div>
         </SectionBox>
       </section>
@@ -3013,11 +3928,13 @@ async function getBrowserSigner() {
           id="creator-console"
           eyebrow="Creator Console"
           title="Create Launch Sale"
-          right={<StatusPill active tone="cyan">Creator Access</StatusPill>}
+          right={<StatusPill active tone="cyan">Approved Creator</StatusPill>}
         >
           <p className="mt-2 text-sm leading-relaxed text-white/60">
-            The Launchpad contract accepts the sale-token allocation, stage caps,
-            USD prices with 18 decimals, fund receiver, and optional KORAX buyer gate.
+            Configure the token allocation, staged USD prices, soft cap, start
+            and end times, fund receiver, and optional KORAX buyer-access gate.
+            The full sale-token allocation is transferred into the Launchpad
+            contract when the sale is created.
           </p>
 
           <div className="mt-6 grid gap-4">
@@ -3083,6 +4000,66 @@ async function getBrowserSigner() {
               </label>
             </div>
 
+            <div className="grid gap-4 md:grid-cols-3">
+              <label>
+                <div className="mb-2 text-xs font-black uppercase tracking-[0.2em] text-white/40">
+                  Soft Cap — USD
+                </div>
+                <input
+                  value={creatorForm.softCapUsd}
+                  onChange={(event) =>
+                    setCreatorForm((previous) => ({
+                      ...previous,
+                      softCapUsd: normalizeDecimalInput(event.target.value),
+                    }))
+                  }
+                  placeholder="0"
+                  inputMode="decimal"
+                  className={inputClass}
+                />
+              </label>
+
+              <label>
+                <div className="mb-2 text-xs font-black uppercase tracking-[0.2em] text-white/40">
+                  Start Time
+                </div>
+                <input
+                  type="datetime-local"
+                  value={creatorForm.startTime}
+                  onChange={(event) =>
+                    setCreatorForm((previous) => ({
+                      ...previous,
+                      startTime: event.target.value,
+                    }))
+                  }
+                  className={inputClass}
+                />
+                <div className="mt-2 text-xs leading-6 text-white/35">
+                  Leave empty to start immediately.
+                </div>
+              </label>
+
+              <label>
+                <div className="mb-2 text-xs font-black uppercase tracking-[0.2em] text-white/40">
+                  End Time
+                </div>
+                <input
+                  type="datetime-local"
+                  value={creatorForm.endTime}
+                  onChange={(event) =>
+                    setCreatorForm((previous) => ({
+                      ...previous,
+                      endTime: event.target.value,
+                    }))
+                  }
+                  className={inputClass}
+                />
+                <div className="mt-2 text-xs leading-6 text-white/35">
+                  Required and must be later than the effective start.
+                </div>
+              </label>
+            </div>
+
             <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#020617]/45 px-4 py-3 text-sm text-white/80">
               <input
                 type="checkbox"
@@ -3097,7 +4074,7 @@ async function getBrowserSigner() {
               Require KORAX launch access for buyers
             </label>
 
-            <div className="grid gap-3 md:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               <InfoCard
                 label="Configured Stages"
                 value={parseLines(creatorForm.stageCaps).length}
@@ -3107,9 +4084,19 @@ async function getBrowserSigner() {
                 value={parseLines(creatorForm.stagePricesUsd).length}
               />
               <InfoCard
+                label="Soft Cap"
+                value={`$${creatorForm.softCapUsd || "0"}`}
+              />
+              <InfoCard
                 label="Buyer Gate"
                 value={creatorForm.requireKoraxAccess ? "Required" : "Public"}
               />
+            </div>
+
+            <div className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.05] px-4 py-3 text-xs leading-6 text-amber-100/80">
+              Creation requires an approved creator wallet. Review every stage,
+              price, cap, token address, receiver, and time before confirming;
+              these values become part of the on-chain sale.
             </div>
 
             <button
@@ -3118,7 +4105,9 @@ async function getBrowserSigner() {
               disabled={creatingSale}
               className={primaryButtonClass}
             >
-              {creatingSale ? "Creating Sale..." : "Approve Allocation & Create Sale"}
+              {creatingSale
+                ? "Creating Sale..."
+                : "Approve Allocation & Create Sale"}
             </button>
 
             <TransactionStatus message={creatorStatus} txHash={creatorTxHash} />
@@ -3127,195 +4116,333 @@ async function getBrowserSigner() {
       ) : (
         <SectionBox eyebrow="Creator Access" title="Sale Creation Requires Approval">
           <p className="mt-3 text-sm leading-7 text-white/60">
-            Public users can discover, buy, and claim. Creating a launch sale is
-            limited by the Launchpad contract to its owner and approved sale creators.
+            Public users can discover and participate in launches. Creating a
+            sale requires the connected wallet to be explicitly approved as a
+            sale creator by the Launchpad owner.
           </p>
         </SectionBox>
       )}
 
-      {isLaunchpadOwner ? (
+      {canManageLoadedSale && loadedSale ? (
         <SectionBox
-          eyebrow="Admin Control"
-          title="Admin / Launch Manager"
-          right={<StatusPill active tone="cyan">Owner Only</StatusPill>}
+          eyebrow="Sale Management"
+          title={`Manage Sale #${loadedSaleId}`}
+          right={
+            <StatusPill
+              active={loadedSale.live}
+              tone={loadedSale.live ? "cyan" : "amber"}
+            >
+              {loadedSale.live
+                ? "Live"
+                : loadedSale.cancelled
+                  ? "Cancelled"
+                  : loadedSale.finalized
+                    ? loadedSale.successful
+                      ? "Finalized Success"
+                      : "Finalized Failed"
+                    : loadedSale.paused
+                      ? "Paused"
+                      : "Awaiting Window"}
+            </StatusPill>
+          }
         >
           <p className="mt-2 text-sm leading-relaxed text-white/60">
-            These transactions modify Launchpad permissions, sale status, claim,
-            contribution limits, unsold-token recovery, and anti-bot settings.
+            Sale-level controls follow the BUILD 3 lifecycle. Finalization is
+            available only after the end time or a complete sellout. Successful
+            sales open claims automatically; unsuccessful sales enable refunds.
           </p>
 
           <div className="mt-6 grid gap-4">
-            <input
-              value={adminForm.saleId}
-              onChange={(event) =>
-                setAdminForm((previous) => ({
-                  ...previous,
-                  saleId: event.target.value.replace(/\D/g, ""),
-                }))
-              }
-              placeholder="Sale ID"
-              inputMode="numeric"
-              className={inputClass}
-            />
-
-            <div className="grid gap-4 md:grid-cols-[1fr_160px]">
-              <input
-                value={adminForm.creatorAddress}
-                onChange={(event) =>
-                  setAdminForm((previous) => ({
-                    ...previous,
-                    creatorAddress: event.target.value,
-                  }))
-                }
-                placeholder="Creator address"
-                className={inputClass}
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <InfoCard
+                label="Sale Owner"
+                value={shortAddress(loadedSale.owner)}
+                mono
               />
-
-              <select
-                value={adminForm.approved ? "true" : "false"}
-                onChange={(event) =>
-                  setAdminForm((previous) => ({
-                    ...previous,
-                    approved: event.target.value === "true",
-                  }))
+              <InfoCard
+                label="Can Finalize"
+                value={loadedSale.canFinalize ? "Yes" : "No"}
+              />
+              <InfoCard
+                label="Proceeds"
+                value={
+                  loadedSale.proceedsWithdrawn
+                    ? "Withdrawn"
+                    : loadedSale.successful && loadedSale.finalized
+                      ? "Available"
+                      : "Locked"
                 }
-                className={selectClass}
-              >
-                <option value="true">Approve</option>
-                <option value="false">Remove</option>
-              </select>
+              />
+              <InfoCard
+                label="Remaining Tokens"
+                value={
+                  loadedSale.saleTokensWithdrawn
+                    ? "Withdrawn"
+                    : loadedSale.finalized
+                      ? "Available to owner"
+                      : "Locked"
+                }
+              />
             </div>
 
-            <button
-              type="button"
-              onClick={() => adminAction("approve")}
-              disabled={adminBusy}
-              className={ghostButtonClass}
-            >
-              Set Creator Approval
-            </button>
-
-            <div className="grid gap-3 md:grid-cols-3">
+            <div className="flex flex-wrap gap-3">
               <button
                 type="button"
-                onClick={() => adminAction("close")}
-                disabled={adminBusy}
-                className={dangerButtonClass}
+                onClick={() =>
+                  saleAction(loadedSale.paused ? "resume" : "pause")
+                }
+                disabled={
+                  saleManagerBusy ||
+                  loadedSale.finalized ||
+                  loadedSale.cancelled
+                }
+                className={ghostButtonClass}
               >
-                Close Sale
+                {loadedSale.paused ? "Resume Sale" : "Pause Sale"}
               </button>
 
               <button
                 type="button"
-                onClick={() => adminAction("claim")}
-                disabled={adminBusy}
+                onClick={() => saleAction("finalize")}
+                disabled={
+                  saleManagerBusy ||
+                  !loadedSale.canFinalize ||
+                  loadedSale.finalized ||
+                  loadedSale.cancelled
+                }
                 className={cyanButtonClass}
               >
-                Apply Claim Status
+                Finalize Sale
               </button>
 
-              <select
-                value={adminForm.claimOpen ? "true" : "false"}
-                onChange={(event) =>
-                  setAdminForm((previous) => ({
-                    ...previous,
-                    claimOpen: event.target.value === "true",
-                  }))
+              <button
+                type="button"
+                onClick={() => saleAction("cancel")}
+                disabled={
+                  saleManagerBusy ||
+                  !connectedIsSaleOwner ||
+                  loadedSale.finalized ||
+                  loadedSale.cancelled ||
+                  loadedSale.totalRaisedUsd18 > 0n
                 }
-                className={selectClass}
+                className={dangerButtonClass}
               >
-                <option value="true">Claim Open</option>
-                <option value="false">Claim Closed</option>
-              </select>
+                Cancel Empty Sale
+              </button>
+
+              <button
+                type="button"
+                onClick={() => saleAction("proceeds")}
+                disabled={
+                  saleManagerBusy ||
+                  !loadedSale.finalized ||
+                  !loadedSale.successful ||
+                  loadedSale.proceedsWithdrawn
+                }
+                className={primaryButtonClass}
+              >
+                Withdraw Proceeds
+              </button>
+
+              <button
+                type="button"
+                onClick={() => saleAction("tokens")}
+                disabled={
+                  saleManagerBusy ||
+                  !connectedIsSaleOwner ||
+                  !loadedSale.finalized ||
+                  loadedSale.saleTokensWithdrawn
+                }
+                className={ghostButtonClass}
+              >
+                Withdraw Remaining Sale Tokens
+              </button>
             </div>
 
-            <input
-              value={adminForm.unsoldReceiver}
-              onChange={(event) =>
-                setAdminForm((previous) => ({
-                  ...previous,
-                  unsoldReceiver: event.target.value,
-                }))
-              }
-              placeholder="Unsold receiver / leave empty for your wallet"
-              className={inputClass}
+            <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs leading-6 text-white/45">
+              Cancel is permitted only to the sale owner before any contribution.
+              Remaining sale tokens are also returned only to the sale owner.
+              Proceeds always go to the configured fund receiver.
+            </div>
+
+            <TransactionStatus
+              message={saleManagerStatus}
+              txHash={saleManagerTxHash}
             />
+          </div>
+        </SectionBox>
+      ) : null}
 
-            <button
-              type="button"
-              onClick={() => adminAction("unsold")}
-              disabled={adminBusy}
-              className={ghostButtonClass}
-            >
-              Withdraw Unsold Tokens
-            </button>
+      {isLaunchpadOwner ? (
+        <SectionBox
+          eyebrow="Admin Control"
+          title="Launchpad Owner Settings"
+          right={<StatusPill active tone="cyan">Owner Only</StatusPill>}
+        >
+          <p className="mt-2 text-sm leading-relaxed text-white/60">
+            Manage approved sale creators, the global purchase pause,
+            contribution limits, and anti-bot cooldown. Sale lifecycle actions
+            are handled separately in the Sale Management panel.
+          </p>
 
-            <div className="grid gap-4 md:grid-cols-3">
-              {(["level1Limit", "level2Limit", "level3Limit"] as const).map(
-                (key, index) => (
-                  <input
-                    key={key}
-                    value={adminForm[key]}
-                    onChange={(event) =>
-                      setAdminForm((previous) => ({
-                        ...previous,
-                        [key]: normalizeDecimalInput(event.target.value),
-                      }))
-                    }
-                    placeholder={`Level ${index + 1} USD`}
-                    inputMode="decimal"
-                    className={inputClass}
-                  />
-                )
-              )}
-            </div>
+          <div className="mt-6 grid gap-6">
+            <div className="rounded-[26px] border border-white/10 bg-[#020617]/45 p-5">
+              <div className="text-xs font-black uppercase tracking-[0.22em] text-blue-100">
+                Creator Permission
+              </div>
 
-            <button
-              type="button"
-              onClick={() => adminAction("limits")}
-              disabled={adminBusy}
-              className={ghostButtonClass}
-            >
-              Update Contribution Limits
-            </button>
+              <div className="mt-4 grid gap-4 md:grid-cols-[1fr_160px]">
+                <input
+                  value={adminForm.creatorAddress}
+                  onChange={(event) =>
+                    setAdminForm((previous) => ({
+                      ...previous,
+                      creatorAddress: event.target.value,
+                    }))
+                  }
+                  placeholder="Creator address"
+                  className={inputClass}
+                />
 
-            <div className="grid gap-4 md:grid-cols-[1fr_180px]">
-              <select
-                value={adminForm.antiBotEnabled ? "true" : "false"}
-                onChange={(event) =>
-                  setAdminForm((previous) => ({
-                    ...previous,
-                    antiBotEnabled: event.target.value === "true",
-                  }))
-                }
-                className={selectClass}
+                <select
+                  value={adminForm.approved ? "true" : "false"}
+                  onChange={(event) =>
+                    setAdminForm((previous) => ({
+                      ...previous,
+                      approved: event.target.value === "true",
+                    }))
+                  }
+                  className={selectClass}
+                >
+                  <option value="true">Approve</option>
+                  <option value="false">Remove</option>
+                </select>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => adminAction("approve")}
+                disabled={adminBusy}
+                className={`${ghostButtonClass} mt-4`}
               >
-                <option value="true">Anti-Bot On</option>
-                <option value="false">Anti-Bot Off</option>
-              </select>
-
-              <input
-                value={adminForm.cooldown}
-                onChange={(event) =>
-                  setAdminForm((previous) => ({
-                    ...previous,
-                    cooldown: event.target.value.replace(/\D/g, ""),
-                  }))
-                }
-                placeholder="Cooldown seconds"
-                inputMode="numeric"
-                className={inputClass}
-              />
+                Set Creator Approval
+              </button>
             </div>
 
-            <button
-              type="button"
-              onClick={() => adminAction("antibot")}
-              disabled={adminBusy}
-              className={ghostButtonClass}
-            >
-              Update Anti-Bot
-            </button>
+            <div className="rounded-[26px] border border-white/10 bg-[#020617]/45 p-5">
+              <div className="text-xs font-black uppercase tracking-[0.22em] text-blue-100">
+                Global Purchase Pause
+              </div>
+
+              <div className="mt-4 grid gap-4 md:grid-cols-[1fr_auto]">
+                <select
+                  value={adminForm.globalPaused ? "true" : "false"}
+                  onChange={(event) =>
+                    setAdminForm((previous) => ({
+                      ...previous,
+                      globalPaused: event.target.value === "true",
+                    }))
+                  }
+                  className={selectClass}
+                >
+                  <option value="false">Purchases Enabled</option>
+                  <option value="true">Purchases Globally Paused</option>
+                </select>
+
+                <button
+                  type="button"
+                  onClick={() => adminAction("globalPause")}
+                  disabled={adminBusy}
+                  className={dangerButtonClass}
+                >
+                  Apply Global Pause
+                </button>
+              </div>
+
+              <div className="mt-3 text-xs leading-6 text-white/40">
+                Global pause blocks purchases but does not replace individual
+                sale finalization, claims, refunds, or withdrawal controls.
+              </div>
+            </div>
+
+            <div className="rounded-[26px] border border-white/10 bg-[#020617]/45 p-5">
+              <div className="text-xs font-black uppercase tracking-[0.22em] text-blue-100">
+                Contribution Limits
+              </div>
+
+              <div className="mt-4 grid gap-4 md:grid-cols-3">
+                {(["level1Limit", "level2Limit", "level3Limit"] as const).map(
+                  (key, index) => (
+                    <input
+                      key={key}
+                      value={adminForm[key]}
+                      onChange={(event) =>
+                        setAdminForm((previous) => ({
+                          ...previous,
+                          [key]: normalizeDecimalInput(event.target.value),
+                        }))
+                      }
+                      placeholder={`Level ${index + 1} USD`}
+                      inputMode="decimal"
+                      className={inputClass}
+                    />
+                  )
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => adminAction("limits")}
+                disabled={adminBusy}
+                className={`${ghostButtonClass} mt-4`}
+              >
+                Update Contribution Limits
+              </button>
+            </div>
+
+            <div className="rounded-[26px] border border-white/10 bg-[#020617]/45 p-5">
+              <div className="text-xs font-black uppercase tracking-[0.22em] text-blue-100">
+                Anti-Bot Protection
+              </div>
+
+              <div className="mt-4 grid gap-4 md:grid-cols-[1fr_180px]">
+                <select
+                  value={adminForm.antiBotEnabled ? "true" : "false"}
+                  onChange={(event) =>
+                    setAdminForm((previous) => ({
+                      ...previous,
+                      antiBotEnabled: event.target.value === "true",
+                    }))
+                  }
+                  className={selectClass}
+                >
+                  <option value="true">Anti-Bot On</option>
+                  <option value="false">Anti-Bot Off</option>
+                </select>
+
+                <input
+                  value={adminForm.cooldown}
+                  onChange={(event) =>
+                    setAdminForm((previous) => ({
+                      ...previous,
+                      cooldown: event.target.value.replace(/\D/g, ""),
+                    }))
+                  }
+                  placeholder="Cooldown seconds"
+                  inputMode="numeric"
+                  className={inputClass}
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => adminAction("antibot")}
+                disabled={adminBusy}
+                className={`${ghostButtonClass} mt-4`}
+              >
+                Update Anti-Bot
+              </button>
+            </div>
 
             <TransactionStatus message={adminStatus} txHash={adminTxHash} />
           </div>
@@ -3368,7 +4495,8 @@ async function getBrowserSigner() {
             </h2>
             <p className="mt-5 text-sm leading-8 text-white/60 sm:text-base">
               KORAX connects project creation, website generation, public registry,
-              staged token sales, staking-based access, and controlled claims.
+              staged token sales, staking-based access, finalization, claims,
+              and failed-sale refunds.
             </p>
           </div>
 

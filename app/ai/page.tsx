@@ -10,7 +10,6 @@ import {
   AI_DEPLOYER_ADDRESS,
   RPC_URL,
   accessManagerAbi,
-  aiDeployerAbi,
 } from "@/lib/korax/contracts";
 
 type DraftResult = {
@@ -79,8 +78,579 @@ type StakingPlanForm = {
   rewardBps: string;
 };
 
+
+type DeploymentValidationInput = {
+  owner: string;
+  name: string;
+  symbol: string;
+  initialSupply: bigint;
+  maxSupply: bigint;
+  mintable: boolean;
+  burnable: boolean;
+  stakingEnabled: boolean;
+  stakingRewardsAllocation: bigint;
+  stakingPlansCount: number;
+  metadataURI: string;
+};
+
 const WEBSITE_BUILDER_ROUTE = "/website-builder-ai";
 const DEFAULT_TOKENS_PER_PROJECT = "1,500";
+
+
+const BSC_MAINNET_CHAIN_ID = 56n;
+const AI_DEPLOYER_BUILD = 3n;
+const MAX_NAME_LENGTH = 64;
+const MAX_SYMBOL_LENGTH = 16;
+const MAX_METADATA_LENGTH = 1024;
+const MAX_STAKING_PLANS = 10;
+const MIN_DURATION_DAYS = 1n;
+const MAX_DURATION_DAYS = 5n * 365n;
+const MAX_REWARD_BPS = 30_000n;
+const DEPLOY_GAS_BUFFER_BPS = 12_000n;
+const BPS_DENOMINATOR = 10_000n;
+
+const aiDeployerAbi = [
+  {
+    type: "function",
+    name: "BUILD",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "accessManager",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    type: "function",
+    name: "registry",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    type: "function",
+    name: "projectsUsedByOwner",
+    stateMutability: "view",
+    inputs: [{ name: "user", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "availableProjectSlots",
+    stateMutability: "view",
+    inputs: [{ name: "user", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "deployAIProject",
+    stateMutability: "nonpayable",
+    inputs: [
+      {
+        name: "cfg",
+        type: "tuple",
+        components: [
+          {
+            name: "token",
+            type: "tuple",
+            components: [
+              { name: "name", type: "string" },
+              { name: "symbol", type: "string" },
+              { name: "initialSupply", type: "uint256" },
+              { name: "maxSupply", type: "uint256" },
+              { name: "mintable", type: "bool" },
+              { name: "burnable", type: "bool" },
+            ],
+          },
+          { name: "stakingEnabled", type: "bool" },
+          { name: "stakingRewardsAllocation", type: "uint256" },
+          { name: "metadataURI", type: "string" },
+          {
+            name: "stakingPlans",
+            type: "tuple[]",
+            components: [
+              { name: "durationDays", type: "uint256" },
+              { name: "rewardBps", type: "uint256" },
+            ],
+          },
+        ],
+      },
+    ],
+    outputs: [
+      { name: "projectId", type: "uint256" },
+      { name: "token", type: "address" },
+      { name: "vault", type: "address" },
+      { name: "staking", type: "address" },
+    ],
+  },
+  {
+    type: "event",
+    name: "AIProjectDeployed",
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: "projectId", type: "uint256" },
+      { indexed: true, name: "owner", type: "address" },
+      { indexed: true, name: "token", type: "address" },
+      { indexed: false, name: "vault", type: "address" },
+      { indexed: false, name: "staking", type: "address" },
+      { indexed: false, name: "name", type: "string" },
+      { indexed: false, name: "symbol", type: "string" },
+      { indexed: false, name: "metadataURI", type: "string" },
+    ],
+  },
+];
+
+const registryValidationAbi = [
+  {
+    type: "function",
+    name: "authorizedFactories",
+    stateMutability: "view",
+    inputs: [{ name: "factory", type: "address" }],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "getProject",
+    stateMutability: "view",
+    inputs: [{ name: "projectId", type: "uint256" }],
+    outputs: [
+      {
+        name: "",
+        type: "tuple",
+        components: [
+          { name: "id", type: "uint256" },
+          { name: "owner", type: "address" },
+          { name: "name", type: "string" },
+          { name: "symbol", type: "string" },
+          { name: "token", type: "address" },
+          { name: "presale", type: "address" },
+          { name: "staking", type: "address" },
+          { name: "vault", type: "address" },
+          { name: "metadataURI", type: "string" },
+          { name: "createdAt", type: "uint256" },
+          { name: "active", type: "bool" },
+        ],
+      },
+    ],
+  },
+];
+
+const tokenValidationAbi = [
+  "function owner() view returns (address)",
+  "function name() view returns (string)",
+  "function symbol() view returns (string)",
+  "function totalSupply() view returns (uint256)",
+  "function maxSupply() view returns (uint256)",
+  "function mintable() view returns (bool)",
+  "function burnable() view returns (bool)",
+  "function balanceOf(address account) view returns (uint256)",
+];
+
+const vaultValidationAbi = [
+  "function BUILD() view returns (uint256)",
+  "function owner() view returns (address)",
+  "function token() view returns (address)",
+  "function staking() view returns (address)",
+];
+
+const stakingValidationAbi = [
+  "function BUILD() view returns (uint256)",
+  "function owner() view returns (address)",
+  "function token() view returns (address)",
+  "function vault() view returns (address)",
+  "function plansCount() view returns (uint256)",
+  "function isVaultLinked() view returns (bool)",
+];
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error && typeof error === "object") {
+    const candidate = error as {
+      shortMessage?: string;
+      reason?: string;
+      message?: string;
+      info?: { error?: { message?: string } };
+    };
+
+    return (
+      candidate.shortMessage ||
+      candidate.reason ||
+      candidate.info?.error?.message ||
+      candidate.message ||
+      fallback
+    );
+  }
+
+  return fallback;
+}
+
+function utf8Length(value: string) {
+  return ethers.toUtf8Bytes(value).length;
+}
+
+function parseTokenAmount(value: string, label: string) {
+  const normalized = value.trim();
+
+  if (!/^\d+(?:\.\d{1,18})?$/.test(normalized)) {
+    throw new Error(
+      `${label} must be a positive decimal number with at most 18 decimals.`
+    );
+  }
+
+  return ethers.parseUnits(normalized, 18);
+}
+
+function parseUnsignedInteger(value: string, label: string) {
+  const normalized = value.trim();
+
+  if (!/^\d+$/.test(normalized)) {
+    throw new Error(`${label} must be a whole number.`);
+  }
+
+  return BigInt(normalized);
+}
+
+function formatTokenAmount(raw: bigint) {
+  const formatted = ethers.formatUnits(raw, 18);
+  const [wholeRaw, fractionRaw = ""] = formatted.split(".");
+  const whole = BigInt(wholeRaw || "0").toLocaleString("en-US");
+  const fraction = fractionRaw.slice(0, 4).replace(/0+$/, "");
+
+  return fraction ? `${whole}.${fraction}` : whole;
+}
+
+function sameAddress(left: string, right: string) {
+  return left.toLowerCase() === right.toLowerCase();
+}
+
+async function assertContract(
+  provider: ethers.Provider,
+  address: string,
+  label: string
+) {
+  if (!ethers.isAddress(address)) {
+    throw new Error(`${label} address is invalid.`);
+  }
+
+  const code = await provider.getCode(address);
+
+  if (code === "0x") {
+    throw new Error(`${label} address is not a deployed contract.`);
+  }
+}
+
+async function validateAIDeployer(provider: ethers.Provider) {
+  await assertContract(provider, AI_DEPLOYER_ADDRESS, "AI Deployer");
+  await assertContract(provider, ACCESS_MANAGER_ADDRESS, "Access Manager");
+
+  const deployer = new ethers.Contract(
+    AI_DEPLOYER_ADDRESS,
+    aiDeployerAbi,
+    provider
+  );
+
+  const [buildRaw, linkedAccessRaw, registryRaw] = await Promise.all([
+    deployer.BUILD(),
+    deployer.accessManager(),
+    deployer.registry(),
+  ]);
+
+  const build = BigInt(buildRaw.toString());
+  const linkedAccess = ethers.getAddress(String(linkedAccessRaw));
+  const registry = ethers.getAddress(String(registryRaw));
+
+  if (build !== AI_DEPLOYER_BUILD) {
+    throw new Error(
+      `Wrong AI Deployer build. Expected BUILD 3, received BUILD ${build}.`
+    );
+  }
+
+  if (!sameAddress(linkedAccess, ACCESS_MANAGER_ADDRESS)) {
+    throw new Error(
+      "AI Deployer is linked to a different Access Manager address."
+    );
+  }
+
+  await assertContract(provider, registry, "Project Registry");
+
+  const registryContract = new ethers.Contract(
+    registry,
+    registryValidationAbi,
+    provider
+  );
+
+  const authorized = Boolean(
+    await registryContract.authorizedFactories(AI_DEPLOYER_ADDRESS)
+  );
+
+  if (!authorized) {
+    throw new Error(
+      "AI Deployer is not authorized in the Project Registry."
+    );
+  }
+
+  return {
+    deployer,
+    registry,
+    registryContract,
+  };
+}
+
+function readAccessTupleValue(
+  value: any,
+  names: string[],
+  fallbackIndex: number,
+  fallback: bigint
+) {
+  for (const name of names) {
+    const candidate = value?.[name];
+
+    if (candidate !== undefined && candidate !== null) {
+      return BigInt(candidate.toString());
+    }
+  }
+
+  const indexed = value?.[fallbackIndex];
+
+  if (indexed !== undefined && indexed !== null) {
+    return BigInt(indexed.toString());
+  }
+
+  return fallback;
+}
+
+async function readJsonResponse(response: Response) {
+  const text = await response.text();
+
+  if (!text) return {};
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(
+      `Server returned an invalid response (${response.status}).`
+    );
+  }
+}
+
+
+async function validateDeployedProject(
+  provider: ethers.Provider,
+  registryContract: ethers.Contract,
+  deployed: DeployResult,
+  expected: DeploymentValidationInput
+) {
+  const owner = ethers.getAddress(expected.owner);
+  const tokenAddress = ethers.getAddress(deployed.token);
+  const vaultAddress = ethers.getAddress(deployed.vault);
+  const stakingAddress = ethers.getAddress(deployed.staking);
+
+  await assertContract(provider, tokenAddress, "Generated Token");
+  await assertContract(provider, vaultAddress, "Generated Vault");
+
+  const token = new ethers.Contract(
+    tokenAddress,
+    tokenValidationAbi,
+    provider
+  );
+
+  const vault = new ethers.Contract(
+    vaultAddress,
+    vaultValidationAbi,
+    provider
+  );
+
+  const [
+    tokenOwner,
+    tokenName,
+    tokenSymbol,
+    totalSupplyRaw,
+    maxSupplyRaw,
+    mintableRaw,
+    burnableRaw,
+    ownerBalanceRaw,
+    vaultBalanceRaw,
+    vaultBuildRaw,
+    vaultOwner,
+    vaultToken,
+    vaultStaking,
+  ] = await Promise.all([
+    token.owner(),
+    token.name(),
+    token.symbol(),
+    token.totalSupply(),
+    token.maxSupply(),
+    token.mintable(),
+    token.burnable(),
+    token.balanceOf(owner),
+    token.balanceOf(vaultAddress),
+    vault.BUILD(),
+    vault.owner(),
+    vault.token(),
+    vault.staking(),
+  ]);
+
+  if (!sameAddress(String(tokenOwner), owner)) {
+    throw new Error("Generated token ownership was not transferred to you.");
+  }
+
+  if (String(tokenName) !== expected.name) {
+    throw new Error("Generated token name does not match the requested name.");
+  }
+
+  if (String(tokenSymbol) !== expected.symbol) {
+    throw new Error(
+      "Generated token symbol does not match the requested symbol."
+    );
+  }
+
+  if (BigInt(totalSupplyRaw.toString()) !== expected.initialSupply) {
+    throw new Error("Generated token total supply is incorrect.");
+  }
+
+  if (BigInt(maxSupplyRaw.toString()) !== expected.maxSupply) {
+    throw new Error("Generated token max supply is incorrect.");
+  }
+
+  if (Boolean(mintableRaw) !== expected.mintable) {
+    throw new Error("Generated token mintable setting is incorrect.");
+  }
+
+  if (Boolean(burnableRaw) !== expected.burnable) {
+    throw new Error("Generated token burnable setting is incorrect.");
+  }
+
+  const expectedOwnerBalance =
+    expected.initialSupply - expected.stakingRewardsAllocation;
+
+  if (BigInt(ownerBalanceRaw.toString()) !== expectedOwnerBalance) {
+    throw new Error("Generated token owner allocation is incorrect.");
+  }
+
+  if (
+    BigInt(vaultBalanceRaw.toString()) !==
+    expected.stakingRewardsAllocation
+  ) {
+    throw new Error("Generated vault reward allocation is incorrect.");
+  }
+
+  if (BigInt(vaultBuildRaw.toString()) !== AI_DEPLOYER_BUILD) {
+    throw new Error("Generated vault is not BUILD 3.");
+  }
+
+  if (!sameAddress(String(vaultOwner), owner)) {
+    throw new Error("Generated vault ownership was not transferred to you.");
+  }
+
+  if (!sameAddress(String(vaultToken), tokenAddress)) {
+    throw new Error("Generated vault is linked to the wrong token.");
+  }
+
+  if (expected.stakingEnabled) {
+    if (stakingAddress === ethers.ZeroAddress) {
+      throw new Error("Staking was enabled but no staking contract was created.");
+    }
+
+    await assertContract(provider, stakingAddress, "Generated Staking");
+
+    if (!sameAddress(String(vaultStaking), stakingAddress)) {
+      throw new Error("Generated vault is not linked to generated staking.");
+    }
+
+    const staking = new ethers.Contract(
+      stakingAddress,
+      stakingValidationAbi,
+      provider
+    );
+
+    const [
+      stakingBuildRaw,
+      stakingOwner,
+      stakingToken,
+      stakingVault,
+      plansCountRaw,
+      vaultLinkedRaw,
+    ] = await Promise.all([
+      staking.BUILD(),
+      staking.owner(),
+      staking.token(),
+      staking.vault(),
+      staking.plansCount(),
+      staking.isVaultLinked(),
+    ]);
+
+    if (BigInt(stakingBuildRaw.toString()) !== AI_DEPLOYER_BUILD) {
+      throw new Error("Generated staking is not BUILD 3.");
+    }
+
+    if (!sameAddress(String(stakingOwner), owner)) {
+      throw new Error("Generated staking owner is incorrect.");
+    }
+
+    if (!sameAddress(String(stakingToken), tokenAddress)) {
+      throw new Error("Generated staking is linked to the wrong token.");
+    }
+
+    if (!sameAddress(String(stakingVault), vaultAddress)) {
+      throw new Error("Generated staking is linked to the wrong vault.");
+    }
+
+    if (Number(plansCountRaw) !== expected.stakingPlansCount) {
+      throw new Error("Generated staking plan count is incorrect.");
+    }
+
+    if (!Boolean(vaultLinkedRaw)) {
+      throw new Error("Generated staking reports that its vault is not linked.");
+    }
+  } else {
+    if (stakingAddress !== ethers.ZeroAddress) {
+      throw new Error(
+        "Staking was disabled but a staking contract address was returned."
+      );
+    }
+
+    if (ethers.getAddress(String(vaultStaking)) !== ethers.ZeroAddress) {
+      throw new Error("Token-only project vault unexpectedly links to staking.");
+    }
+  }
+
+  const project = await registryContract.getProject(deployed.projectId);
+
+  if (!sameAddress(String(project.owner), owner)) {
+    throw new Error("Registry project owner is incorrect.");
+  }
+
+  if (!sameAddress(String(project.token), tokenAddress)) {
+    throw new Error("Registry token address is incorrect.");
+  }
+
+  if (!sameAddress(String(project.vault), vaultAddress)) {
+    throw new Error("Registry vault address is incorrect.");
+  }
+
+  if (!sameAddress(String(project.staking), stakingAddress)) {
+    throw new Error("Registry staking address is incorrect.");
+  }
+
+  if (String(project.name) !== expected.name) {
+    throw new Error("Registry project name is incorrect.");
+  }
+
+  if (String(project.symbol) !== expected.symbol) {
+    throw new Error("Registry project symbol is incorrect.");
+  }
+
+  if (String(project.metadataURI) !== expected.metadataURI) {
+    throw new Error("Registry metadata URI is incorrect.");
+  }
+
+  if (!Boolean(project.active)) {
+    throw new Error("Registry project is unexpectedly inactive.");
+  }
+}
 
 const projectFields = [
   ["goal", "Main Goal of the Project"],
@@ -111,12 +681,6 @@ const inputClass =
 
 const selectClass =
   "w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none transition focus:border-blue-400/45 focus:bg-black/55 focus:shadow-[0_0_28px_rgba(59,130,246,0.12)]";
-
-function formatTokenAmount(raw: bigint) {
-  return Number(ethers.formatUnits(raw, 18)).toLocaleString("en-US", {
-    maximumFractionDigits: 4,
-  });
-}
 
 function shortAddress(address?: string) {
   if (!address) return "";
@@ -1328,23 +1892,30 @@ These contracts were deployed through KORAX Token Builder AI.
     }
 
     try {
+      const wallet = ethers.getAddress(user);
+
       setAccess((prev) => ({
         ...prev,
         loading: true,
         connected: true,
-        wallet: user,
+        wallet,
         error: "",
       }));
 
-      if (!ACCESS_MANAGER_ADDRESS) {
-        throw new Error("Access manager address is missing.");
-      }
-
-      if (!AI_DEPLOYER_ADDRESS) {
-        throw new Error("AI deployer address is missing.");
+      if (!RPC_URL?.trim()) {
+        throw new Error("BSC RPC URL is missing.");
       }
 
       const provider = new ethers.JsonRpcProvider(RPC_URL);
+      const network = await provider.getNetwork();
+
+      if (network.chainId !== BSC_MAINNET_CHAIN_ID) {
+        throw new Error(
+          `Wrong RPC network. Expected BSC Mainnet 56, received ${network.chainId}.`
+        );
+      }
+
+      const { deployer: aiDeployer } = await validateAIDeployer(provider);
 
       const accessManager = new ethers.Contract(
         ACCESS_MANAGER_ADDRESS,
@@ -1352,57 +1923,85 @@ These contracts were deployed through KORAX Token Builder AI.
         provider
       );
 
-      const aiDeployer = new ethers.Contract(
-        AI_DEPLOYER_ADDRESS,
-        aiDeployerAbi,
-        provider
-      );
-
       const [
         eligibleAmountRaw,
         totalSlotsRaw,
-        hasAccessRaw,
         usedSlotsRaw,
         availableSlotsRaw,
-        accessData,
       ] = await Promise.all([
-        accessManager.getEligibleStakedAmount(user),
-        accessManager.getProjectSlots(user),
-        accessManager.hasKoraxAccess(user),
-        aiDeployer.projectsUsedByOwner(user),
-        aiDeployer.availableProjectSlots(user),
-        accessManager.getAccessData(user),
+        accessManager.getEligibleStakedAmount(wallet),
+        accessManager.getProjectSlots(wallet),
+        aiDeployer.projectsUsedByOwner(wallet),
+        aiDeployer.availableProjectSlots(wallet),
       ]);
 
-      const tokensPerProjectRaw =
-        accessData.currentTokensPerProject ??
-        accessData.tokensPerProject ??
-        accessData[2];
+      const eligibleAmount = BigInt(eligibleAmountRaw.toString());
+      const totalSlots = Number(totalSlotsRaw);
+      const usedSlots = Number(usedSlotsRaw);
+      const contractAvailableSlots = Number(availableSlotsRaw);
+      const calculatedAvailableSlots = Math.max(totalSlots - usedSlots, 0);
 
-      const requiredRewardBpsRaw =
-        accessData.currentRequiredRewardBps ??
-        accessData.requiredRewardBps ??
-        accessData[3];
+      if (!Number.isSafeInteger(totalSlots) || totalSlots < 0) {
+        throw new Error("Invalid project slot count returned by Access Manager.");
+      }
+
+      if (!Number.isSafeInteger(usedSlots) || usedSlots < 0) {
+        throw new Error("Invalid used slot count returned by AI Deployer.");
+      }
+
+      if (contractAvailableSlots !== calculatedAvailableSlots) {
+        throw new Error(
+          "Project slot data is inconsistent between AI Deployer and Access Manager."
+        );
+      }
+
+      let hasAccess = totalSlots > 0;
+
+      try {
+        hasAccess =
+          Boolean(await accessManager.hasKoraxAccess(wallet)) || totalSlots > 0;
+      } catch {
+        hasAccess = totalSlots > 0;
+      }
+
+      let tokensPerProjectRaw = ethers.parseUnits("1500", 18);
+      let requiredRewardBpsRaw = 9000n;
+
+      try {
+        const accessData = await accessManager.getAccessData(wallet);
+
+        tokensPerProjectRaw = readAccessTupleValue(
+          accessData,
+          ["currentTokensPerProject", "tokensPerProject"],
+          2,
+          tokensPerProjectRaw
+        );
+
+        requiredRewardBpsRaw = readAccessTupleValue(
+          accessData,
+          ["currentRequiredRewardBps", "requiredRewardBps"],
+          3,
+          requiredRewardBpsRaw
+        );
+      } catch {
+        // Core slot access remains available even if extended display data fails.
+      }
 
       setAccess({
         loading: false,
         connected: true,
-        wallet: user,
-        eligibleAmount: formatTokenAmount(
-          BigInt(eligibleAmountRaw.toString())
-        ),
-        tokensPerProject: formatTokenAmount(
-          BigInt(tokensPerProjectRaw.toString())
-        ),
+        wallet,
+        eligibleAmount: formatTokenAmount(eligibleAmount),
+        tokensPerProject: formatTokenAmount(tokensPerProjectRaw),
         requiredRewardBps: Number(requiredRewardBpsRaw),
-        totalSlots: Number(totalSlotsRaw),
-        usedSlots: Number(usedSlotsRaw),
-        availableSlots: Number(availableSlotsRaw),
-        hasAccess: Boolean(hasAccessRaw),
-        registeredProjects: Number(usedSlotsRaw),
+        totalSlots,
+        usedSlots,
+        availableSlots: contractAvailableSlots,
+        hasAccess,
+        registeredProjects: usedSlots,
         error: "",
       });
-    } catch (err: any) {
+    } catch (error: unknown) {
       setAccess((prev) => ({
         ...prev,
         loading: false,
@@ -1410,10 +2009,7 @@ These contracts were deployed through KORAX Token Builder AI.
         wallet: user,
         tokensPerProject:
           prev.tokensPerProject || DEFAULT_TOKENS_PER_PROJECT,
-        error:
-          err?.shortMessage ||
-          err?.message ||
-          "Failed to load access data",
+        error: getErrorMessage(error, "Failed to load access data."),
       }));
     }
   }
@@ -1446,7 +2042,7 @@ These contracts were deployed through KORAX Token Builder AI.
         body: JSON.stringify(form),
       });
 
-      const data = await res.json();
+      const data = await readJsonResponse(res);
 
       if (!res.ok) {
         throw new Error(data?.error || "Failed to generate draft");
@@ -1497,7 +2093,7 @@ These contracts were deployed through KORAX Token Builder AI.
         }),
       });
 
-      const data = await res.json();
+      const data = await readJsonResponse(res);
 
       if (!res.ok) {
         throw new Error(data?.error || "Failed to generate project visual.");
@@ -1570,41 +2166,58 @@ These contracts were deployed through KORAX Token Builder AI.
         throw new Error("Wallet client not ready.");
       }
 
-      if (!AI_DEPLOYER_ADDRESS) {
-        throw new Error("AI deployer address is missing.");
+      if (form.network !== "BNB Chain") {
+        throw new Error(
+          "On-chain deployment is currently available only on BNB Chain."
+        );
       }
 
-      if (!form.projectName.trim()) {
+      const projectName = form.projectName.trim();
+      const symbol = form.symbol.trim().toUpperCase();
+
+      if (!projectName) {
         throw new Error("Project name is required.");
       }
 
-      if (!form.symbol.trim()) {
+      if (!symbol) {
         throw new Error("Token symbol is required.");
       }
 
-      if (access.availableSlots <= 0) {
-        throw new Error("No available KORAX project slots.");
+      if (utf8Length(projectName) > MAX_NAME_LENGTH) {
+        throw new Error(
+          `Project name exceeds the ${MAX_NAME_LENGTH}-byte contract limit.`
+        );
       }
 
-      const initialSupply = ethers.parseUnits(
-        deployForm.initialSupply || "0",
-        18
+      if (utf8Length(symbol) > MAX_SYMBOL_LENGTH) {
+        throw new Error(
+          `Token symbol exceeds the ${MAX_SYMBOL_LENGTH}-byte contract limit.`
+        );
+      }
+
+      const initialSupply = parseTokenAmount(
+        deployForm.initialSupply,
+        "Initial supply"
       );
 
-      const maxSupply = ethers.parseUnits(
-        deployForm.maxSupply || "0",
-        18
+      const maxSupply = parseTokenAmount(
+        deployForm.maxSupply,
+        "Max supply"
       );
 
       const stakingRewardsAllocation = deployForm.stakingEnabled
-        ? ethers.parseUnits(
-            deployForm.stakingRewardsAllocation || "0",
-            18
+        ? parseTokenAmount(
+            deployForm.stakingRewardsAllocation,
+            "Staking rewards allocation"
           )
         : 0n;
 
       if (initialSupply <= 0n) {
         throw new Error("Initial supply must be greater than 0.");
+      }
+
+      if (initialSupply > ethers.MaxUint256 || maxSupply > ethers.MaxUint256) {
+        throw new Error("Token supply exceeds the uint256 contract limit.");
       }
 
       if (maxSupply < initialSupply) {
@@ -1633,9 +2246,15 @@ These contracts were deployed through KORAX Token Builder AI.
       }
 
       const cleanPlans = deployForm.stakingEnabled
-        ? stakingPlans.map((plan) => ({
-            durationDays: BigInt(plan.durationDays || "0"),
-            rewardBps: BigInt(plan.rewardBps || "0"),
+        ? stakingPlans.map((plan, index) => ({
+            durationDays: parseUnsignedInteger(
+              plan.durationDays,
+              `Plan ${index + 1} duration`
+            ),
+            rewardBps: parseUnsignedInteger(
+              plan.rewardBps,
+              `Plan ${index + 1} reward BPS`
+            ),
           }))
         : [];
 
@@ -1644,34 +2263,72 @@ These contracts were deployed through KORAX Token Builder AI.
           throw new Error("At least one staking plan is required.");
         }
 
-        if (cleanPlans.length > 10) {
-          throw new Error("Maximum 10 staking plans allowed.");
+        if (cleanPlans.length > MAX_STAKING_PLANS) {
+          throw new Error(
+            `Maximum ${MAX_STAKING_PLANS} staking plans allowed.`
+          );
         }
 
-        for (const plan of cleanPlans) {
-          if (plan.durationDays <= 0n) {
+        for (const [index, plan] of cleanPlans.entries()) {
+          if (plan.durationDays < MIN_DURATION_DAYS) {
             throw new Error(
-              "Each staking plan must have duration greater than 0."
+              `Plan ${index + 1} duration must be at least 1 day.`
+            );
+          }
+
+          if (plan.durationDays > MAX_DURATION_DAYS) {
+            throw new Error(
+              `Plan ${index + 1} duration cannot exceed 1,825 days.`
             );
           }
 
           if (plan.rewardBps <= 0n) {
             throw new Error(
-              "Each staking plan must have reward BPS greater than 0."
+              `Plan ${index + 1} reward BPS must be greater than 0.`
             );
           }
 
-          if (plan.rewardBps > 10000n) {
-            throw new Error("Reward BPS cannot exceed 10000.");
+          if (plan.rewardBps > MAX_REWARD_BPS) {
+            throw new Error(
+              `Plan ${index + 1} reward BPS cannot exceed 30,000 (300%).`
+            );
           }
         }
+      }
+
+      const metadataURI =
+        deployForm.metadataURI.trim() ||
+        `korax-ai:${projectName}:${Date.now()}`;
+
+      if (utf8Length(metadataURI) > MAX_METADATA_LENGTH) {
+        throw new Error(
+          `Metadata URI exceeds the ${MAX_METADATA_LENGTH}-byte contract limit.`
+        );
       }
 
       const browserProvider = new ethers.BrowserProvider(
         walletClient.transport as any
       );
 
+      const network = await browserProvider.getNetwork();
+
+      if (network.chainId !== BSC_MAINNET_CHAIN_ID) {
+        throw new Error(
+          `Switch your wallet to BSC Mainnet (chain ID 56). Current chain ID: ${network.chainId}.`
+        );
+      }
+
       const signer = await browserProvider.getSigner();
+      const signerAddress = ethers.getAddress(await signer.getAddress());
+      const connectedAddress = ethers.getAddress(address);
+
+      if (!sameAddress(signerAddress, connectedAddress)) {
+        throw new Error(
+          "Connected wallet and transaction signer do not match. Reconnect the wallet."
+        );
+      }
+
+      const { registryContract } = await validateAIDeployer(browserProvider);
 
       const contract = new ethers.Contract(
         AI_DEPLOYER_ADDRESS,
@@ -1679,14 +2336,18 @@ These contracts were deployed through KORAX Token Builder AI.
         signer
       );
 
-      const metadataURI =
-        deployForm.metadataURI.trim() ||
-        `korax-ai:${form.projectName.trim()}:${Date.now()}`;
+      const availableSlotsRaw = await contract.availableProjectSlots(
+        signerAddress
+      );
+
+      if (BigInt(availableSlotsRaw.toString()) <= 0n) {
+        throw new Error("No available KORAX project slots.");
+      }
 
       const cfg = {
         token: {
-          name: form.projectName.trim(),
-          symbol: form.symbol.trim().toUpperCase(),
+          name: projectName,
+          symbol,
           initialSupply,
           maxSupply,
           mintable: deployForm.mintable,
@@ -1698,13 +2359,49 @@ These contracts were deployed through KORAX Token Builder AI.
         stakingPlans: cleanPlans,
       };
 
-      const tx = await contract.deployAIProject(cfg);
+      await contract.deployAIProject.staticCall(cfg);
+
+      const estimatedGas = await contract.deployAIProject.estimateGas(cfg);
+      const gasLimit =
+        (estimatedGas * DEPLOY_GAS_BUFFER_BPS) / BPS_DENOMINATOR;
+
+      const [walletBalance, feeData] = await Promise.all([
+        browserProvider.getBalance(signerAddress),
+        browserProvider.getFeeData(),
+      ]);
+
+      const effectiveGasPrice =
+        feeData.maxFeePerGas ?? feeData.gasPrice;
+
+      if (
+        effectiveGasPrice !== null &&
+        walletBalance < gasLimit * effectiveGasPrice
+      ) {
+        throw new Error(
+          "Insufficient BNB to deploy the project with the safety gas buffer."
+        );
+      }
+
+      const tx = await contract.deployAIProject(cfg, {
+        gasLimit,
+      });
+
       const receipt = await tx.wait();
 
+      if (!receipt || receipt.status !== 1) {
+        throw new Error(
+          `Deployment transaction failed or was reverted. Transaction: ${tx.hash}`
+        );
+      }
+
       const iface = new ethers.Interface(aiDeployerAbi);
-      let parsedEvent: any = null;
+      let parsedEvent: ethers.LogDescription | null = null;
 
       for (const log of receipt.logs) {
+        if (!sameAddress(log.address, AI_DEPLOYER_ADDRESS)) {
+          continue;
+        }
+
         try {
           const parsed = iface.parseLog(log);
 
@@ -1713,29 +2410,98 @@ These contracts were deployed through KORAX Token Builder AI.
             break;
           }
         } catch {
-          // Ignore unrelated logs.
+          // Ignore unrelated logs from the same transaction.
         }
       }
 
       if (!parsedEvent) {
-        throw new Error("Project deployed, but event was not found.");
+        throw new Error(
+          `Project transaction was mined, but AIProjectDeployed was not found. Transaction: ${receipt.hash}`
+        );
+      }
+
+      const eventOwner = ethers.getAddress(
+        String(parsedEvent.args.owner ?? parsedEvent.args[1])
+      );
+
+      if (!sameAddress(eventOwner, signerAddress)) {
+        throw new Error("Deployment event contains the wrong project owner.");
+      }
+
+      const eventName = String(
+        parsedEvent.args.name ?? parsedEvent.args[5]
+      );
+      const eventSymbol = String(
+        parsedEvent.args.symbol ?? parsedEvent.args[6]
+      );
+      const eventMetadata = String(
+        parsedEvent.args.metadataURI ?? parsedEvent.args[7]
+      );
+
+      if (
+        eventName !== projectName ||
+        eventSymbol !== symbol ||
+        eventMetadata !== metadataURI
+      ) {
+        throw new Error(
+          "Deployment event configuration does not match the submitted project."
+        );
       }
 
       const deployed: DeployResult = {
-        projectId: parsedEvent.args.projectId.toString(),
-        token: parsedEvent.args.token,
-        vault: parsedEvent.args.vault,
-        staking: parsedEvent.args.staking,
+        projectId: String(
+          parsedEvent.args.projectId ?? parsedEvent.args[0]
+        ),
+        token: ethers.getAddress(
+          String(parsedEvent.args.token ?? parsedEvent.args[2])
+        ),
+        vault: ethers.getAddress(
+          String(parsedEvent.args.vault ?? parsedEvent.args[3])
+        ),
+        staking: ethers.getAddress(
+          String(parsedEvent.args.staking ?? parsedEvent.args[4])
+        ),
         txHash: receipt.hash,
       };
+
+      try {
+        await validateDeployedProject(
+          browserProvider,
+          registryContract,
+          deployed,
+          {
+            owner: signerAddress,
+            name: projectName,
+            symbol,
+            initialSupply,
+            maxSupply,
+            mintable: deployForm.mintable,
+            burnable: deployForm.burnable,
+            stakingEnabled: deployForm.stakingEnabled,
+            stakingRewardsAllocation,
+            stakingPlansCount: cleanPlans.length,
+            metadataURI,
+          }
+        );
+      } catch (validationError: unknown) {
+        saveProjectForWebsiteBuilder(deployed);
+        setDeployResult(deployed);
+
+        throw new Error(
+          `Project was deployed, but automatic post-deployment validation reported: ${getErrorMessage(
+            validationError,
+            "Unknown validation error"
+          )}. Transaction: ${receipt.hash}`
+        );
+      }
 
       saveProjectForWebsiteBuilder(deployed);
       setDeployResult(deployed);
 
-      await loadAccessData(address);
-    } catch (err: any) {
+      await loadAccessData(signerAddress);
+    } catch (error: unknown) {
       setDeployError(
-        err?.shortMessage || err?.message || "Deployment failed."
+        getErrorMessage(error, "Deployment failed.")
       );
     } finally {
       setDeployingProject(false);
@@ -2611,7 +3377,7 @@ These contracts were deployed through KORAX Token Builder AI.
 
                         <p className="mt-1 text-xs text-white/50">
                           Add from 1 to 10 custom staking plans. Reward BPS:
-                          10000 = 100%.
+                          10000 = 100%, maximum 30000 = 300%.
                         </p>
                       </div>
 

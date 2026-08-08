@@ -26,11 +26,20 @@ const BUILDER_ACCESS_AMOUNT = 1500;
 const BUILDER_ACCESS_REWARD_BPS = 9000;
 
 const stakingAbi = [
+  "function token() view returns (address)",
   "function positionsCount(address) view returns (uint256)",
   "function getPosition(address,uint256) view returns (tuple(uint256 amount,uint256 unlockTime,uint256 rewardBps,bool claimed))",
-  "function rewardOf(address,uint256) view returns (uint256)",
+  "function rewardAmount(address,uint256) view returns (uint256)",
+  "function principalWithdrawn(address,uint256) view returns (bool)",
+  "function rewardPaid(address,uint256) view returns (bool)",
+  "function canStake(uint256,uint8) view returns (bool)",
+  "function rewardCapSynced() view returns (bool)",
+  "function stakingPaused() view returns (bool)",
+  "function isPresaleFinalized() view returns (bool)",
+  "function isVaultLinked() view returns (bool)",
   "function stake(uint256,uint8)",
   "function withdraw(uint256)",
+  "function claimReward(uint256) returns (bool)",
 ];
 
 const tokenAbi = [
@@ -46,8 +55,23 @@ type StakingPosition = {
   amount: bigint;
   unlock: number;
   rewardBps: number;
-  claimed: boolean;
+  principalWithdrawn: boolean;
+  rewardPaid: boolean;
   reward: bigint;
+};
+
+type StakingProtocolState = {
+  presaleFinalized: boolean;
+  rewardCapSynced: boolean;
+  vaultLinked: boolean;
+  stakingPaused: boolean;
+};
+
+const EMPTY_PROTOCOL_STATE: StakingProtocolState = {
+  presaleFinalized: false,
+  rewardCapSynced: false,
+  vaultLinked: false,
+  stakingPaused: false,
 };
 
 type StakingPlan = {
@@ -239,6 +263,28 @@ function makeEip1193Provider(walletClient: any) {
       });
     },
   };
+}
+
+function getStakingAvailabilityMessage(
+  state: StakingProtocolState
+) {
+  if (!state.presaleFinalized) {
+    return "Staking opens after the KORAX presale is finalized.";
+  }
+
+  if (!state.rewardCapSynced) {
+    return "The final staking reward cap has not been synchronized yet.";
+  }
+
+  if (!state.vaultLinked) {
+    return "The staking contract is not linked to the KORAX vault.";
+  }
+
+  if (state.stakingPaused) {
+    return "New staking positions are temporarily paused.";
+  }
+
+  return "The staking contract is ready for new positions.";
 }
 
 function StakingKoraxLogo() {
@@ -436,6 +482,11 @@ export default function Page() {
   const [loading, setLoading] = useState(false);
   const [withdrawingIndex, setWithdrawingIndex] =
     useState<number | null>(null);
+  const [claimingIndex, setClaimingIndex] =
+    useState<number | null>(null);
+
+  const [protocolState, setProtocolState] =
+    useState<StakingProtocolState>(EMPTY_PROTOCOL_STATE);
 
   const [dataLoading, setDataLoading] = useState(true);
   const [status, setStatus] = useState("");
@@ -453,7 +504,7 @@ export default function Page() {
     plans.find((item) => item.id === plan) || plans[1];
 
   const activePositionList = positions.filter(
-    (position) => !position.claimed
+    (position) => !position.principalWithdrawn
   );
 
   const activePositions = activePositionList.length;
@@ -463,10 +514,11 @@ export default function Page() {
     0n
   );
 
-  const pendingRewardsRaw = activePositionList.reduce(
-    (total, position) => total + position.reward,
-    0n
-  );
+  const stakingReady =
+    protocolState.presaleFinalized &&
+    protocolState.rewardCapSynced &&
+    protocolState.vaultLinked &&
+    !protocolState.stakingPaused;
 
   const eligibleBuilderAmountRaw = activePositionList
     .filter(
@@ -618,16 +670,43 @@ export default function Page() {
         rpcProvider
       );
 
-      const [loadedSymbol, loadedDecimals] =
-        await Promise.all([
-          tokenContract.symbol(),
-          tokenContract.decimals(),
-        ]);
+      const [
+        loadedSymbol,
+        loadedDecimals,
+        linkedToken,
+        presaleFinalizedRaw,
+        rewardCapSyncedRaw,
+        vaultLinkedRaw,
+        stakingPausedRaw,
+      ] = await Promise.all([
+        tokenContract.symbol(),
+        tokenContract.decimals(),
+        stakingContract.token(),
+        stakingContract.isPresaleFinalized(),
+        stakingContract.rewardCapSynced(),
+        stakingContract.isVaultLinked(),
+        stakingContract.stakingPaused(),
+      ]);
+
+      if (
+        String(linkedToken).toLowerCase() !==
+        TOKEN_ADDRESS.toLowerCase()
+      ) {
+        throw new Error(
+          "The configured token address does not match the staking contract."
+        );
+      }
 
       const decimals = Number(loadedDecimals);
 
       setSymbol(String(loadedSymbol || "KRX"));
       setTokenDecimals(decimals);
+      setProtocolState({
+        presaleFinalized: Boolean(presaleFinalizedRaw),
+        rewardCapSynced: Boolean(rewardCapSyncedRaw),
+        vaultLinked: Boolean(vaultLinkedRaw),
+        stakingPaused: Boolean(stakingPausedRaw),
+      });
 
       if (currentWallet && ethers.isAddress(currentWallet)) {
         const normalizedWallet =
@@ -646,17 +725,24 @@ export default function Page() {
           Array.from(
             { length: positionsCount },
             async (_, positionIndex) => {
-              const [positionRaw, rewardRaw] =
-                await Promise.all([
-                  stakingContract.getPosition(
-                    normalizedWallet,
-                    positionIndex
-                  ),
-                  stakingContract.rewardOf(
-                    normalizedWallet,
-                    positionIndex
-                  ),
-                ]);
+              const [
+                positionRaw,
+                rewardRaw,
+                rewardPaidRaw,
+              ] = await Promise.all([
+                stakingContract.getPosition(
+                  normalizedWallet,
+                  positionIndex
+                ),
+                stakingContract.rewardAmount(
+                  normalizedWallet,
+                  positionIndex
+                ),
+                stakingContract.rewardPaid(
+                  normalizedWallet,
+                  positionIndex
+                ),
+              ]);
 
               const amountRaw =
                 positionRaw.amount ?? positionRaw[0];
@@ -675,7 +761,8 @@ export default function Page() {
                 amount: BigInt(amountRaw.toString()),
                 unlock: Number(unlockTimeRaw),
                 rewardBps: Number(rewardBpsRaw),
-                claimed: Boolean(claimedRaw),
+                principalWithdrawn: Boolean(claimedRaw),
+                rewardPaid: Boolean(rewardPaidRaw),
                 reward: BigInt(rewardRaw.toString()),
               } satisfies StakingPosition;
             }
@@ -795,6 +882,62 @@ export default function Page() {
 
       const owner = await signer.getAddress();
 
+      const [
+        linkedToken,
+        presaleFinalizedRaw,
+        rewardCapSyncedRaw,
+        vaultLinkedRaw,
+        stakingPausedRaw,
+      ] = await Promise.all([
+        stakingContract.token(),
+        stakingContract.isPresaleFinalized(),
+        stakingContract.rewardCapSynced(),
+        stakingContract.isVaultLinked(),
+        stakingContract.stakingPaused(),
+      ]);
+
+      if (
+        String(linkedToken).toLowerCase() !==
+        TOKEN_ADDRESS.toLowerCase()
+      ) {
+        throw new Error(
+          "The configured token address does not match the staking contract."
+        );
+      }
+
+      if (!Boolean(presaleFinalizedRaw)) {
+        throw new Error(
+          "Staking is not open until the KORAX presale is finalized."
+        );
+      }
+
+      if (!Boolean(rewardCapSyncedRaw)) {
+        throw new Error(
+          "The final staking reward cap has not been synchronized yet."
+        );
+      }
+
+      if (!Boolean(vaultLinkedRaw)) {
+        throw new Error(
+          "The staking contract is not linked to the KORAX vault."
+        );
+      }
+
+      if (Boolean(stakingPausedRaw)) {
+        throw new Error(
+          "New staking positions are temporarily paused."
+        );
+      }
+
+      const canStakeRaw =
+        await stakingContract.canStake(value, plan);
+
+      if (!Boolean(canStakeRaw)) {
+        throw new Error(
+          "The staking contract cannot accept this amount and plan. Check the available reward capacity and try again."
+        );
+      }
+
       const tokenBalanceRaw =
         await tokenContract.balanceOf(owner);
 
@@ -871,7 +1014,12 @@ export default function Page() {
   }
 
   async function withdraw(positionIndex: number) {
-    if (withdrawingIndex !== null) return;
+    if (
+      withdrawingIndex !== null ||
+      claimingIndex !== null
+    ) {
+      return;
+    }
 
     setWithdrawingIndex(positionIndex);
     setStatus("");
@@ -887,6 +1035,7 @@ export default function Page() {
         await getConnectedBrowserProvider();
 
       const signer = await browserProvider.getSigner();
+      const owner = await signer.getAddress();
 
       const stakingContract = new ethers.Contract(
         STAKING_ADDRESS,
@@ -908,13 +1057,24 @@ export default function Page() {
       const receipt =
         await withdrawalTransaction.wait();
 
-      setStatus(
-        `Withdrawal completed successfully. Transaction: ${shortAddress(
-          receipt.hash
-        )}`
+      const rewardWasPaid = Boolean(
+        await stakingContract.rewardPaid(
+          owner,
+          positionIndex
+        )
       );
 
-      await load(await signer.getAddress(), true);
+      setStatus(
+        rewardWasPaid
+          ? `Principal and reward withdrawn successfully. Transaction: ${shortAddress(
+              receipt.hash
+            )}`
+          : `Principal withdrawn. The reward is still pending and can be claimed separately. Transaction: ${shortAddress(
+              receipt.hash
+            )}`
+      );
+
+      await load(owner, true);
     } catch (error) {
       console.error("Withdraw failed:", error);
 
@@ -926,6 +1086,107 @@ export default function Page() {
       );
     } finally {
       setWithdrawingIndex(null);
+    }
+  }
+
+  async function claimReward(positionIndex: number) {
+    if (
+      claimingIndex !== null ||
+      withdrawingIndex !== null
+    ) {
+      return;
+    }
+
+    setClaimingIndex(positionIndex);
+    setStatus("");
+
+    try {
+      if (!STAKING_ADDRESS) {
+        throw new Error(
+          "Missing staking environment variable."
+        );
+      }
+
+      const browserProvider =
+        await getConnectedBrowserProvider();
+
+      const signer = await browserProvider.getSigner();
+      const owner = await signer.getAddress();
+
+      const stakingContract = new ethers.Contract(
+        STAKING_ADDRESS,
+        stakingAbi,
+        signer
+      );
+
+      const [principalWasWithdrawn, rewardWasPaid] =
+        await Promise.all([
+          stakingContract.principalWithdrawn(
+            owner,
+            positionIndex
+          ),
+          stakingContract.rewardPaid(
+            owner,
+            positionIndex
+          ),
+        ]);
+
+      if (!Boolean(principalWasWithdrawn)) {
+        throw new Error(
+          "Withdraw the principal before claiming the reward separately."
+        );
+      }
+
+      if (Boolean(rewardWasPaid)) {
+        throw new Error(
+          "The reward for this position has already been paid."
+        );
+      }
+
+      setStatus(
+        `Confirm the reward claim for position #${positionIndex} in your wallet.`
+      );
+
+      const claimTransaction =
+        await stakingContract.claimReward(
+          positionIndex
+        );
+
+      setStatus(
+        "Reward claim submitted. Waiting for confirmation..."
+      );
+
+      const receipt = await claimTransaction.wait();
+
+      const paidAfter = Boolean(
+        await stakingContract.rewardPaid(
+          owner,
+          positionIndex
+        )
+      );
+
+      setStatus(
+        paidAfter
+          ? `Reward claimed successfully. Transaction: ${shortAddress(
+              receipt.hash
+            )}`
+          : `The claim transaction completed, but the reward remains deferred until the vault can pay it. Transaction: ${shortAddress(
+              receipt.hash
+            )}`
+      );
+
+      await load(owner, true);
+    } catch (error) {
+      console.error("Reward claim failed:", error);
+
+      setStatus(
+        getErrorMessage(
+          error,
+          "Reward claim failed."
+        )
+      );
+    } finally {
+      setClaimingIndex(null);
     }
   }
 
@@ -1586,11 +1847,28 @@ export default function Page() {
             </div>
           ) : null}
 
+          <div
+            className={[
+              "mt-4 rounded-2xl border px-4 py-3 text-center text-sm",
+              stakingReady
+                ? "border-blue-400/20 bg-blue-500/10 text-blue-100"
+                : "border-amber-300/15 bg-amber-300/[0.055] text-amber-100",
+            ].join(" ")}
+          >
+            {dataLoading
+              ? "Checking staking contract status..."
+              : getStakingAvailabilityMessage(
+                  protocolState
+                )}
+          </div>
+
           <button
             type="button"
             onClick={stake}
             disabled={
               loading ||
+              dataLoading ||
+              !stakingReady ||
               !wallet ||
               !isValidPositiveAmount(amount)
             }
@@ -1598,9 +1876,11 @@ export default function Page() {
           >
             {loading
               ? "Processing..."
-              : wallet
-                ? `Stake ${symbol}`
-                : "Connect Wallet First"}
+              : !wallet
+                ? "Connect Wallet First"
+                : !stakingReady
+                  ? "Staking Not Available Yet"
+                  : `Stake ${symbol}`}
           </button>
 
           <button
@@ -1633,7 +1913,7 @@ export default function Page() {
           </p>
 
           <h2 className="mt-2 text-2xl font-black text-white">
-            Active staking positions
+            Staking positions
           </h2>
 
           <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-white/55">
@@ -1704,6 +1984,11 @@ export default function Page() {
                             tokenDecimals
                           )}{" "}
                           {symbol}
+                          {position.rewardPaid
+                            ? " (Paid)"
+                            : position.principalWithdrawn
+                              ? " (Pending)"
+                              : " (Reserved)"}
                         </span>
                       </div>
 
@@ -1726,27 +2011,47 @@ export default function Page() {
                     <div
                       className={[
                         "mt-2 text-sm font-semibold",
-                        position.claimed
+                        position.rewardPaid
                           ? "text-white/50"
-                          : unlocked
-                            ? "text-blue-100"
-                            : "text-cyan-100",
+                          : position.principalWithdrawn
+                            ? "text-amber-100"
+                            : unlocked
+                              ? "text-blue-100"
+                              : "text-cyan-100",
                       ].join(" ")}
                     >
-                      {position.claimed
+                      {position.rewardPaid
                         ? "Completed"
-                        : formatCountdown(
-                            position.unlock,
-                            nowTick
-                          )}
+                        : position.principalWithdrawn
+                          ? "Principal withdrawn • Reward pending"
+                          : formatCountdown(
+                              position.unlock,
+                              nowTick
+                            )}
                     </div>
                   </div>
 
                   <div className="sm:text-right">
-                    {position.claimed ? (
+                    {position.rewardPaid ? (
                       <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/60">
-                        Withdrawn
+                        Completed
                       </div>
+                    ) : position.principalWithdrawn ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          claimReward(position.index)
+                        }
+                        disabled={
+                          claimingIndex !== null ||
+                          withdrawingIndex !== null
+                        }
+                        className="rounded-xl bg-cyan-500 px-4 py-2 font-black text-white shadow-[0_0_25px_rgba(34,211,238,0.24)] transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-45"
+                      >
+                        {claimingIndex === position.index
+                          ? "Claiming..."
+                          : "Claim Reward"}
+                      </button>
                     ) : unlocked ? (
                       <button
                         type="button"
@@ -1754,7 +2059,8 @@ export default function Page() {
                           withdraw(position.index)
                         }
                         disabled={
-                          withdrawingIndex !== null
+                          withdrawingIndex !== null ||
+                          claimingIndex !== null
                         }
                         className="rounded-xl bg-blue-500 px-4 py-2 font-black text-white shadow-[0_0_25px_rgba(59,130,246,0.28)] transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-45"
                       >
